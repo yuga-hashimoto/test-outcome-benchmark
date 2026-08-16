@@ -6,29 +6,124 @@ AIが**自然言語のテストケース + PRの変更内容 + プロンプト**
 
 > AIは、自然言語のテストケースとPRを見て、実際のテスト結果を何%当てられるか？
 
-テストコードそのものは入力にしません。
+テストコードそのものは入力にしません。モデルはテストもアプリも実行しません（execution-free）。
 
-## V1 goals
+## Quick start
 
-- Model × Prompt × Inference Settings × Context Strategy の比較
-- Primary metric: Accuracy
-- PASS / FAIL Precision, Recall, F1
-- Macro F1 / Balanced Accuracy / MCC / Confusion Matrix
-- Confidence / Calibration / Brier Score / ECE
-- Latency p50 / p95 / p99 / throughput
-- Token / cost metrics
-- Repeatability / consistency / flip rate / majority@N
-- Flip Pair / Counterfactual Pair
-- Ablation: Test only / PR only / diff only / full PR context など
-- Natural / Balanced distribution views
-- Slice analysis
-- Model Ranking / Prompt Ranking / Configuration Ranking
-- Prompt Arena / Model Arena / Model × Prompt matrix
-- False PASS / High-confidence wrong analysis
-- Execution-free prediction（モデルによるテスト・アプリ実行は禁止）
+APIキーなしで全ワークフローが動きます。
 
-詳細仕様は [SPECIFICATION.md](./SPECIFICATION.md) を参照してください。
+```bash
+pnpm install
+pnpm seed
+pnpm benchmark run --model mock-thorough --prompt reasoning-v1
+pnpm dev        # ダッシュボード
+```
 
-## Repository status
+`seed` は実PRから作った72ケースのデータセット、プロンプト3種、決定論的なmockモデル4種を投入します。
 
-Initial repository scaffold. Implementation is intentionally not started yet.
+## Dataset
+
+公開リポジトリの実際のマージ済みPRから構築しています（36リポジトリ / 10言語 / 72ケース）。
+各ケースは1つのPRの **base** と **head** それぞれに対する「そのテストが実際にどうなるか」を持ちます。
+
+gold ラベルはリポジトリ自身の証拠に基づきます。ケースは6種類:
+
+| パターン | base | head | 根拠 |
+|---|---|---|---|
+| `BUG_FIX` | FAIL | PASS | 同じPRが追加したリグレッションテスト |
+| `FEATURE` | FAIL | PASS | 同上 |
+| `UNRELATED` | PASS | PASS | 差分が触れていない既存の振る舞い |
+| `REFACTOR` | PASS | PASS | 挙動を変えない変更 |
+| `KNOWN_BROKEN` | FAIL | FAIL | PRが触れていない未修正のオープンなバグ |
+| `REGRESSION` | PASS | FAIL | 後続PRが「これが壊した」と明示している変更 |
+
+**後半4パターンは飾りではありません。** `BUG_FIX` だけのデータセットは「baseならFAIL、headならPASS」と答えるだけで高得点が取れてしまい、テストを読む能力を何も測れません。実際にこの構成をやってみると、そのナイーブな戦略は flip pair accuracy 100% を取ります。6パターン揃えると 66.7% まで落ちます。
+
+現在の分布は base が 18 PASS / 18 FAIL、head が 24 PASS / 12 FAIL で、revision だけからは答えが決まりません。`checkDatasetIntegrity` がこの偏りを検査し、退化したデータセットを警告します。
+
+各ケースの `metadata.provenance` にPR URL・Issue URL・根拠テストファイルが入っているので、ラベルは手で検証できます。
+
+## Architecture
+
+```
+packages/core       純粋ドメイン。I/Oゼロ。型・スコアリング・統計・
+                    コンテキスト構築・出力コントラクト解析。
+packages/db         Drizzle + SQLite。スキーマ・マイグレーション・リポジトリ。
+packages/providers  ModelAdapter（mock / openai / anthropic / gemini /
+                    openai-compatible）。
+packages/runner     並列度・リトライ・リピート・再開・キャンセル。
+packages/cli        commander CLI。
+apps/web            Next.js ダッシュボード。CLIと同じサービス層を使用。
+```
+
+依存は一方向（core ← その他）。coreがI/Oを持たないので、スコアリングエンジンのゴールデンfixtureテストはDBもHTTPも起動せずに走ります。
+
+### 設計上の重要な選択
+
+**Gold リーク防止を型で担保。** コンテキスト構築関数は `ModelFacingCase`（= `Omit<BenchmarkCase, 'gold'>`）しか受け取りません。加えて実行時に `gold` を削除し、さらに「goldだけが違う2ケースのレンダリング結果がバイト単位で一致すること」を全ContextStrategyでテストしています。
+
+**障害の2分類を型で強制。** `InfrastructureError`（429/5xx/timeout → 指数バックオフでリトライ）と `OutputContractViolation`（不正JSON等 → リトライせず記録）は別の型です。混ぜるとAccuracyが静かに歪みます。400のような再試行しても同じ結果になるものは `retryable: false` になります。
+
+**Accuracyの分母を2つ併記。** `accuracy` は verdict を出せた予測が分母、`strictAccuracy` は全試行が分母（棄権・不正出力を不正解として数える）。片方だけだと、難しいケースで棄権や不正JSONを出す設定がリーダーボードで有利になってしまいます。
+
+**信頼区間はPR単位のクラスターブートストラップ。** 同一PR由来のケースは差分も失敗モードも共有するため、独立標本として扱うと区間が実際より狭く出ます。
+
+**再開可能性。** 予測は `(run_id, case_id, repetition)` 一意で1件ずつ即コミット。中断しても部分結果が残り、再開は残りだけ実行します。
+
+## CLI
+
+```bash
+pnpm benchmark seed [--force]
+pnpm benchmark dataset list
+pnpm benchmark dataset import <dir> --name <name>
+pnpm benchmark prompt list | show <name> | create --name <n> --file <path>
+pnpm benchmark model list | add --name <n> --provider <p> --model <m> --api-key-env <VAR>
+pnpm benchmark run --model <name> --prompt <name> [--strategy S] [--repetitions N]
+                   [--mode FORCED|SELECTIVE] [--split S] [--distribution natural|balanced]
+                   [--concurrency N] [--seed N]
+pnpm benchmark resume <runId>
+pnpm benchmark runs | show <runId>
+pnpm benchmark compare <baselineRunId> <candidateRunId>
+pnpm benchmark leaderboard [--metric accuracy|failRecall|flipPairAccuracy|costPerTest|...]
+```
+
+## Metrics
+
+Accuracy（主指標、95%CI付き）/ strict accuracy / PASS・FAIL の precision・recall・F1 / Macro F1 /
+Balanced Accuracy / MCC / 混同行列 / ベースライン4種 / Brier score / ECE / キャリブレーション曲線 /
+閾値別 accuracy・coverage / Coverage・Selective Accuracy・Abstention（SELECTIVEモード）/
+latency p50・p90・p95・p99・TTFT / トークンとコスト（cost/test, cost/1000, correct per dollar）/
+Consistency・Flip rate・Majority@N・run間分散 / Flip Pair Accuracy / スライス分析 / SafeSkip分析。
+
+## Adding a real model
+
+APIキーは環境変数名だけを保存し、値はDBにもrun snapshotにも入りません。
+
+```bash
+export ANTHROPIC_API_KEY=...
+pnpm benchmark model add --name claude --provider anthropic --model claude-sonnet-5 \
+  --api-key-env ANTHROPIC_API_KEY --stream --input-price 3 --output-price 15
+pnpm benchmark run --model claude --prompt reasoning-v1
+```
+
+`--stream` を付けるとTTFTが計測できます。付けない場合、およびGeminiアダプタ（V1では非ストリーミング）ではTTFTは `null` になり、0として集計されるのではなく母数から除外されます。
+
+## Testing
+
+```bash
+pnpm test          # 120 tests
+pnpm coverage
+pnpm typecheck
+pnpm build
+```
+
+スコアリングは手計算できる値のゴールデンfixtureで検証しています（例: ECE = (0.6+0.3+0.8+0.1)/4 = 0.45）。ランナーは in-memory SQLite + mockアダプタでフル実行・再開・キャンセル・リトライ・goldリークを検証します。
+
+## Known limitations
+
+- **Gemini アダプタは非ストリーミング**です。したがってTTFTは常に `null` になります。総レイテンシから推定はしません。
+- **mockプロバイダのスループット表示は非現実的**です。mockはシミュレートしたレイテンシを報告する一方、実時間ではほとんどsleepしないため、`tests/minute` が数万になります。実プロバイダでは正しい値になります。
+- **データセットは72ケース**です。スライスによっては n が小さく、区間が広くなります。UIは常に n を併記します。
+- `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
+
+詳細仕様は [SPECIFICATION.md](./SPECIFICATION.md)、設計判断は [docs/superpowers/specs/](./docs/superpowers/specs/) を参照してください。

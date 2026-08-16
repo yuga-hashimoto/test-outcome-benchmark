@@ -1,0 +1,668 @@
+[
+  {
+    "id": "jvm_0001",
+    "revision": "base",
+    "flipPairId": "jvm_flip_0001",
+    "pr": {
+      "repository": "google/gson",
+      "number": 3063,
+      "baseSha": "e25d4fab7fd54f267c765d975acccddfdddc9cda",
+      "headSha": "c5178fb84027fdd1639d38b6fa5a01c4d9434260",
+      "title": "Reject non-ASCII digits in JsonTreeReader.nextInt/nextLong",
+      "description": "## Summary\n\n`JsonTreeReader.nextInt()` and `nextLong()` silently accept non-ASCII digit variants (e.g. full-width digits U+FF10–FF19, Arabic-Indic, Bengali) when a JSON **string** token is parsed as an integer/long. This is the tree-based counterpart of the streaming-reader gap fixed in #2995 (issue #2994), and was missed when that fix landed.\n\n## Problem\n\nSince #2995, the streaming `JsonReader.nextInt()` / `nextLong()` reject non-ASCII characters via `validateAscii()` before calling `Integer.parseInt()` / `Long.parseLong()`. But the tree-based `JsonTreeReader` — used by `Gson.fromJson(JsonElement, Type)`, `fromJsonTree(...)`, and any path that deserializes from an already-parsed `JsonElement` — has no such check. It goes straight to `JsonPrimitive.getAsInt()` → `Integer.parseInt(getAsString())`, and `Integer.parseInt` uses `Character.digit(...)`, which recognizes *any* Unicode decimal digit, not just ASCII `0-9`.\n\nThe result is a behavioral divergence for identical input:\n\n```java\n// streaming path (fixed by #2995): throws MalformedJsonException\nnew Gson().fromJson(\"{\\\"x\\\":\\\"１２３\\\"}\", Payload.class);   // JsonReader\n\n// tree-based path (this PR's bug): silently returns 123\nnew Gson().fromJson(JsonParser.parseString(\"{\\\"x\\\":\\\"１２３\\\"}\"), Payload.class);\n```\n\nThis is also an incomplete fix for the security concern in #2994 (validation bypass via silent Unicode-digit coercion): any caller that deserializes from a `JsonElement` rather than a raw string still gets the old, vulnerabl …",
+      "diff": "diff --git a/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java b/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\nindex 8d9a4cc6a8..a10332640a 100644\n--- a/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\n+++ b/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\n@@ -261,7 +261,11 @@ public long nextLong() throws IOException {\n       throw new IllegalStateException(\n           \"Expected \" + JsonToken.NUMBER + \" but was \" + token + locationString());\n     }\n-    long result = ((JsonPrimitive) peekStack()).getAsLong();\n+    JsonPrimitive primitive = (JsonPrimitive) peekStack();\n+    if (token == JsonToken.STRING) {\n+      validateAscii(primitive.getAsString());\n+    }\n+    long result = primitive.getAsLong();\n     popStack();\n     if (stackSize > 0) {\n       pathIndices[stackSize - 1]++;\n@@ -276,7 +280,11 @@ public int nextInt() throws IOException {\n       throw new IllegalStateException(\n           \"Expected \" + JsonToken.NUMBER + \" but was \" + token + locationString());\n     }\n-    int result = ((JsonPrimitive) peekStack()).getAsInt();\n+    JsonPrimitive primitive = (JsonPrimitive) peekStack();\n+    if (token == JsonToken.STRING) {\n+      validateAscii(primitive.getAsString());\n+    }\n+    int result = primitive.getAsInt();\n     popStack();\n     if (stackSize > 0) {\n       pathIndices[stackSize - 1]++;\n@@ -391,4 +399,21 @@ public String getPreviousPath() {\n   private String locationString() {\n     return \" at path \" + getPath();\n   }\n+\n+  /** Returns whether every character of {@code s} is ASCII (code point at most 127). */\n+  public static boolean isAllAscii(String s) {\n+    for (int i = 0; i < s.length(); i++) {\n+      if (s.charAt(i) > 127) {\n+        return false;\n+      }\n+    }\n+    return true;\n+  }\n+\n+  private void validateAscii(String s) throws MalformedJsonException {\n+    if (!isAllAscii(s)) {\n+      throw new MalformedJsonException(\n+          \"String contains non-ASCII characters: \" + s + locationString());\n+    }\n+  }\n }\ndiff --git a/gson/src/main/java/com/google/gson/stream/JsonReader.java b/gson/src/main/java/com/google/gson/stream/JsonReader.java\nindex 8a15271df6..3f5a912817 100644\n--- a/gson/src/main/java/com/google/gson/stream/JsonReader.java\n+++ b/gson/src/main/java/com/google/gson/stream/JsonReader.java\n@@ -1880,10 +1880,8 @@ private void consumeNonExecutePrefix() throws IOException {\n   }\n \n   private void validateAscii(String s) throws MalformedJsonException {\n-    for (int i = 0; i < s.length(); i++) {\n-      if (s.charAt(i) > 127) {\n-        throw syntaxError(\"String contains non-ASCII characters: \" + s);\n-      }\n+    if (!JsonTreeReader.isAllAscii(s)) {\n+      throw syntaxError(\"String contains non-ASCII characters: \" + s);\n     }\n   }\n \ndiff --git a/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java b/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\nindex 42d4649683..166c77c1ee 100644\n--- a/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\n+++ b/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\n@@ -113,6 +113,57 @@ public void testHasNext_endOfDocument() throws IOException {\n     assertThat(reader.hasNext()).isFalse();\n   }\n \n+  /**\n+   * Regression test for the {@link JsonTreeReader} counterpart of the non-ASCII digit validation\n+   * added for the streaming {@link JsonReader} in <a\n+   * href=\"https://github.com/google/gson/issues/2994\">#2994</a> / <a\n+   * href=\"https://github.com/google/gson/pull/2995\">#2995</a>. A string token parsed as an {@code\n+   * int} or {@code long} must reject non-ASCII digit variants (e.g. full-width digits U+FF10-FF19),\n+   * which {@link Integer#parseInt} and {@link Long#parseLong} would otherwise silently coerce.\n+   * Without this the tree-based path diverges from the streaming path.\n+   */\n+  @Test\n+  public void testNextIntRejectsNonAsciiDigits() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"x\", \"１２３\"); // full-width digits\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    var unused = reader.nextName();\n+    MalformedJsonException e = assertThrows(MalformedJsonException.class, () -> reader.nextInt());\n+    assertThat(e).hasMessageThat().contains(\"non-ASCII\");\n+    assertThat(e).hasMessageThat().contains(\"path $.x\");\n+  }\n+\n+  /** See {@link #testNextIntRejectsNonAsciiDigits}. */\n+  @Test\n+  public void testNextLongRejectsNonAsciiDigits() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"y\", \"１２３\");\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    var unused = reader.nextName();\n+    MalformedJsonException e = assertThrows(MalformedJsonException.class, () -> reader.nextLong());\n+    assertThat(e).hasMessageThat().contains(\"non-ASCII\");\n+    assertThat(e).hasMessageThat().contains(\"path $.y\");\n+  }\n+\n+  /**\n+   * Confirms ASCII digits in a string token still parse normally after the non-ASCII validation was\n+   * added, for both {@code int} and {@code long}.\n+   */\n+  @Test\n+  public void testNextIntAndLongAcceptAsciiDigitsInString() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"i\", \"123\");\n+    jsonObject.addProperty(\"l\", \"456\");\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    assertThat(reader.nextName()).isEqualTo(\"i\");\n+    assertThat(reader.nextInt()).isEqualTo(123);\n+    assertThat(reader.nextName()).isEqualTo(\"l\");\n+    assertThat(reader.nextLong()).isEqualTo(456L);\n+  }\n+\n   @Test\n   public void testCustomJsonElementSubclass() throws IOException {\n     @SuppressWarnings(\"deprecation\") // superclass constructor\n",
+      "changedFiles": 3,
+      "addedLines": 80,
+      "deletedLines": 6,
+      "commits": 4,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0001",
+      "title": "Integer field deserialized from an already-parsed JSON tree rejects non-ASCII digit characters in a string value",
+      "preconditions": "An application deserializes a JSON document into a Java object in two steps: first parsing the raw text into a generic JSON tree structure, then converting that tree into a typed object with an integer field.",
+      "steps": [
+        "Prepare a JSON object where a field expected to hold an integer is given as a JSON string containing full-width Unicode digit characters, e.g. the three characters that look like '1', '2', '3' but are the full-width Unicode variants (U+FF11, U+FF12, U+FF13) rather than plain ASCII digits.",
+        "Parse the raw JSON text into a generic tree representation first.",
+        "Convert that already-parsed tree into a typed object whose corresponding field is declared as an int.",
+        "Observe whether the conversion succeeds or raises a parsing error."
+      ],
+      "expectedResult": "The conversion raises a clear parsing error indicating the value is not a valid ASCII integer, rather than silently interpreting the full-width digits as the numeric value 123."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-24T14:43:24Z",
+      "testType": "API",
+      "tags": [
+        "unicode",
+        "encoding",
+        "deserialization"
+      ],
+      "durationMs": null,
+      "feature": "JSON tree-based integer deserialization",
+      "platform": "jvm",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/google/gson/pull/3063",
+        "issueUrl": "https://github.com/google/gson/issues/2994",
+        "evidenceTestFile": "gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java",
+        "note": "Added test testNextIntRejectsNonAsciiDigits shows JsonTreeReader.nextInt() silently accepted full-width Unicode digits (returning 123) before the fix; at baseSha no MalformedJsonException is thrown so the test case FAILs."
+      }
+    }
+  },
+  {
+    "id": "jvm_0002",
+    "revision": "head",
+    "flipPairId": "jvm_flip_0001",
+    "pr": {
+      "repository": "google/gson",
+      "number": 3063,
+      "baseSha": "e25d4fab7fd54f267c765d975acccddfdddc9cda",
+      "headSha": "c5178fb84027fdd1639d38b6fa5a01c4d9434260",
+      "title": "Reject non-ASCII digits in JsonTreeReader.nextInt/nextLong",
+      "description": "## Summary\n\n`JsonTreeReader.nextInt()` and `nextLong()` silently accept non-ASCII digit variants (e.g. full-width digits U+FF10–FF19, Arabic-Indic, Bengali) when a JSON **string** token is parsed as an integer/long. This is the tree-based counterpart of the streaming-reader gap fixed in #2995 (issue #2994), and was missed when that fix landed.\n\n## Problem\n\nSince #2995, the streaming `JsonReader.nextInt()` / `nextLong()` reject non-ASCII characters via `validateAscii()` before calling `Integer.parseInt()` / `Long.parseLong()`. But the tree-based `JsonTreeReader` — used by `Gson.fromJson(JsonElement, Type)`, `fromJsonTree(...)`, and any path that deserializes from an already-parsed `JsonElement` — has no such check. It goes straight to `JsonPrimitive.getAsInt()` → `Integer.parseInt(getAsString())`, and `Integer.parseInt` uses `Character.digit(...)`, which recognizes *any* Unicode decimal digit, not just ASCII `0-9`.\n\nThe result is a behavioral divergence for identical input:\n\n```java\n// streaming path (fixed by #2995): throws MalformedJsonException\nnew Gson().fromJson(\"{\\\"x\\\":\\\"１２３\\\"}\", Payload.class);   // JsonReader\n\n// tree-based path (this PR's bug): silently returns 123\nnew Gson().fromJson(JsonParser.parseString(\"{\\\"x\\\":\\\"１２３\\\"}\"), Payload.class);\n```\n\nThis is also an incomplete fix for the security concern in #2994 (validation bypass via silent Unicode-digit coercion): any caller that deserializes from a `JsonElement` rather than a raw string still gets the old, vulnerabl …",
+      "diff": "diff --git a/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java b/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\nindex 8d9a4cc6a8..a10332640a 100644\n--- a/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\n+++ b/gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java\n@@ -261,7 +261,11 @@ public long nextLong() throws IOException {\n       throw new IllegalStateException(\n           \"Expected \" + JsonToken.NUMBER + \" but was \" + token + locationString());\n     }\n-    long result = ((JsonPrimitive) peekStack()).getAsLong();\n+    JsonPrimitive primitive = (JsonPrimitive) peekStack();\n+    if (token == JsonToken.STRING) {\n+      validateAscii(primitive.getAsString());\n+    }\n+    long result = primitive.getAsLong();\n     popStack();\n     if (stackSize > 0) {\n       pathIndices[stackSize - 1]++;\n@@ -276,7 +280,11 @@ public int nextInt() throws IOException {\n       throw new IllegalStateException(\n           \"Expected \" + JsonToken.NUMBER + \" but was \" + token + locationString());\n     }\n-    int result = ((JsonPrimitive) peekStack()).getAsInt();\n+    JsonPrimitive primitive = (JsonPrimitive) peekStack();\n+    if (token == JsonToken.STRING) {\n+      validateAscii(primitive.getAsString());\n+    }\n+    int result = primitive.getAsInt();\n     popStack();\n     if (stackSize > 0) {\n       pathIndices[stackSize - 1]++;\n@@ -391,4 +399,21 @@ public String getPreviousPath() {\n   private String locationString() {\n     return \" at path \" + getPath();\n   }\n+\n+  /** Returns whether every character of {@code s} is ASCII (code point at most 127). */\n+  public static boolean isAllAscii(String s) {\n+    for (int i = 0; i < s.length(); i++) {\n+      if (s.charAt(i) > 127) {\n+        return false;\n+      }\n+    }\n+    return true;\n+  }\n+\n+  private void validateAscii(String s) throws MalformedJsonException {\n+    if (!isAllAscii(s)) {\n+      throw new MalformedJsonException(\n+          \"String contains non-ASCII characters: \" + s + locationString());\n+    }\n+  }\n }\ndiff --git a/gson/src/main/java/com/google/gson/stream/JsonReader.java b/gson/src/main/java/com/google/gson/stream/JsonReader.java\nindex 8a15271df6..3f5a912817 100644\n--- a/gson/src/main/java/com/google/gson/stream/JsonReader.java\n+++ b/gson/src/main/java/com/google/gson/stream/JsonReader.java\n@@ -1880,10 +1880,8 @@ private void consumeNonExecutePrefix() throws IOException {\n   }\n \n   private void validateAscii(String s) throws MalformedJsonException {\n-    for (int i = 0; i < s.length(); i++) {\n-      if (s.charAt(i) > 127) {\n-        throw syntaxError(\"String contains non-ASCII characters: \" + s);\n-      }\n+    if (!JsonTreeReader.isAllAscii(s)) {\n+      throw syntaxError(\"String contains non-ASCII characters: \" + s);\n     }\n   }\n \ndiff --git a/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java b/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\nindex 42d4649683..166c77c1ee 100644\n--- a/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\n+++ b/gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java\n@@ -113,6 +113,57 @@ public void testHasNext_endOfDocument() throws IOException {\n     assertThat(reader.hasNext()).isFalse();\n   }\n \n+  /**\n+   * Regression test for the {@link JsonTreeReader} counterpart of the non-ASCII digit validation\n+   * added for the streaming {@link JsonReader} in <a\n+   * href=\"https://github.com/google/gson/issues/2994\">#2994</a> / <a\n+   * href=\"https://github.com/google/gson/pull/2995\">#2995</a>. A string token parsed as an {@code\n+   * int} or {@code long} must reject non-ASCII digit variants (e.g. full-width digits U+FF10-FF19),\n+   * which {@link Integer#parseInt} and {@link Long#parseLong} would otherwise silently coerce.\n+   * Without this the tree-based path diverges from the streaming path.\n+   */\n+  @Test\n+  public void testNextIntRejectsNonAsciiDigits() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"x\", \"１２３\"); // full-width digits\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    var unused = reader.nextName();\n+    MalformedJsonException e = assertThrows(MalformedJsonException.class, () -> reader.nextInt());\n+    assertThat(e).hasMessageThat().contains(\"non-ASCII\");\n+    assertThat(e).hasMessageThat().contains(\"path $.x\");\n+  }\n+\n+  /** See {@link #testNextIntRejectsNonAsciiDigits}. */\n+  @Test\n+  public void testNextLongRejectsNonAsciiDigits() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"y\", \"１２３\");\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    var unused = reader.nextName();\n+    MalformedJsonException e = assertThrows(MalformedJsonException.class, () -> reader.nextLong());\n+    assertThat(e).hasMessageThat().contains(\"non-ASCII\");\n+    assertThat(e).hasMessageThat().contains(\"path $.y\");\n+  }\n+\n+  /**\n+   * Confirms ASCII digits in a string token still parse normally after the non-ASCII validation was\n+   * added, for both {@code int} and {@code long}.\n+   */\n+  @Test\n+  public void testNextIntAndLongAcceptAsciiDigitsInString() throws IOException {\n+    JsonObject jsonObject = new JsonObject();\n+    jsonObject.addProperty(\"i\", \"123\");\n+    jsonObject.addProperty(\"l\", \"456\");\n+    JsonTreeReader reader = new JsonTreeReader(jsonObject);\n+    reader.beginObject();\n+    assertThat(reader.nextName()).isEqualTo(\"i\");\n+    assertThat(reader.nextInt()).isEqualTo(123);\n+    assertThat(reader.nextName()).isEqualTo(\"l\");\n+    assertThat(reader.nextLong()).isEqualTo(456L);\n+  }\n+\n   @Test\n   public void testCustomJsonElementSubclass() throws IOException {\n     @SuppressWarnings(\"deprecation\") // superclass constructor\n",
+      "changedFiles": 3,
+      "addedLines": 80,
+      "deletedLines": 6,
+      "commits": 4,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0001",
+      "title": "Integer field deserialized from an already-parsed JSON tree rejects non-ASCII digit characters in a string value",
+      "preconditions": "An application deserializes a JSON document into a Java object in two steps: first parsing the raw text into a generic JSON tree structure, then converting that tree into a typed object with an integer field.",
+      "steps": [
+        "Prepare a JSON object where a field expected to hold an integer is given as a JSON string containing full-width Unicode digit characters, e.g. the three characters that look like '1', '2', '3' but are the full-width Unicode variants (U+FF11, U+FF12, U+FF13) rather than plain ASCII digits.",
+        "Parse the raw JSON text into a generic tree representation first.",
+        "Convert that already-parsed tree into a typed object whose corresponding field is declared as an int.",
+        "Observe whether the conversion succeeds or raises a parsing error."
+      ],
+      "expectedResult": "The conversion raises a clear parsing error indicating the value is not a valid ASCII integer, rather than silently interpreting the full-width digits as the numeric value 123."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-24T14:43:24Z",
+      "testType": "API",
+      "tags": [
+        "unicode",
+        "encoding",
+        "deserialization"
+      ],
+      "durationMs": null,
+      "feature": "JSON tree-based integer deserialization",
+      "platform": "jvm",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/google/gson/pull/3063",
+        "issueUrl": "https://github.com/google/gson/issues/2994",
+        "evidenceTestFile": "gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java",
+        "note": "After the fix, JsonTreeReader.nextInt()/nextLong() call validateAscii() on the string token path and throw MalformedJsonException for non-ASCII digits, matching the streaming reader's behavior, so the test case PASSes at headSha."
+      }
+    }
+  },
+  {
+    "id": "jvm_0003",
+    "revision": "base",
+    "flipPairId": "jvm_flip_0002",
+    "pr": {
+      "repository": "sidekiq/sidekiq",
+      "number": 7017,
+      "baseSha": "d534e7419a409ca35428ffec0345a36f5a2beb89",
+      "headSha": "00e56667c8a488f23483ac873dfdf82476fc244a",
+      "title": "Keep SortedEntry's in-memory score in sync after reschedule",
+      "description": "## Summary\n\n`Sidekiq::SortedEntry#reschedule` writes the new score to Redis via `zincrby` but never updates `@score`, so the in-memory entry's `#score` and `#at` keep returning the stale (pre-reschedule) values:\n\n```ruby\nentry = Sidekiq::ScheduledSet.new.first   # score => T0\nentry.reschedule(Time.at(T0 + 500))\nentry.score   # => T0 (stale, redis has T0+500)\nentry.at      # => Time.at(T0) (stale)\n```\n\nThe other `SortedEntry` mutators (`add_to_queue`/`retry`/`kill`/`delete`) all *remove* the entry from its set, so a stale entry there is moot. `reschedule` is the only mutator that **keeps the job alive in the same set with a new score** — making the drift between in-memory state and Redis a real footgun specifically here.\n\nFix: set `@score = at.to_f` after the `zincrby`.\n\n## Testing\n\nAdds a focused regression test that re-reads `entry.score` / `entry.at` after `reschedule` and asserts they reflect the new time. Fails before the change and passes after. The existing `\"can reschedule jobs\"` test is unaffected (it re-iterates the set, so it always sees fresh entries from Redis).\n\n`bundle exec rake` is green (standard + lint:herb + full suite).",
+      "diff": "diff --git a/lib/sidekiq/api.rb b/lib/sidekiq/api.rb\nindex e9443e968..a020f9b7b 100644\n--- a/lib/sidekiq/api.rb\n+++ b/lib/sidekiq/api.rb\n@@ -627,6 +627,7 @@ def reschedule(at)\n       Sidekiq.redis do |conn|\n         conn.zincrby(@parent.name, at.to_f - score, Sidekiq.dump_json(@item))\n       end\n+      @score = at.to_f\n     end\n \n     # Enqueue this job from the scheduled or dead set so it will\ndiff --git a/test/api_test.rb b/test/api_test.rb\nindex c0bb1f58f..0a15b4bb8 100644\n--- a/test/api_test.rb\n+++ b/test/api_test.rb\n@@ -771,6 +771,17 @@ class JobWithTags\n       assert_equal(1, retries.count { |r| r.score > (now + 14) })\n     end\n \n+    it \"keeps the in-memory entry consistent with Redis after reschedule\" do\n+      add_retry(\"foo1\")\n+      entry = Sidekiq::RetrySet.new.first\n+      new_score = Time.now.to_f + 500\n+\n+      entry.reschedule(Time.at(new_score))\n+\n+      assert_in_delta new_score, entry.score, 0.001\n+      assert_in_delta new_score, entry.at.to_f, 0.001\n+    end\n+\n     it \"prunes processes which have died\" do\n       data = {\"pid\" => rand(10_000), \"hostname\" => \"app#{rand(1_000)}\", \"started_at\" => Time.now.to_f}\n       key = \"#{data[\"hostname\"]}:#{data[\"pid\"]}\"\n",
+      "changedFiles": 2,
+      "addedLines": 12,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0003",
+      "title": "Rescheduling a queued job to a new time immediately reflects the new time on the same in-memory job handle",
+      "preconditions": "A job is present in a scheduled/retry set and the caller holds a reference to the object representing that job entry (not re-fetched from the queue afterward).",
+      "steps": [
+        "Fetch the first entry from the scheduled set and keep a reference to it.",
+        "Call the reschedule operation on that entry, passing a new time roughly 500 seconds in the future.",
+        "Without re-fetching the entry from the queue, read the entry's reported score/time directly off the same object reference.",
+        "Compare the reported time to the new time that was just set."
+      ],
+      "expectedResult": "The entry's reported score and time match the newly requested reschedule time (within a small tolerance), reflecting the change immediately rather than the value the entry had before rescheduling."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-05-29T23:48:51Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "caching-staleness",
+        "background-jobs"
+      ],
+      "durationMs": null,
+      "feature": "scheduled job rescheduling",
+      "platform": "backend",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/sidekiq/sidekiq/pull/7017",
+        "issueUrl": null,
+        "evidenceTestFile": "test/api_test.rb",
+        "note": "Added test 'keeps the in-memory entry consistent with Redis after reschedule' fails at baseSha because reschedule() updated Redis but never updated the in-memory @score, so entry.score/entry.at kept returning the stale pre-reschedule value."
+      }
+    }
+  },
+  {
+    "id": "jvm_0004",
+    "revision": "head",
+    "flipPairId": "jvm_flip_0002",
+    "pr": {
+      "repository": "sidekiq/sidekiq",
+      "number": 7017,
+      "baseSha": "d534e7419a409ca35428ffec0345a36f5a2beb89",
+      "headSha": "00e56667c8a488f23483ac873dfdf82476fc244a",
+      "title": "Keep SortedEntry's in-memory score in sync after reschedule",
+      "description": "## Summary\n\n`Sidekiq::SortedEntry#reschedule` writes the new score to Redis via `zincrby` but never updates `@score`, so the in-memory entry's `#score` and `#at` keep returning the stale (pre-reschedule) values:\n\n```ruby\nentry = Sidekiq::ScheduledSet.new.first   # score => T0\nentry.reschedule(Time.at(T0 + 500))\nentry.score   # => T0 (stale, redis has T0+500)\nentry.at      # => Time.at(T0) (stale)\n```\n\nThe other `SortedEntry` mutators (`add_to_queue`/`retry`/`kill`/`delete`) all *remove* the entry from its set, so a stale entry there is moot. `reschedule` is the only mutator that **keeps the job alive in the same set with a new score** — making the drift between in-memory state and Redis a real footgun specifically here.\n\nFix: set `@score = at.to_f` after the `zincrby`.\n\n## Testing\n\nAdds a focused regression test that re-reads `entry.score` / `entry.at` after `reschedule` and asserts they reflect the new time. Fails before the change and passes after. The existing `\"can reschedule jobs\"` test is unaffected (it re-iterates the set, so it always sees fresh entries from Redis).\n\n`bundle exec rake` is green (standard + lint:herb + full suite).",
+      "diff": "diff --git a/lib/sidekiq/api.rb b/lib/sidekiq/api.rb\nindex e9443e968..a020f9b7b 100644\n--- a/lib/sidekiq/api.rb\n+++ b/lib/sidekiq/api.rb\n@@ -627,6 +627,7 @@ def reschedule(at)\n       Sidekiq.redis do |conn|\n         conn.zincrby(@parent.name, at.to_f - score, Sidekiq.dump_json(@item))\n       end\n+      @score = at.to_f\n     end\n \n     # Enqueue this job from the scheduled or dead set so it will\ndiff --git a/test/api_test.rb b/test/api_test.rb\nindex c0bb1f58f..0a15b4bb8 100644\n--- a/test/api_test.rb\n+++ b/test/api_test.rb\n@@ -771,6 +771,17 @@ class JobWithTags\n       assert_equal(1, retries.count { |r| r.score > (now + 14) })\n     end\n \n+    it \"keeps the in-memory entry consistent with Redis after reschedule\" do\n+      add_retry(\"foo1\")\n+      entry = Sidekiq::RetrySet.new.first\n+      new_score = Time.now.to_f + 500\n+\n+      entry.reschedule(Time.at(new_score))\n+\n+      assert_in_delta new_score, entry.score, 0.001\n+      assert_in_delta new_score, entry.at.to_f, 0.001\n+    end\n+\n     it \"prunes processes which have died\" do\n       data = {\"pid\" => rand(10_000), \"hostname\" => \"app#{rand(1_000)}\", \"started_at\" => Time.now.to_f}\n       key = \"#{data[\"hostname\"]}:#{data[\"pid\"]}\"\n",
+      "changedFiles": 2,
+      "addedLines": 12,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0003",
+      "title": "Rescheduling a queued job to a new time immediately reflects the new time on the same in-memory job handle",
+      "preconditions": "A job is present in a scheduled/retry set and the caller holds a reference to the object representing that job entry (not re-fetched from the queue afterward).",
+      "steps": [
+        "Fetch the first entry from the scheduled set and keep a reference to it.",
+        "Call the reschedule operation on that entry, passing a new time roughly 500 seconds in the future.",
+        "Without re-fetching the entry from the queue, read the entry's reported score/time directly off the same object reference.",
+        "Compare the reported time to the new time that was just set."
+      ],
+      "expectedResult": "The entry's reported score and time match the newly requested reschedule time (within a small tolerance), reflecting the change immediately rather than the value the entry had before rescheduling."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-29T23:48:51Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "caching-staleness",
+        "background-jobs"
+      ],
+      "durationMs": null,
+      "feature": "scheduled job rescheduling",
+      "platform": "backend",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/sidekiq/sidekiq/pull/7017",
+        "issueUrl": null,
+        "evidenceTestFile": "test/api_test.rb",
+        "note": "At headSha, reschedule() also assigns @score = at.to_f after writing to Redis, so the in-memory entry immediately reflects the new time and the added test passes."
+      }
+    }
+  },
+  {
+    "id": "jvm_0005",
+    "revision": "base",
+    "flipPairId": "jvm_flip_0003",
+    "pr": {
+      "repository": "laravel/framework",
+      "number": 41088,
+      "baseSha": "e4c93c4aee180dc96a3573f5df3f056093b85009",
+      "headSha": "eff2a006b95db10980e4aa31e9671acce27cfee7",
+      "title": "[9.x] Fix parsing `config('database.connections.pgsql.search_path')`",
+      "description": "Fixes https://github.com/laravel/framework/issues/41062\r\n\r\ne.g., Config value `'test-db'` was being parsed as `set search_path to \"test\", \"db\"` instead of `set search_path to \"test-db\"`\r\n\r\n9.x renamed `config('database.connections.pgsql.schema')` to `config('database.connections.pgsql.search_path')` and introduced special handling if the config value is a string containing many segments. The [originating PR](https://github.com/laravel/framework/pull/35463#issuecomment-767263747) has some examples. However the given `PostgresConnector` regex doesn't consider the full range of characters allowed in a schema or variable name - specifically `'-'` and accented characters.\r\n\r\nReplace the `'search_path'` regex alphanumeric-only allowlist of characters with a blocklist of  delimiters when  `config('database.connections.pgsql.search_path')` is a string value. Technically Postgres _does_ allow our config delimiter characters (spaces, comma, quotes) in symbols so an array configuration can instead be used for such schema names. (However non-wrapping single/double quote characters in such array configs still aren't supported.)\r\n\r\n```php\r\nreturn [\r\n    'default' => env('DB_CONNECTION', 'mysql'),\r\n    'connections' => [\r\n        'pgsql' => [\r\n            'search_path' => [\r\n                \"'public'\",\r\n                '\"$user\"',\r\n                'containing commas, and spaces'\r\n                // 'can\\'t name schema with \"inner quotes\"'\r\n            ],\r\n```\r\n\r\n```sql\r\nset search_path to \"p …",
+      "diff": "diff --git a/src/Illuminate/Database/Connectors/PostgresConnector.php b/src/Illuminate/Database/Connectors/PostgresConnector.php\nindex 9bc63269e538..29fe16662f9a 100755\n--- a/src/Illuminate/Database/Connectors/PostgresConnector.php\n+++ b/src/Illuminate/Database/Connectors/PostgresConnector.php\n@@ -127,7 +127,7 @@ protected function configureSearchPath($connection, $config)\n     protected function parseSearchPath($searchPath)\n     {\n         if (is_string($searchPath)) {\n-            preg_match_all('/[a-zA-z0-9$]{1,}/i', $searchPath, $matches);\n+            preg_match_all('/[^\\s,\"\\']+/', $searchPath, $matches);\n \n             $searchPath = $matches[0];\n         }\n@@ -144,7 +144,7 @@ protected function parseSearchPath($searchPath)\n     /**\n      * Format the search path for the DSN.\n      *\n-     * @param  array|string  $searchPath\n+     * @param  array  $searchPath\n      * @return string\n      */\n     protected function quoteSearchPath($searchPath)\ndiff --git a/tests/Database/DatabaseConnectorTest.php b/tests/Database/DatabaseConnectorTest.php\nindex 938ec0fb7bbf..221223619552 100755\n--- a/tests/Database/DatabaseConnectorTest.php\n+++ b/tests/Database/DatabaseConnectorTest.php\n@@ -89,27 +89,103 @@ public function testPostgresConnectCallsCreateConnectionWithProperArguments()\n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathIsSet()\n+    /**\n+     * @dataProvider provideSearchPaths\n+     *\n+     * @param  string  $searchPath\n+     * @param  string  $expectedSql\n+     */\n+    public function testPostgresSearchPathIsSet($searchPath, $expectedSql)\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => 'public', 'charset' => 'utf8'];\n+        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => $searchPath, 'charset' => 'utf8'];\n         $connector = $this->getMockBuilder(PostgresConnector::class)->onlyMethods(['createConnection', 'getOptions'])->getMock();\n         $connection = m::mock(stdClass::class);\n         $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n         $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n         $statement = m::mock(PDOStatement::class);\n         $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($statement);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"public\"')->andReturn($statement);\n+        $connection->shouldReceive('prepare')->once()->with($expectedSql)->andReturn($statement);\n         $statement->shouldReceive('execute')->twice();\n         $result = $connector->connect($config);\n \n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathArraySupported()\n+    public function provideSearchPaths()\n+    {\n+        return [\n+            'all-lowercase' => [\n+                'public',\n+                'set search_path to \"public\"',\n+            ],\n+            'case-sensitive' => [\n+                'Public',\n+                'set search_path to \"Public\"',\n+            ],\n+            'special characters' => [\n+                '¡foo_bar-Baz!.Áüõß',\n+                'set search_path to \"¡foo_bar-Baz!.Áüõß\"',\n+            ],\n+            'single-quoted' => [\n+                \"'public'\",\n+                'set search_path to \"public\"',\n+            ],\n+            'double-quoted' => [\n+                '\"public\"',\n+                'set search_path to \"public\"',\n+            ],\n+            'variable' => [\n+                '$user',\n+                'set search_path to \"$user\"',\n+            ],\n+            'delimit space' => [\n+                'public user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'delimit newline' => [\n+                \"public\\nuser\\r\\n\\ttest\",\n+                'set search_path to \"public\", \"user\", \"test\"',\n+            ],\n+            'delimit comma' => [\n+                'public,user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'delimit comma and space' => [\n+                'public, user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'single-quoted many' => [\n+                \"'public', 'user'\",\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'double-quoted many' => [\n+                '\"public\", \"user\"',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'quoted space is unsupported in string' => [\n+                '\"public user\"',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'array' => [\n+                ['public', 'user'],\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'array with variable' => [\n+                ['public', '$user'],\n+                'set search_path to \"public\", \"$user\"',\n+            ],\n+            'array with delimiter characters' => [\n+                ['public', '\"user\"', \"'test'\", 'spaced schema'],\n+                'set search_path to \"public\", \"user\", \"test\", \"spaced schema\"',\n+            ],\n+        ];\n+    }\n+\n+    public function testPostgresSearchPathFallbackToConfigKeySchema()\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => ['public', '\"user\"'], 'charset' => 'utf8'];\n+        $config = ['host' => 'foo', 'database' => 'bar', 'schema' => ['public', '\"user\"'], 'charset' => 'utf8'];\n         $connector = $this->getMockBuilder(PostgresConnector::class)->onlyMethods(['createConnection', 'getOptions'])->getMock();\n         $connection = m::mock(stdClass::class);\n         $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n@@ -123,38 +199,6 @@ public function testPostgresSearchPathArraySupported()\n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathCommaSeparatedValueSupported()\n-    {\n-        $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => 'public, \"user\"', 'charset' => 'utf8'];\n-        $connector = $this->getMockBuilder('Illuminate\\Database\\Connectors\\PostgresConnector')->setMethods(['createConnection', 'getOptions'])->getMock();\n-        $connection = m::mock('stdClass');\n-        $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n-        $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"public\", \"user\"')->andReturn($connection);\n-        $connection->shouldReceive('execute')->twice();\n-        $result = $connector->connect($config);\n-\n-        $this->assertSame($result, $connection);\n-    }\n-\n-    public function testPostgresSearchPathVariablesSupported()\n-    {\n-        $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => '\"$user\", public, user', 'charset' => 'utf8'];\n-        $connector = $this->getMockBuilder('Illuminate\\Database\\Connectors\\PostgresConnector')->setMethods(['createConnection', 'getOptions'])->getMock();\n-        $connection = m::mock('stdClass');\n-        $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n-        $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"$user\", \"public\", \"user\"')->andReturn($connection);\n-        $connection->shouldReceive('execute')->twice();\n-        $result = $connector->connect($config);\n-\n-        $this->assertSame($result, $connection);\n-    }\n-\n     public function testPostgresApplicationNameIsSet()\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n",
+      "changedFiles": 2,
+      "addedLines": 83,
+      "deletedLines": 39,
+      "commits": 1,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0005",
+      "title": "A Postgres schema search path containing a hyphen or accented characters is applied as a single schema name",
+      "preconditions": "A database connection is configured to use a PostgreSQL connection whose schema search path setting is given as a single string value that contains a hyphen or accented Latin characters, e.g. a schema literally named 'test-db'.",
+      "steps": [
+        "Configure the Postgres connection's search path setting to the string value 'test-db'.",
+        "Establish the database connection.",
+        "Inspect the SQL statement issued to set the session's search path."
+      ],
+      "expectedResult": "The session search path is set to the single schema name 'test-db' exactly as configured, not split into two separate schema names 'test' and 'db'."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2022-02-17T21:57:26Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "config-parsing",
+        "database"
+      ],
+      "durationMs": null,
+      "feature": "Postgres connection search_path configuration",
+      "platform": "backend",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/laravel/framework/pull/41088",
+        "issueUrl": "https://github.com/laravel/framework/issues/41062",
+        "evidenceTestFile": "tests/Database/DatabaseConnectorTest.php",
+        "note": "Expanded testPostgresSearchPathIsSet data provider includes a 'special characters' case for a schema name with a hyphen/accents; at baseSha the alphanumeric-only regex used to split the search path string breaks such names into multiple schema segments, so the produced SQL does not match, and the case FAILs."
+      }
+    }
+  },
+  {
+    "id": "jvm_0006",
+    "revision": "head",
+    "flipPairId": "jvm_flip_0003",
+    "pr": {
+      "repository": "laravel/framework",
+      "number": 41088,
+      "baseSha": "e4c93c4aee180dc96a3573f5df3f056093b85009",
+      "headSha": "eff2a006b95db10980e4aa31e9671acce27cfee7",
+      "title": "[9.x] Fix parsing `config('database.connections.pgsql.search_path')`",
+      "description": "Fixes https://github.com/laravel/framework/issues/41062\r\n\r\ne.g., Config value `'test-db'` was being parsed as `set search_path to \"test\", \"db\"` instead of `set search_path to \"test-db\"`\r\n\r\n9.x renamed `config('database.connections.pgsql.schema')` to `config('database.connections.pgsql.search_path')` and introduced special handling if the config value is a string containing many segments. The [originating PR](https://github.com/laravel/framework/pull/35463#issuecomment-767263747) has some examples. However the given `PostgresConnector` regex doesn't consider the full range of characters allowed in a schema or variable name - specifically `'-'` and accented characters.\r\n\r\nReplace the `'search_path'` regex alphanumeric-only allowlist of characters with a blocklist of  delimiters when  `config('database.connections.pgsql.search_path')` is a string value. Technically Postgres _does_ allow our config delimiter characters (spaces, comma, quotes) in symbols so an array configuration can instead be used for such schema names. (However non-wrapping single/double quote characters in such array configs still aren't supported.)\r\n\r\n```php\r\nreturn [\r\n    'default' => env('DB_CONNECTION', 'mysql'),\r\n    'connections' => [\r\n        'pgsql' => [\r\n            'search_path' => [\r\n                \"'public'\",\r\n                '\"$user\"',\r\n                'containing commas, and spaces'\r\n                // 'can\\'t name schema with \"inner quotes\"'\r\n            ],\r\n```\r\n\r\n```sql\r\nset search_path to \"p …",
+      "diff": "diff --git a/src/Illuminate/Database/Connectors/PostgresConnector.php b/src/Illuminate/Database/Connectors/PostgresConnector.php\nindex 9bc63269e538..29fe16662f9a 100755\n--- a/src/Illuminate/Database/Connectors/PostgresConnector.php\n+++ b/src/Illuminate/Database/Connectors/PostgresConnector.php\n@@ -127,7 +127,7 @@ protected function configureSearchPath($connection, $config)\n     protected function parseSearchPath($searchPath)\n     {\n         if (is_string($searchPath)) {\n-            preg_match_all('/[a-zA-z0-9$]{1,}/i', $searchPath, $matches);\n+            preg_match_all('/[^\\s,\"\\']+/', $searchPath, $matches);\n \n             $searchPath = $matches[0];\n         }\n@@ -144,7 +144,7 @@ protected function parseSearchPath($searchPath)\n     /**\n      * Format the search path for the DSN.\n      *\n-     * @param  array|string  $searchPath\n+     * @param  array  $searchPath\n      * @return string\n      */\n     protected function quoteSearchPath($searchPath)\ndiff --git a/tests/Database/DatabaseConnectorTest.php b/tests/Database/DatabaseConnectorTest.php\nindex 938ec0fb7bbf..221223619552 100755\n--- a/tests/Database/DatabaseConnectorTest.php\n+++ b/tests/Database/DatabaseConnectorTest.php\n@@ -89,27 +89,103 @@ public function testPostgresConnectCallsCreateConnectionWithProperArguments()\n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathIsSet()\n+    /**\n+     * @dataProvider provideSearchPaths\n+     *\n+     * @param  string  $searchPath\n+     * @param  string  $expectedSql\n+     */\n+    public function testPostgresSearchPathIsSet($searchPath, $expectedSql)\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => 'public', 'charset' => 'utf8'];\n+        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => $searchPath, 'charset' => 'utf8'];\n         $connector = $this->getMockBuilder(PostgresConnector::class)->onlyMethods(['createConnection', 'getOptions'])->getMock();\n         $connection = m::mock(stdClass::class);\n         $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n         $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n         $statement = m::mock(PDOStatement::class);\n         $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($statement);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"public\"')->andReturn($statement);\n+        $connection->shouldReceive('prepare')->once()->with($expectedSql)->andReturn($statement);\n         $statement->shouldReceive('execute')->twice();\n         $result = $connector->connect($config);\n \n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathArraySupported()\n+    public function provideSearchPaths()\n+    {\n+        return [\n+            'all-lowercase' => [\n+                'public',\n+                'set search_path to \"public\"',\n+            ],\n+            'case-sensitive' => [\n+                'Public',\n+                'set search_path to \"Public\"',\n+            ],\n+            'special characters' => [\n+                '¡foo_bar-Baz!.Áüõß',\n+                'set search_path to \"¡foo_bar-Baz!.Áüõß\"',\n+            ],\n+            'single-quoted' => [\n+                \"'public'\",\n+                'set search_path to \"public\"',\n+            ],\n+            'double-quoted' => [\n+                '\"public\"',\n+                'set search_path to \"public\"',\n+            ],\n+            'variable' => [\n+                '$user',\n+                'set search_path to \"$user\"',\n+            ],\n+            'delimit space' => [\n+                'public user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'delimit newline' => [\n+                \"public\\nuser\\r\\n\\ttest\",\n+                'set search_path to \"public\", \"user\", \"test\"',\n+            ],\n+            'delimit comma' => [\n+                'public,user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'delimit comma and space' => [\n+                'public, user',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'single-quoted many' => [\n+                \"'public', 'user'\",\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'double-quoted many' => [\n+                '\"public\", \"user\"',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'quoted space is unsupported in string' => [\n+                '\"public user\"',\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'array' => [\n+                ['public', 'user'],\n+                'set search_path to \"public\", \"user\"',\n+            ],\n+            'array with variable' => [\n+                ['public', '$user'],\n+                'set search_path to \"public\", \"$user\"',\n+            ],\n+            'array with delimiter characters' => [\n+                ['public', '\"user\"', \"'test'\", 'spaced schema'],\n+                'set search_path to \"public\", \"user\", \"test\", \"spaced schema\"',\n+            ],\n+        ];\n+    }\n+\n+    public function testPostgresSearchPathFallbackToConfigKeySchema()\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => ['public', '\"user\"'], 'charset' => 'utf8'];\n+        $config = ['host' => 'foo', 'database' => 'bar', 'schema' => ['public', '\"user\"'], 'charset' => 'utf8'];\n         $connector = $this->getMockBuilder(PostgresConnector::class)->onlyMethods(['createConnection', 'getOptions'])->getMock();\n         $connection = m::mock(stdClass::class);\n         $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n@@ -123,38 +199,6 @@ public function testPostgresSearchPathArraySupported()\n         $this->assertSame($result, $connection);\n     }\n \n-    public function testPostgresSearchPathCommaSeparatedValueSupported()\n-    {\n-        $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => 'public, \"user\"', 'charset' => 'utf8'];\n-        $connector = $this->getMockBuilder('Illuminate\\Database\\Connectors\\PostgresConnector')->setMethods(['createConnection', 'getOptions'])->getMock();\n-        $connection = m::mock('stdClass');\n-        $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n-        $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"public\", \"user\"')->andReturn($connection);\n-        $connection->shouldReceive('execute')->twice();\n-        $result = $connector->connect($config);\n-\n-        $this->assertSame($result, $connection);\n-    }\n-\n-    public function testPostgresSearchPathVariablesSupported()\n-    {\n-        $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n-        $config = ['host' => 'foo', 'database' => 'bar', 'search_path' => '\"$user\", public, user', 'charset' => 'utf8'];\n-        $connector = $this->getMockBuilder('Illuminate\\Database\\Connectors\\PostgresConnector')->setMethods(['createConnection', 'getOptions'])->getMock();\n-        $connection = m::mock('stdClass');\n-        $connector->expects($this->once())->method('getOptions')->with($this->equalTo($config))->willReturn(['options']);\n-        $connector->expects($this->once())->method('createConnection')->with($this->equalTo($dsn), $this->equalTo($config), $this->equalTo(['options']))->willReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set names \\'utf8\\'')->andReturn($connection);\n-        $connection->shouldReceive('prepare')->once()->with('set search_path to \"$user\", \"public\", \"user\"')->andReturn($connection);\n-        $connection->shouldReceive('execute')->twice();\n-        $result = $connector->connect($config);\n-\n-        $this->assertSame($result, $connection);\n-    }\n-\n     public function testPostgresApplicationNameIsSet()\n     {\n         $dsn = 'pgsql:host=foo;dbname=\\'bar\\'';\n",
+      "changedFiles": 2,
+      "addedLines": 83,
+      "deletedLines": 39,
+      "commits": 1,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0005",
+      "title": "A Postgres schema search path containing a hyphen or accented characters is applied as a single schema name",
+      "preconditions": "A database connection is configured to use a PostgreSQL connection whose schema search path setting is given as a single string value that contains a hyphen or accented Latin characters, e.g. a schema literally named 'test-db'.",
+      "steps": [
+        "Configure the Postgres connection's search path setting to the string value 'test-db'.",
+        "Establish the database connection.",
+        "Inspect the SQL statement issued to set the session's search path."
+      ],
+      "expectedResult": "The session search path is set to the single schema name 'test-db' exactly as configured, not split into two separate schema names 'test' and 'db'."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2022-02-17T21:57:26Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "config-parsing",
+        "database"
+      ],
+      "durationMs": null,
+      "feature": "Postgres connection search_path configuration",
+      "platform": "backend",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/laravel/framework/pull/41088",
+        "issueUrl": "https://github.com/laravel/framework/issues/41062",
+        "evidenceTestFile": "tests/Database/DatabaseConnectorTest.php",
+        "note": "At headSha the search path string is split using a delimiter-based pattern (splitting only on whitespace/comma/quote characters) instead of an alphanumeric allowlist, so a schema name containing a hyphen or accented characters is kept intact and the test passes."
+      }
+    }
+  },
+  {
+    "id": "jvm_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "ktorio/ktor",
+      "number": 5814,
+      "baseSha": "88e14efac7a4ae9ba36281d4c9b8a8f51420b445",
+      "headSha": "2cc075d3d0785037cea658f1eab62d4abadce474",
+      "title": "Accept optional whitespace around commas in the Range header",
+      "description": "**Subsystem**\n\nServer / `ktor-http` (`parseRangesSpecifier`), which is what `PartialContent` uses to read the `Range` header.\n\n**Motivation**\n\n`Range` carries a comma-separated list, and RFC 9110 [5.6.1](https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1)\nexpands `1#element` to `element *( OWS \",\" OWS element )`, so `bytes=0-499, 1000-1499` is well-formed.\n\n`parseRangesSpecifier` splits on `,` and hands each element to `toLong()` untrimmed:\n\n```kotlin\nval allRanges = allRangesString.split(',').map {\n    ...\n    ContentRange.Bounded(from.toLong(), to.toLong())\n```\n\n`\" 1000\"` throws `NumberFormatException`, the surrounding `catch (e: Throwable)` classifies the header as\nsyntactically incorrect, and the whole header is dropped rather than the one element.\n\nMeasured on `release/3.x` with the `PartialContentTest` harness (1100 byte body), the only difference between\nthe two requests being the space after the comma:\n\n| `Range` | status | `Content-Range` |\n| --- | --- | --- |\n| `bytes=0-0,1-2` | 206 Partial Content | `bytes 0-2/1100` |\n| `bytes=0-0, 1-2` | 200 OK | absent |\n\nSo a client that writes a space after the comma silently gets the full body instead of a 206.\n\nNo YouTrack ticket exists for this one, so there is no `KTOR-{NUM}` prefix.\n\n**Solution**\n\nTrim each list element before parsing it, and cover it with two tests in `RangesTest`\n(space after the comma, and tab/space on both sides).\n\nThis covers only the OWS of the list rule. Empty list elements (`bytes=0-0,,1-2`) are …",
+      "diff": "diff --git a/ktor-http/common/src/io/ktor/http/Ranges.kt b/ktor-http/common/src/io/ktor/http/Ranges.kt\nindex 8aaed662ab5..cf316e5f3da 100644\n--- a/ktor-http/common/src/io/ktor/http/Ranges.kt\n+++ b/ktor-http/common/src/io/ktor/http/Ranges.kt\n@@ -75,15 +75,19 @@ public sealed class ContentRange {\n  * Parse `Range` header value\n  *\n  * [Report a problem](https://ktor.io/feedback/?fqname=io.ktor.http.parseRangesSpecifier)\n+ *\n+ * @param rangeSpec the raw `Range` header value, for example `bytes=0-499, 1000-1499`.\n+ * @return the parsed specifier, or `null` if [rangeSpec] is syntactically incorrect or unsatisfiable\n  */\n public fun parseRangesSpecifier(rangeSpec: String): RangesSpecifier? {\n     try {\n         val (unit, allRangesString) = rangeSpec.chomp(\"=\") { return null }\n-        val allRanges = allRangesString.split(',').map {\n-            if (it.startsWith(\"-\")) {\n-                ContentRange.Suffix(it.removePrefix(\"-\").toLong())\n+        val allRanges = allRangesString.split(',').map { segment ->\n+            val range = segment.trim(' ', '\\t')\n+            if (range.startsWith(\"-\")) {\n+                ContentRange.Suffix(range.removePrefix(\"-\").toLong())\n             } else {\n-                val (from, to) = it.chomp(\"-\") { \"\" to \"\" }\n+                val (from, to) = range.chomp(\"-\") { \"\" to \"\" }\n                 when {\n                     to.isNotEmpty() -> ContentRange.Bounded(from.toLong(), to.toLong())\n                     else -> ContentRange.TailFrom(from.toLong())\ndiff --git a/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt b/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\nindex 5cb80b719ac..0011c85ba95 100644\n--- a/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\n+++ b/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\n@@ -54,6 +54,48 @@ class RangesTest {\n         )\n     }\n \n+    @Test\n+    fun `parse whitespace after comma`() {\n+        assertEquals(\n+            RangesSpecifier(\n+                RangeUnits.Bytes,\n+                listOf(\n+                    ContentRange.Bounded(0, 499),\n+                    ContentRange.Bounded(1000, 1499)\n+                )\n+            ),\n+            parseRangesSpecifier(\"bytes=0-499, 1000-1499\")\n+        )\n+    }\n+\n+    @Test\n+    fun `parse whitespace around comma`() {\n+        assertEquals(\n+            RangesSpecifier(\n+                RangeUnits.Bytes,\n+                listOf(\n+                    ContentRange.TailFrom(9500),\n+                    ContentRange.Suffix(500)\n+                )\n+            ),\n+            parseRangesSpecifier(\"bytes=9500-\\t, -500\")\n+        )\n+    }\n+\n+    @Test\n+    fun `reject line breaks around comma`() {\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,\\n1000-1499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499\\r, 1000-1499\"))\n+    }\n+\n+    @Test\n+    fun `reject empty range set elements`() {\n+        assertNull(parseRangesSpecifier(\"bytes=,0-499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,,1000-1499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499, ,1000-1499\"))\n+    }\n+\n     @Test\n     fun testParseEmpty() {\n         assertNull(parseRangesSpecifier(\"\"))\n",
+      "changedFiles": 2,
+      "addedLines": 50,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "Kotlin",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0007",
+      "title": "A Content-Type header with a charset parameter is recognized and its charset is readable",
+      "preconditions": "An HTTP client or server component needs to inspect a Content-Type header value that includes a charset parameter.",
+      "steps": [
+        "Take the header value \"text/plain; charset=UTF-8\".",
+        "Parse it into a content type representation.",
+        "Read back the main type, subtype, and the charset parameter from the parsed result."
+      ],
+      "expectedResult": "The parsed representation reports content type 'text/plain' with a 'charset' parameter equal to 'UTF-8', matching the original header exactly."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-13T13:21:18Z",
+      "testType": "API",
+      "tags": [
+        "http-headers",
+        "content-type"
+      ],
+      "durationMs": null,
+      "feature": "Content-Type header parsing",
+      "platform": "backend",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/ktorio/ktor/pull/5814",
+        "issueUrl": null,
+        "evidenceTestFile": "ktor-http/common/test/io/ktor/tests/http/ContentTypeTest.kt",
+        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions."
+      }
+    }
+  },
+  {
+    "id": "jvm_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "ktorio/ktor",
+      "number": 5814,
+      "baseSha": "88e14efac7a4ae9ba36281d4c9b8a8f51420b445",
+      "headSha": "2cc075d3d0785037cea658f1eab62d4abadce474",
+      "title": "Accept optional whitespace around commas in the Range header",
+      "description": "**Subsystem**\n\nServer / `ktor-http` (`parseRangesSpecifier`), which is what `PartialContent` uses to read the `Range` header.\n\n**Motivation**\n\n`Range` carries a comma-separated list, and RFC 9110 [5.6.1](https://www.rfc-editor.org/rfc/rfc9110#section-5.6.1)\nexpands `1#element` to `element *( OWS \",\" OWS element )`, so `bytes=0-499, 1000-1499` is well-formed.\n\n`parseRangesSpecifier` splits on `,` and hands each element to `toLong()` untrimmed:\n\n```kotlin\nval allRanges = allRangesString.split(',').map {\n    ...\n    ContentRange.Bounded(from.toLong(), to.toLong())\n```\n\n`\" 1000\"` throws `NumberFormatException`, the surrounding `catch (e: Throwable)` classifies the header as\nsyntactically incorrect, and the whole header is dropped rather than the one element.\n\nMeasured on `release/3.x` with the `PartialContentTest` harness (1100 byte body), the only difference between\nthe two requests being the space after the comma:\n\n| `Range` | status | `Content-Range` |\n| --- | --- | --- |\n| `bytes=0-0,1-2` | 206 Partial Content | `bytes 0-2/1100` |\n| `bytes=0-0, 1-2` | 200 OK | absent |\n\nSo a client that writes a space after the comma silently gets the full body instead of a 206.\n\nNo YouTrack ticket exists for this one, so there is no `KTOR-{NUM}` prefix.\n\n**Solution**\n\nTrim each list element before parsing it, and cover it with two tests in `RangesTest`\n(space after the comma, and tab/space on both sides).\n\nThis covers only the OWS of the list rule. Empty list elements (`bytes=0-0,,1-2`) are …",
+      "diff": "diff --git a/ktor-http/common/src/io/ktor/http/Ranges.kt b/ktor-http/common/src/io/ktor/http/Ranges.kt\nindex 8aaed662ab5..cf316e5f3da 100644\n--- a/ktor-http/common/src/io/ktor/http/Ranges.kt\n+++ b/ktor-http/common/src/io/ktor/http/Ranges.kt\n@@ -75,15 +75,19 @@ public sealed class ContentRange {\n  * Parse `Range` header value\n  *\n  * [Report a problem](https://ktor.io/feedback/?fqname=io.ktor.http.parseRangesSpecifier)\n+ *\n+ * @param rangeSpec the raw `Range` header value, for example `bytes=0-499, 1000-1499`.\n+ * @return the parsed specifier, or `null` if [rangeSpec] is syntactically incorrect or unsatisfiable\n  */\n public fun parseRangesSpecifier(rangeSpec: String): RangesSpecifier? {\n     try {\n         val (unit, allRangesString) = rangeSpec.chomp(\"=\") { return null }\n-        val allRanges = allRangesString.split(',').map {\n-            if (it.startsWith(\"-\")) {\n-                ContentRange.Suffix(it.removePrefix(\"-\").toLong())\n+        val allRanges = allRangesString.split(',').map { segment ->\n+            val range = segment.trim(' ', '\\t')\n+            if (range.startsWith(\"-\")) {\n+                ContentRange.Suffix(range.removePrefix(\"-\").toLong())\n             } else {\n-                val (from, to) = it.chomp(\"-\") { \"\" to \"\" }\n+                val (from, to) = range.chomp(\"-\") { \"\" to \"\" }\n                 when {\n                     to.isNotEmpty() -> ContentRange.Bounded(from.toLong(), to.toLong())\n                     else -> ContentRange.TailFrom(from.toLong())\ndiff --git a/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt b/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\nindex 5cb80b719ac..0011c85ba95 100644\n--- a/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\n+++ b/ktor-http/common/test/io/ktor/tests/http/RangesTest.kt\n@@ -54,6 +54,48 @@ class RangesTest {\n         )\n     }\n \n+    @Test\n+    fun `parse whitespace after comma`() {\n+        assertEquals(\n+            RangesSpecifier(\n+                RangeUnits.Bytes,\n+                listOf(\n+                    ContentRange.Bounded(0, 499),\n+                    ContentRange.Bounded(1000, 1499)\n+                )\n+            ),\n+            parseRangesSpecifier(\"bytes=0-499, 1000-1499\")\n+        )\n+    }\n+\n+    @Test\n+    fun `parse whitespace around comma`() {\n+        assertEquals(\n+            RangesSpecifier(\n+                RangeUnits.Bytes,\n+                listOf(\n+                    ContentRange.TailFrom(9500),\n+                    ContentRange.Suffix(500)\n+                )\n+            ),\n+            parseRangesSpecifier(\"bytes=9500-\\t, -500\")\n+        )\n+    }\n+\n+    @Test\n+    fun `reject line breaks around comma`() {\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,\\n1000-1499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499\\r, 1000-1499\"))\n+    }\n+\n+    @Test\n+    fun `reject empty range set elements`() {\n+        assertNull(parseRangesSpecifier(\"bytes=,0-499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499,,1000-1499\"))\n+        assertNull(parseRangesSpecifier(\"bytes=0-499, ,1000-1499\"))\n+    }\n+\n     @Test\n     fun testParseEmpty() {\n         assertNull(parseRangesSpecifier(\"\"))\n",
+      "changedFiles": 2,
+      "addedLines": 50,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "Kotlin",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0007",
+      "title": "A Content-Type header with a charset parameter is recognized and its charset is readable",
+      "preconditions": "An HTTP client or server component needs to inspect a Content-Type header value that includes a charset parameter.",
+      "steps": [
+        "Take the header value \"text/plain; charset=UTF-8\".",
+        "Parse it into a content type representation.",
+        "Read back the main type, subtype, and the charset parameter from the parsed result."
+      ],
+      "expectedResult": "The parsed representation reports content type 'text/plain' with a 'charset' parameter equal to 'UTF-8', matching the original header exactly."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-13T13:21:18Z",
+      "testType": "API",
+      "tags": [
+        "http-headers",
+        "content-type"
+      ],
+      "durationMs": null,
+      "feature": "Content-Type header parsing",
+      "platform": "backend",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/ktorio/ktor/pull/5814",
+        "issueUrl": null,
+        "evidenceTestFile": "ktor-http/common/test/io/ktor/tests/http/ContentTypeTest.kt",
+        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions."
+      }
+    }
+  },
+  {
+    "id": "jvm_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "bumptech/glide",
+      "number": 5708,
+      "baseSha": "089b2159a5aa17a64046c8da2c3de004edda1df6",
+      "headSha": "fcc50dda8032f8a99e5d66b2fe99794ca4a145ee",
+      "title": "Fix resource leak in ByteBufferUtil.fromStream by ensuring all buffers obtained from the ArrayPool are returned on exception.",
+      "description": "Fix resource leak in ByteBufferUtil.fromStream by ensuring all buffers obtained from the ArrayPool are returned on exception.\n",
+      "diff": "diff --git a/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java b/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\nindex 696b4e36f1..a9a928f885 100644\n--- a/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\n+++ b/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\n@@ -149,13 +149,15 @@ public static ByteBuffer fromStream(@NonNull InputStream stream, boolean useHeap\n       buffer = new byte[BUFFER_SIZE];\n     }\n \n-    int n;\n-    while ((n = stream.read(buffer)) >= 0) {\n-      outStream.write(buffer, 0, n);\n+    try {\n+      int n;\n+      while ((n = stream.read(buffer)) >= 0) {\n+        outStream.write(buffer, 0, n);\n+      }\n+    } finally {\n+      BUFFER_REF.set(buffer);\n     }\n \n-    BUFFER_REF.set(buffer);\n-\n     byte[] bytes = outStream.toByteArray();\n \n     if (useHeapBuffer) {\n@@ -183,39 +185,55 @@ public static ByteBuffer fromStream(\n       throws IOException {\n     List<byte[]> buffers = new ArrayList<>();\n     int totalSize = 0;\n-    while (true) {\n-      byte[] buffer = arrayPool.get(BUFFER_SIZE, byte[].class);\n-      int read = 0;\n-      while (read < BUFFER_SIZE) {\n-        int count = stream.read(buffer, read, BUFFER_SIZE - read);\n-        if (count == -1) {\n+    byte[] currentBuffer = null;\n+    boolean success = false;\n+    try {\n+      while (true) {\n+        currentBuffer = arrayPool.get(BUFFER_SIZE, byte[].class);\n+        int read = 0;\n+        while (read < BUFFER_SIZE) {\n+          int count = stream.read(currentBuffer, read, BUFFER_SIZE - read);\n+          if (count == -1) {\n+            break;\n+          }\n+          read += count;\n+        }\n+        if (read == 0) {\n+          arrayPool.put(currentBuffer);\n+          currentBuffer = null;\n+          break;\n+        }\n+        buffers.add(currentBuffer);\n+        currentBuffer = null;\n+        totalSize += read;\n+        if (read < BUFFER_SIZE) {\n           break;\n         }\n-        read += count;\n-      }\n-      if (read == 0) {\n-        arrayPool.put(buffer);\n-        break;\n-      }\n-      buffers.add(buffer);\n-      totalSize += read;\n-      if (read < BUFFER_SIZE) {\n-        break;\n       }\n-    }\n \n-    ByteBuffer result =\n-        useHeapBuffer ? ByteBuffer.allocate(totalSize) : ByteBuffer.allocateDirect(totalSize);\n+      ByteBuffer result =\n+          useHeapBuffer ? ByteBuffer.allocate(totalSize) : ByteBuffer.allocateDirect(totalSize);\n \n-    int remaining = totalSize;\n-    for (byte[] buffer : buffers) {\n-      int toPut = Math.min(remaining, BUFFER_SIZE);\n-      result.put(buffer, 0, toPut);\n-      remaining -= toPut;\n-      arrayPool.put(buffer);\n+      int remaining = totalSize;\n+      for (byte[] b : buffers) {\n+        int toPut = Math.min(remaining, BUFFER_SIZE);\n+        result.put(b, 0, toPut);\n+        remaining -= toPut;\n+        arrayPool.put(b);\n+      }\n+      buffers.clear();\n+      success = true;\n+      return rewind(result);\n+    } finally {\n+      if (!success) {\n+        if (currentBuffer != null) {\n+          arrayPool.put(currentBuffer);\n+        }\n+        for (byte[] b : buffers) {\n+          arrayPool.put(b);\n+        }\n+      }\n     }\n-\n-    return rewind(result);\n   }\n \n   public static ByteBuffer rewind(ByteBuffer buffer) {\ndiff --git a/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java b/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\nindex 4795c1e8b7..97bf0b496a 100644\n--- a/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\n+++ b/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\n@@ -2,7 +2,9 @@\n \n import static com.bumptech.glide.RobolectricConstants.ROBOLECTRIC_SDK;\n import static org.junit.Assert.assertEquals;\n+import static org.junit.Assert.fail;\n \n+import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;\n import java.io.ByteArrayInputStream;\n import java.io.IOException;\n import java.io.InputStream;\n@@ -83,4 +85,74 @@ private void assertByteBufferContents(ByteBuffer buffer, byte[] expectedBytes) {\n       assertEquals(expectedBytes[i], buffer.get(i));\n     }\n   }\n+\n+  @Test\n+  public void testFromStream_exceptionDuringRead_recyclesBuffers() {\n+    FakeArrayPool pool = new FakeArrayPool();\n+    InputStream stream =\n+        new InputStream() {\n+          int readCount = 0;\n+\n+          @Override\n+          public int read() throws IOException {\n+            throw new IOException(\"Failed!\");\n+          }\n+\n+          @Override\n+          public int read(byte[] b, int off, int len) throws IOException {\n+            readCount++;\n+            if (readCount > 1) {\n+              throw new IOException(\"Failed on second read!\");\n+            }\n+            return len;\n+          }\n+        };\n+\n+    try {\n+      ByteBufferUtil.fromStream(stream, /* useHeapBuffer= */ true, pool);\n+      fail(\"Expected IOException\");\n+    } catch (IOException e) {\n+      // expected\n+    }\n+\n+    assertEquals(pool.getCalls, pool.putCalls);\n+    assertEquals(2, pool.getCalls);\n+  }\n+\n+  private static class FakeArrayPool implements ArrayPool {\n+    int getCalls = 0;\n+    int putCalls = 0;\n+\n+    @Override\n+    public <T> void put(T array) {\n+      putCalls++;\n+    }\n+\n+    @Deprecated\n+    @Override\n+    public <T> void put(T array, Class<T> arrayClass) {\n+      put(array);\n+    }\n+\n+    @SuppressWarnings(\"unchecked\")\n+    @Override\n+    public <T> T get(int size, Class<T> arrayClass) {\n+      getCalls++;\n+      if (arrayClass.equals(byte[].class)) {\n+        return (T) new byte[size];\n+      }\n+      throw new IllegalArgumentException();\n+    }\n+\n+    @Override\n+    public <T> T getExact(int size, Class<T> arrayClass) {\n+      return get(size, arrayClass);\n+    }\n+\n+    @Override\n+    public void clearMemory() {}\n+\n+    @Override\n+    public void trimMemory(int level) {}\n+  }\n }\n",
+      "changedFiles": 2,
+      "addedLines": 122,
+      "deletedLines": 32,
+      "commits": 1,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0009",
+      "title": "An image loaded into an ImageView without explicitly disabling transformations is still eligible for a configured crop/resize transformation",
+      "preconditions": "An image loading request is configured with a transformation such as a center-crop, and the request does not call any option that disables transformations.",
+      "steps": [
+        "Build an image load request for an ImageView, applying a transformation such as center-crop, without calling any 'don't transform' option.",
+        "Trigger the load.",
+        "Inspect whether the transformation is applied when the resource is ready."
+      ],
+      "expectedResult": "The transformation is applied to the loaded image by default, since transformations remain allowed unless explicitly turned off."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-06-22T17:08:55Z",
+      "testType": "UI",
+      "tags": [
+        "image-loading",
+        "transformations"
+      ],
+      "durationMs": null,
+      "feature": "default transformation eligibility",
+      "platform": "android",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/bumptech/glide/pull/5708",
+        "issueUrl": null,
+        "evidenceTestFile": "library/test/src/test/java/com/bumptech/glide/request/RequestOptionsTest.java",
+        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions."
+      }
+    }
+  },
+  {
+    "id": "jvm_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "bumptech/glide",
+      "number": 5708,
+      "baseSha": "089b2159a5aa17a64046c8da2c3de004edda1df6",
+      "headSha": "fcc50dda8032f8a99e5d66b2fe99794ca4a145ee",
+      "title": "Fix resource leak in ByteBufferUtil.fromStream by ensuring all buffers obtained from the ArrayPool are returned on exception.",
+      "description": "Fix resource leak in ByteBufferUtil.fromStream by ensuring all buffers obtained from the ArrayPool are returned on exception.\n",
+      "diff": "diff --git a/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java b/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\nindex 696b4e36f1..a9a928f885 100644\n--- a/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\n+++ b/library/src/main/java/com/bumptech/glide/util/ByteBufferUtil.java\n@@ -149,13 +149,15 @@ public static ByteBuffer fromStream(@NonNull InputStream stream, boolean useHeap\n       buffer = new byte[BUFFER_SIZE];\n     }\n \n-    int n;\n-    while ((n = stream.read(buffer)) >= 0) {\n-      outStream.write(buffer, 0, n);\n+    try {\n+      int n;\n+      while ((n = stream.read(buffer)) >= 0) {\n+        outStream.write(buffer, 0, n);\n+      }\n+    } finally {\n+      BUFFER_REF.set(buffer);\n     }\n \n-    BUFFER_REF.set(buffer);\n-\n     byte[] bytes = outStream.toByteArray();\n \n     if (useHeapBuffer) {\n@@ -183,39 +185,55 @@ public static ByteBuffer fromStream(\n       throws IOException {\n     List<byte[]> buffers = new ArrayList<>();\n     int totalSize = 0;\n-    while (true) {\n-      byte[] buffer = arrayPool.get(BUFFER_SIZE, byte[].class);\n-      int read = 0;\n-      while (read < BUFFER_SIZE) {\n-        int count = stream.read(buffer, read, BUFFER_SIZE - read);\n-        if (count == -1) {\n+    byte[] currentBuffer = null;\n+    boolean success = false;\n+    try {\n+      while (true) {\n+        currentBuffer = arrayPool.get(BUFFER_SIZE, byte[].class);\n+        int read = 0;\n+        while (read < BUFFER_SIZE) {\n+          int count = stream.read(currentBuffer, read, BUFFER_SIZE - read);\n+          if (count == -1) {\n+            break;\n+          }\n+          read += count;\n+        }\n+        if (read == 0) {\n+          arrayPool.put(currentBuffer);\n+          currentBuffer = null;\n+          break;\n+        }\n+        buffers.add(currentBuffer);\n+        currentBuffer = null;\n+        totalSize += read;\n+        if (read < BUFFER_SIZE) {\n           break;\n         }\n-        read += count;\n-      }\n-      if (read == 0) {\n-        arrayPool.put(buffer);\n-        break;\n-      }\n-      buffers.add(buffer);\n-      totalSize += read;\n-      if (read < BUFFER_SIZE) {\n-        break;\n       }\n-    }\n \n-    ByteBuffer result =\n-        useHeapBuffer ? ByteBuffer.allocate(totalSize) : ByteBuffer.allocateDirect(totalSize);\n+      ByteBuffer result =\n+          useHeapBuffer ? ByteBuffer.allocate(totalSize) : ByteBuffer.allocateDirect(totalSize);\n \n-    int remaining = totalSize;\n-    for (byte[] buffer : buffers) {\n-      int toPut = Math.min(remaining, BUFFER_SIZE);\n-      result.put(buffer, 0, toPut);\n-      remaining -= toPut;\n-      arrayPool.put(buffer);\n+      int remaining = totalSize;\n+      for (byte[] b : buffers) {\n+        int toPut = Math.min(remaining, BUFFER_SIZE);\n+        result.put(b, 0, toPut);\n+        remaining -= toPut;\n+        arrayPool.put(b);\n+      }\n+      buffers.clear();\n+      success = true;\n+      return rewind(result);\n+    } finally {\n+      if (!success) {\n+        if (currentBuffer != null) {\n+          arrayPool.put(currentBuffer);\n+        }\n+        for (byte[] b : buffers) {\n+          arrayPool.put(b);\n+        }\n+      }\n     }\n-\n-    return rewind(result);\n   }\n \n   public static ByteBuffer rewind(ByteBuffer buffer) {\ndiff --git a/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java b/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\nindex 4795c1e8b7..97bf0b496a 100644\n--- a/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\n+++ b/library/test/src/test/java/com/bumptech/glide/util/ByteBufferUtilTest.java\n@@ -2,7 +2,9 @@\n \n import static com.bumptech.glide.RobolectricConstants.ROBOLECTRIC_SDK;\n import static org.junit.Assert.assertEquals;\n+import static org.junit.Assert.fail;\n \n+import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;\n import java.io.ByteArrayInputStream;\n import java.io.IOException;\n import java.io.InputStream;\n@@ -83,4 +85,74 @@ private void assertByteBufferContents(ByteBuffer buffer, byte[] expectedBytes) {\n       assertEquals(expectedBytes[i], buffer.get(i));\n     }\n   }\n+\n+  @Test\n+  public void testFromStream_exceptionDuringRead_recyclesBuffers() {\n+    FakeArrayPool pool = new FakeArrayPool();\n+    InputStream stream =\n+        new InputStream() {\n+          int readCount = 0;\n+\n+          @Override\n+          public int read() throws IOException {\n+            throw new IOException(\"Failed!\");\n+          }\n+\n+          @Override\n+          public int read(byte[] b, int off, int len) throws IOException {\n+            readCount++;\n+            if (readCount > 1) {\n+              throw new IOException(\"Failed on second read!\");\n+            }\n+            return len;\n+          }\n+        };\n+\n+    try {\n+      ByteBufferUtil.fromStream(stream, /* useHeapBuffer= */ true, pool);\n+      fail(\"Expected IOException\");\n+    } catch (IOException e) {\n+      // expected\n+    }\n+\n+    assertEquals(pool.getCalls, pool.putCalls);\n+    assertEquals(2, pool.getCalls);\n+  }\n+\n+  private static class FakeArrayPool implements ArrayPool {\n+    int getCalls = 0;\n+    int putCalls = 0;\n+\n+    @Override\n+    public <T> void put(T array) {\n+      putCalls++;\n+    }\n+\n+    @Deprecated\n+    @Override\n+    public <T> void put(T array, Class<T> arrayClass) {\n+      put(array);\n+    }\n+\n+    @SuppressWarnings(\"unchecked\")\n+    @Override\n+    public <T> T get(int size, Class<T> arrayClass) {\n+      getCalls++;\n+      if (arrayClass.equals(byte[].class)) {\n+        return (T) new byte[size];\n+      }\n+      throw new IllegalArgumentException();\n+    }\n+\n+    @Override\n+    public <T> T getExact(int size, Class<T> arrayClass) {\n+      return get(size, arrayClass);\n+    }\n+\n+    @Override\n+    public void clearMemory() {}\n+\n+    @Override\n+    public void trimMemory(int level) {}\n+  }\n }\n",
+      "changedFiles": 2,
+      "addedLines": 122,
+      "deletedLines": 32,
+      "commits": 1,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0009",
+      "title": "An image loaded into an ImageView without explicitly disabling transformations is still eligible for a configured crop/resize transformation",
+      "preconditions": "An image loading request is configured with a transformation such as a center-crop, and the request does not call any option that disables transformations.",
+      "steps": [
+        "Build an image load request for an ImageView, applying a transformation such as center-crop, without calling any 'don't transform' option.",
+        "Trigger the load.",
+        "Inspect whether the transformation is applied when the resource is ready."
+      ],
+      "expectedResult": "The transformation is applied to the loaded image by default, since transformations remain allowed unless explicitly turned off."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-06-22T17:08:55Z",
+      "testType": "UI",
+      "tags": [
+        "image-loading",
+        "transformations"
+      ],
+      "durationMs": null,
+      "feature": "default transformation eligibility",
+      "platform": "android",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/bumptech/glide/pull/5708",
+        "issueUrl": null,
+        "evidenceTestFile": "library/test/src/test/java/com/bumptech/glide/request/RequestOptionsTest.java",
+        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions."
+      }
+    }
+  },
+  {
+    "id": "jvm_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "realm/SwiftLint",
+      "number": 6850,
+      "baseSha": "131c05d09c6e1c1a5dd481921dab265bc0aff628",
+      "headSha": "35aae3fd0eeade689dc455e0c8f1c7c9eb16d81f",
+      "title": "Cache allowedSymbolsAndAlphanumerics in NameConfiguration",
+      "description": "`NameConfiguration.allowedSymbolsAndAlphanumerics` currently rebuilds a `CharacterSet` union every time a checked name reaches `containsOnlyAllowedCharacters`. The allowed-symbol configuration is stable for the lifetime of a configuration, so repeating that CoreFoundation work is unnecessary.\n\nThis caches the union and refreshes it in the initializer and when `allowedSymbols` is applied from configuration. Reads now return the cached set while preserving configuration behavior.\n\n### Verification\n\n- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build -c release --product swiftlint`\n- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`: 370 tests in 73 suites passed.\n- `.build/release/swiftlint lint --strict --quiet Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift`: clean.\n- Sorted JSON violation lists matched:\n  - DuckDuckGo, default configuration: 84 before, 84 after.\n  - realm-swift, default configuration: 0 before, 0 after.\n- The comparisons sorted by file, line, character, rule, reason, and severity; raw JSON order is not stable for parallel linting.\n\n### Measurement\n\nThe two binaries were run interleaved for five iterations with the relevant rule commands:\n\n```bash\n/usr/bin/time -p <baseline> lint --no-cache --quiet --only-rule identifier_name >/dev/null\n/usr/bin/time -p <change> lint --no-cache --quiet --only-rule identifier_name >/dev/null\n/usr/bin/time -p <baseline> lint --no-cache --quiet --only-rule typ …",
+      "diff": "diff --git a/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift b/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\nindex 5ad14c4d2d..b8ae6ecb7c 100644\n--- a/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\n+++ b/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\n@@ -6,6 +6,8 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n     typealias SeverityLevels = SeverityLevelsConfiguration<Parent>\n     typealias StartWithLowercaseConfiguration = ChildOptionSeverityConfiguration<Parent>\n \n+    private(set) var allowedSymbolsAndAlphanumerics = CharacterSet.alphanumerics\n+\n     @ConfigurationElement(key: \"min_length\")\n     private(set) var minLength = SeverityLevels(warning: 0, error: 0)\n     @ConfigurationElement(key: \"max_length\")\n@@ -13,7 +15,14 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n     @ConfigurationElement(key: \"excluded\")\n     private(set) var excludedRegularExpressions = Set<RegularExpression>()\n     @ConfigurationElement(key: \"allowed_symbols\")\n-    private(set) var allowedSymbols = Set<String>()\n+    private(set) var allowedSymbols = Set<String>() {\n+        didSet {\n+            if allowedSymbols != oldValue {\n+                allowedSymbolsAndAlphanumerics = CharacterSet(charactersIn: allowedSymbols.joined())\n+                allowedSymbolsAndAlphanumerics.formUnion(.alphanumerics)\n+            }\n+        }\n+    }\n     @ConfigurationElement(key: \"unallowed_symbols_severity\")\n     private(set) var unallowedSymbolsSeverity = Severity.error\n     @ConfigurationElement(key: \"validates_start_with_lowercase\")\n@@ -27,10 +36,6 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n         min(maxLength.warning, maxLength.error ?? maxLength.warning)\n     }\n \n-    var allowedSymbolsAndAlphanumerics: CharacterSet {\n-        CharacterSet(charactersIn: allowedSymbols.joined()).union(.alphanumerics)\n-    }\n-\n     init(minLengthWarning: Int,\n          minLengthError: Int,\n          maxLengthWarning: Int,\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 5,
+      "commits": 2,
+      "language": "Swift",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0011",
+      "title": "A configured list of extra allowed symbol characters still lets an identifier containing one of those characters pass the naming rule",
+      "preconditions": "The naming rule is configured with a custom 'allowed_symbols' list that includes a specific punctuation character, e.g. an underscore or a currency symbol not normally accepted in identifiers.",
+      "steps": [
+        "Configure the naming rule with allowed_symbols containing a specific extra character.",
+        "Lint a source file containing an identifier that uses only alphanumeric characters plus that allowed extra character.",
+        "Check the reported violations for that identifier."
+      ],
+      "expectedResult": "No naming violation is reported for the identifier, because its only non-alphanumeric character is one of the explicitly configured allowed symbols."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-07T14:01:41Z",
+      "testType": "OTHER",
+      "tags": [
+        "static-analysis",
+        "configuration"
+      ],
+      "durationMs": null,
+      "feature": "naming rule allowed symbols",
+      "platform": "ios",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/realm/SwiftLint/pull/6850",
+        "issueUrl": null,
+        "evidenceTestFile": "Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift",
+        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions."
+      }
+    }
+  },
+  {
+    "id": "jvm_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "realm/SwiftLint",
+      "number": 6850,
+      "baseSha": "131c05d09c6e1c1a5dd481921dab265bc0aff628",
+      "headSha": "35aae3fd0eeade689dc455e0c8f1c7c9eb16d81f",
+      "title": "Cache allowedSymbolsAndAlphanumerics in NameConfiguration",
+      "description": "`NameConfiguration.allowedSymbolsAndAlphanumerics` currently rebuilds a `CharacterSet` union every time a checked name reaches `containsOnlyAllowedCharacters`. The allowed-symbol configuration is stable for the lifetime of a configuration, so repeating that CoreFoundation work is unnecessary.\n\nThis caches the union and refreshes it in the initializer and when `allowedSymbols` is applied from configuration. Reads now return the cached set while preserving configuration behavior.\n\n### Verification\n\n- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build -c release --product swiftlint`\n- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`: 370 tests in 73 suites passed.\n- `.build/release/swiftlint lint --strict --quiet Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift`: clean.\n- Sorted JSON violation lists matched:\n  - DuckDuckGo, default configuration: 84 before, 84 after.\n  - realm-swift, default configuration: 0 before, 0 after.\n- The comparisons sorted by file, line, character, rule, reason, and severity; raw JSON order is not stable for parallel linting.\n\n### Measurement\n\nThe two binaries were run interleaved for five iterations with the relevant rule commands:\n\n```bash\n/usr/bin/time -p <baseline> lint --no-cache --quiet --only-rule identifier_name >/dev/null\n/usr/bin/time -p <change> lint --no-cache --quiet --only-rule identifier_name >/dev/null\n/usr/bin/time -p <baseline> lint --no-cache --quiet --only-rule typ …",
+      "diff": "diff --git a/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift b/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\nindex 5ad14c4d2d..b8ae6ecb7c 100644\n--- a/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\n+++ b/Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift\n@@ -6,6 +6,8 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n     typealias SeverityLevels = SeverityLevelsConfiguration<Parent>\n     typealias StartWithLowercaseConfiguration = ChildOptionSeverityConfiguration<Parent>\n \n+    private(set) var allowedSymbolsAndAlphanumerics = CharacterSet.alphanumerics\n+\n     @ConfigurationElement(key: \"min_length\")\n     private(set) var minLength = SeverityLevels(warning: 0, error: 0)\n     @ConfigurationElement(key: \"max_length\")\n@@ -13,7 +15,14 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n     @ConfigurationElement(key: \"excluded\")\n     private(set) var excludedRegularExpressions = Set<RegularExpression>()\n     @ConfigurationElement(key: \"allowed_symbols\")\n-    private(set) var allowedSymbols = Set<String>()\n+    private(set) var allowedSymbols = Set<String>() {\n+        didSet {\n+            if allowedSymbols != oldValue {\n+                allowedSymbolsAndAlphanumerics = CharacterSet(charactersIn: allowedSymbols.joined())\n+                allowedSymbolsAndAlphanumerics.formUnion(.alphanumerics)\n+            }\n+        }\n+    }\n     @ConfigurationElement(key: \"unallowed_symbols_severity\")\n     private(set) var unallowedSymbolsSeverity = Severity.error\n     @ConfigurationElement(key: \"validates_start_with_lowercase\")\n@@ -27,10 +36,6 @@ struct NameConfiguration<Parent: Rule>: RuleConfiguration, InlinableOptionType {\n         min(maxLength.warning, maxLength.error ?? maxLength.warning)\n     }\n \n-    var allowedSymbolsAndAlphanumerics: CharacterSet {\n-        CharacterSet(charactersIn: allowedSymbols.joined()).union(.alphanumerics)\n-    }\n-\n     init(minLengthWarning: Int,\n          minLengthError: Int,\n          maxLengthWarning: Int,\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 5,
+      "commits": 2,
+      "language": "Swift",
+      "labels": []
+    },
+    "testCase": {
+      "id": "jvm_tc_0011",
+      "title": "A configured list of extra allowed symbol characters still lets an identifier containing one of those characters pass the naming rule",
+      "preconditions": "The naming rule is configured with a custom 'allowed_symbols' list that includes a specific punctuation character, e.g. an underscore or a currency symbol not normally accepted in identifiers.",
+      "steps": [
+        "Configure the naming rule with allowed_symbols containing a specific extra character.",
+        "Lint a source file containing an identifier that uses only alphanumeric characters plus that allowed extra character.",
+        "Check the reported violations for that identifier."
+      ],
+      "expectedResult": "No naming violation is reported for the identifier, because its only non-alphanumeric character is one of the explicitly configured allowed symbols."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-07T14:01:41Z",
+      "testType": "OTHER",
+      "tags": [
+        "static-analysis",
+        "configuration"
+      ],
+      "durationMs": null,
+      "feature": "naming rule allowed symbols",
+      "platform": "ios",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/realm/SwiftLint/pull/6850",
+        "issueUrl": null,
+        "evidenceTestFile": "Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift",
+        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions."
+      }
+    }
+  }
+]

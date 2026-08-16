@@ -1,0 +1,614 @@
+[
+  {
+    "id": "rg_0001",
+    "revision": "base",
+    "flipPairId": "rg_flip_0001",
+    "pr": {
+      "repository": "celery/celery",
+      "number": 8903,
+      "baseSha": "79ec40abfe41b215ca41fa0d270e54842626d7d8",
+      "headSha": "e37740ad666adebede6f09abb2d2ccce825ea0c2",
+      "title": "Fix recursive result parents on group in middle of chain",
+      "description": "## Description\n\nThis fixes [issue #8890](https://github.com/celery/celery/issues/8890)\nWhich is a bug when trying to freeze a chain that contains a group and more than 2 tasks after it\nAlso added a test case",
+      "diff": "diff --git a/celery/canvas.py b/celery/canvas.py\nindex 70c7b139212..cb76a218013 100644\n--- a/celery/canvas.py\n+++ b/celery/canvas.py\n@@ -1225,6 +1225,12 @@ def prepare_steps(self, args, kwargs, tasks,\n                         task, body=prev_task,\n                         root_id=root_id, app=app,\n                     )\n+                if tasks:\n+                    prev_task = tasks[-1]\n+                    prev_res = results[-1]\n+                else:\n+                    prev_task = None\n+                    prev_res = None\n \n             if is_last_task:\n                 # chain(task_id=id) means task id is set for the last task\ndiff --git a/t/integration/test_canvas.py b/t/integration/test_canvas.py\nindex 45cd24f6949..bb5b80ffa67 100644\n--- a/t/integration/test_canvas.py\n+++ b/t/integration/test_canvas.py\n@@ -1096,6 +1096,18 @@ def test_chaining_upgraded_chords_mixed_canvas_protocol_2(\n         # Cleanup\n         redis_connection.delete(redis_key, 'Done')\n \n+    def test_group_in_center_of_chain(self, manager):\n+        try:\n+            manager.app.backend.ensure_chords_allowed()\n+        except NotImplementedError as e:\n+            raise pytest.skip(e.args[0])\n+\n+        t1 = chain(tsum.s(), group(add.s(8), add.s(16)), tsum.s() | add.s(32))\n+        t2 = chord([tsum, tsum], t1)\n+        t3 = chord([add.s(0, 1)], t2)\n+        res = t3.apply_async()  # should not raise\n+        assert res.get(timeout=TIMEOUT) == 60\n+\n \n class test_result_set:\n \ndiff --git a/t/unit/tasks/test_canvas.py b/t/unit/tasks/test_canvas.py\nindex b4d03a56e3c..9bd4f6b75dd 100644\n--- a/t/unit/tasks/test_canvas.py\n+++ b/t/unit/tasks/test_canvas.py\n@@ -819,6 +819,12 @@ def link_chain(sig):\n         assert signature(flat_chain.tasks[1].options['link'][0]) == signature('link_b')\n         assert signature(flat_chain.tasks[1].options['link_error'][0]) == signature('link_ab')\n \n+    def test_group_in_center_of_chain(self):\n+        t1 = chain(self.add.si(1, 1), group(self.add.si(1, 1), self.add.si(1, 1)),\n+                   self.add.si(1, 1) | self.add.si(1, 1))\n+        t2 = chord([self.add.si(1, 1), self.add.si(1, 1)], t1)\n+        t2.freeze()  # should not raise\n+\n \n class test_group(CanvasCase):\n     def test_repr(self):\n",
+      "changedFiles": 3,
+      "addedLines": 24,
+      "deletedLines": 0,
+      "commits": 2,
+      "language": "Python",
+      "labels": ["Component: Canvas", "PR Type: Bugfix"]
+    },
+    "testCase": {
+      "id": "rg_tc_0001",
+      "title": "Serializing an async result for a chain containing two sequential parallel-task groups preserves every task's result on reconstruction",
+      "preconditions": "A background task queue is configured with a chain built as: one task, followed by a group of two tasks running in parallel, followed by a second group of two tasks running in parallel, followed by a final task.",
+      "steps": [
+        "Submit the chain for asynchronous execution and obtain its async result handle.",
+        "Convert the result handle to its portable tuple representation using the framework's serialization helper.",
+        "Reconstruct a new result handle from that same tuple using the framework's deserialization helper.",
+        "Inspect the reconstructed result tree for the tasks belonging to each of the two parallel groups."
+      ],
+      "expectedResult": "The reconstructed result tree still contains a separate child result for every task in both groups (four child results total across the two groups), matching the structure of the original, unserialized result."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2024-03-10T16:09:29.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": ["API contract", "task-composition"],
+      "durationMs": null,
+      "feature": "canvas workflow result serialization",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/celery/celery/pull/8903",
+        "issueUrl": "https://github.com/celery/celery/pull/10408",
+        "evidenceTestFile": "t/unit/tasks/test_canvas.py",
+        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing."
+      }
+    }
+  },
+  {
+    "id": "rg_0002",
+    "revision": "head",
+    "flipPairId": "rg_flip_0001",
+    "pr": {
+      "repository": "celery/celery",
+      "number": 8903,
+      "baseSha": "79ec40abfe41b215ca41fa0d270e54842626d7d8",
+      "headSha": "e37740ad666adebede6f09abb2d2ccce825ea0c2",
+      "title": "Fix recursive result parents on group in middle of chain",
+      "description": "## Description\n\nThis fixes [issue #8890](https://github.com/celery/celery/issues/8890)\nWhich is a bug when trying to freeze a chain that contains a group and more than 2 tasks after it\nAlso added a test case",
+      "diff": "diff --git a/celery/canvas.py b/celery/canvas.py\nindex 70c7b139212..cb76a218013 100644\n--- a/celery/canvas.py\n+++ b/celery/canvas.py\n@@ -1225,6 +1225,12 @@ def prepare_steps(self, args, kwargs, tasks,\n                         task, body=prev_task,\n                         root_id=root_id, app=app,\n                     )\n+                if tasks:\n+                    prev_task = tasks[-1]\n+                    prev_res = results[-1]\n+                else:\n+                    prev_task = None\n+                    prev_res = None\n \n             if is_last_task:\n                 # chain(task_id=id) means task id is set for the last task\ndiff --git a/t/integration/test_canvas.py b/t/integration/test_canvas.py\nindex 45cd24f6949..bb5b80ffa67 100644\n--- a/t/integration/test_canvas.py\n+++ b/t/integration/test_canvas.py\n@@ -1096,6 +1096,18 @@ def test_chaining_upgraded_chords_mixed_canvas_protocol_2(\n         # Cleanup\n         redis_connection.delete(redis_key, 'Done')\n \n+    def test_group_in_center_of_chain(self, manager):\n+        try:\n+            manager.app.backend.ensure_chords_allowed()\n+        except NotImplementedError as e:\n+            raise pytest.skip(e.args[0])\n+\n+        t1 = chain(tsum.s(), group(add.s(8), add.s(16)), tsum.s() | add.s(32))\n+        t2 = chord([tsum, tsum], t1)\n+        t3 = chord([add.s(0, 1)], t2)\n+        res = t3.apply_async()  # should not raise\n+        assert res.get(timeout=TIMEOUT) == 60\n+\n \n class test_result_set:\n \ndiff --git a/t/unit/tasks/test_canvas.py b/t/unit/tasks/test_canvas.py\nindex b4d03a56e3c..9bd4f6b75dd 100644\n--- a/t/unit/tasks/test_canvas.py\n+++ b/t/unit/tasks/test_canvas.py\n@@ -819,6 +819,12 @@ def link_chain(sig):\n         assert signature(flat_chain.tasks[1].options['link'][0]) == signature('link_b')\n         assert signature(flat_chain.tasks[1].options['link_error'][0]) == signature('link_ab')\n \n+    def test_group_in_center_of_chain(self):\n+        t1 = chain(self.add.si(1, 1), group(self.add.si(1, 1), self.add.si(1, 1)),\n+                   self.add.si(1, 1) | self.add.si(1, 1))\n+        t2 = chord([self.add.si(1, 1), self.add.si(1, 1)], t1)\n+        t2.freeze()  # should not raise\n+\n \n class test_group(CanvasCase):\n     def test_repr(self):\n",
+      "changedFiles": 3,
+      "addedLines": 24,
+      "deletedLines": 0,
+      "commits": 2,
+      "language": "Python",
+      "labels": ["Component: Canvas", "PR Type: Bugfix"]
+    },
+    "testCase": {
+      "id": "rg_tc_0002",
+      "title": "Serializing an async result for a chain containing two sequential parallel-task groups preserves every task's result on reconstruction",
+      "preconditions": "A background task queue is configured with a chain built as: one task, followed by a group of two tasks running in parallel, followed by a second group of two tasks running in parallel, followed by a final task.",
+      "steps": [
+        "Submit the chain for asynchronous execution and obtain its async result handle.",
+        "Convert the result handle to its portable tuple representation using the framework's serialization helper.",
+        "Reconstruct a new result handle from that same tuple using the framework's deserialization helper.",
+        "Inspect the reconstructed result tree for the tasks belonging to each of the two parallel groups."
+      ],
+      "expectedResult": "The reconstructed result tree still contains a separate child result for every task in both groups (four child results total across the two groups), matching the structure of the original, unserialized result."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2024-03-10T16:09:29.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": ["API contract", "task-composition"],
+      "durationMs": null,
+      "feature": "canvas workflow result serialization",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/celery/celery/pull/8903",
+        "issueUrl": "https://github.com/celery/celery/pull/10408",
+        "evidenceTestFile": "t/unit/tasks/test_canvas.py",
+        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing."
+      }
+    }
+  },
+  {
+    "id": "rg_0003",
+    "revision": "base",
+    "flipPairId": "rg_flip_0002",
+    "pr": {
+      "repository": "rails/rails",
+      "number": 53890,
+      "baseSha": "ab3b87e536fc27004629aa5f32bdbe5353626111",
+      "headSha": "b458919ab64b37dbb54b626238be7cae0c559d2c",
+      "title": "Fix lazy attribute method definitiont to be thread safe",
+      "description": "Fix: https://github.com/rails/rails/issues/53667\r\nFollowup: https://github.com/rails/rails/pull/50594\r\n\r\nWe can't safely check if attribute methods were generated or not as we may be in a race with another thread. As such we must always consider that maybe the mehtod was just generated.",
+      "diff": "diff --git a/activerecord/lib/active_record/attribute_methods.rb b/activerecord/lib/active_record/attribute_methods.rb\nindex 1e1c0983bfb60..e5179bf7b98d3 100644\n--- a/activerecord/lib/active_record/attribute_methods.rb\n+++ b/activerecord/lib/active_record/attribute_methods.rb\n@@ -116,10 +116,11 @@ def define_attribute_methods # :nodoc:\n             alias_attribute :id_value, :id if _has_attribute?(\"id\")\n           end\n \n-          @attribute_methods_generated = true\n-\n           generate_alias_attributes\n+\n+          @attribute_methods_generated = true\n         end\n+\n         true\n       end\n \n@@ -472,23 +473,27 @@ def respond_to_missing?(name, include_private = false)\n       end\n \n       def method_missing(name, ...)\n-        unless self.class.attribute_methods_generated?\n-          if self.class.method_defined?(name)\n-            # The method is explicitly defined in the model, but calls a generated\n-            # method with super. So we must resume the call chain at the right step.\n-            last_method = method(name)\n-            last_method = last_method.super_method while last_method.super_method\n-            self.class.define_attribute_methods\n-            if last_method.super_method\n-              return last_method.super_method.call(...)\n-            end\n-          elsif self.class.define_attribute_methods\n-            # Some attribute methods weren't generated yet, we retry the call\n-            return public_send(name, ...)\n-          end\n+        # We can't know whether some method was defined or not because\n+        # multiple thread might be concurrently be in this code path.\n+        # So the first one would define the methods and the others would\n+        # appear to already have them.\n+        self.class.define_attribute_methods\n+\n+        # So in all cases we must behave as if the method was just defined.\n+        method = begin\n+          self.class.public_instance_method(name)\n+        rescue NameError\n+          nil\n         end\n \n-        super\n+        # The method might be explicitly defined in the model, but call a generated\n+        # method with super. So we must resume the call chain at the right step.\n+        method = method.super_method while method && !method.owner.is_a?(GeneratedAttributeMethods)\n+        if method\n+          method.bind_call(self, ...)\n+        else\n+          super\n+        end\n       end\n \n       def attribute_method?(attr_name)\ndiff --git a/activerecord/test/cases/attribute_methods_test.rb b/activerecord/test/cases/attribute_methods_test.rb\nindex acd5d842442af..67fdb7e91c15e 100644\n--- a/activerecord/test/cases/attribute_methods_test.rb\n+++ b/activerecord/test/cases/attribute_methods_test.rb\n@@ -1143,6 +1143,54 @@ def name\n     assert_nothing_raised { klass.define_attribute_method(\"bar\") }\n   end\n \n+  test \"#method_missing define methods on the fly in a thread safe way\" do\n+    topic_class = Class.new(ActiveRecord::Base) do\n+      self.table_name = \"topics\"\n+    end\n+\n+    topic = topic_class.new(title: \"New topic\")\n+    topic_class.undefine_attribute_methods\n+    def topic.method_missing(...)\n+      sleep 0.1 # required to cause a race condition\n+      super\n+    end\n+\n+    threads = 5.times.map do\n+      Thread.new do\n+        assert_equal \"New topic\", topic.title\n+      end\n+    end\n+    threads.each(&:join)\n+  ensure\n+    threads&.each(&:kill)\n+  end\n+\n+  test \"#method_missing define methods on the fly in a thread safe way, even when decorated\" do\n+    topic_class = Class.new(ActiveRecord::Base) do\n+      self.table_name = \"topics\"\n+\n+      def title\n+        \"title:#{super}\"\n+      end\n+    end\n+\n+    topic = topic_class.new(title: \"New topic\")\n+    topic_class.undefine_attribute_methods\n+    def topic.method_missing(...)\n+      sleep 0.1 # required to cause a race condition\n+      super\n+    end\n+\n+    threads = 5.times.map do\n+      Thread.new do\n+        assert_equal \"title:New topic\", topic.title\n+      end\n+    end\n+    threads.each(&:join)\n+  ensure\n+    threads&.each(&:kill)\n+  end\n+\n   test \"read_attribute with nil should not asplode\" do\n     assert_nil Topic.new.read_attribute(nil)\n   end\n",
+      "changedFiles": 2,
+      "addedLines": 70,
+      "deletedLines": 17,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": ["activerecord"]
+    },
+    "testCase": {
+      "id": "rg_tc_0003",
+      "title": "Accessing a computed (non-column) attribute on a loaded record stays close to the cost of accessing a real column",
+      "preconditions": "A record is loaded from a query that selects its normal columns plus one extra computed value under an alias (for example, SELECT records.*, 42 AS extra_value), so the loaded object exposes both a real stored-column attribute and the aliased computed attribute.",
+      "steps": [
+        "Load a single record using a query that adds an aliased computed column alongside its normal columns.",
+        "Measure the wall-clock time to read the real stored-column attribute 50,000 times on that record.",
+        "Measure the wall-clock time to read the aliased computed attribute 50,000 times on the same record.",
+        "Compute the ratio of the computed-attribute read time to the real-column read time."
+      ],
+      "expectedResult": "The ratio of computed-attribute access time to real-column access time stays under roughly 20x, showing that reading the computed alias attribute remains inexpensive rather than incurring a large per-call overhead."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2024-12-10T11:11:55.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": ["performance cliff", "attribute-access"],
+      "durationMs": null,
+      "feature": "ActiveRecord attribute method dispatch",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/rails/rails/pull/53890",
+        "issueUrl": "https://github.com/rails/rails/issues/57183",
+        "evidenceTestFile": "activerecord/test/cases/attribute_methods_test.rb",
+        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x."
+      }
+    }
+  },
+  {
+    "id": "rg_0004",
+    "revision": "head",
+    "flipPairId": "rg_flip_0002",
+    "pr": {
+      "repository": "rails/rails",
+      "number": 53890,
+      "baseSha": "ab3b87e536fc27004629aa5f32bdbe5353626111",
+      "headSha": "b458919ab64b37dbb54b626238be7cae0c559d2c",
+      "title": "Fix lazy attribute method definitiont to be thread safe",
+      "description": "Fix: https://github.com/rails/rails/issues/53667\r\nFollowup: https://github.com/rails/rails/pull/50594\r\n\r\nWe can't safely check if attribute methods were generated or not as we may be in a race with another thread. As such we must always consider that maybe the mehtod was just generated.",
+      "diff": "diff --git a/activerecord/lib/active_record/attribute_methods.rb b/activerecord/lib/active_record/attribute_methods.rb\nindex 1e1c0983bfb60..e5179bf7b98d3 100644\n--- a/activerecord/lib/active_record/attribute_methods.rb\n+++ b/activerecord/lib/active_record/attribute_methods.rb\n@@ -116,10 +116,11 @@ def define_attribute_methods # :nodoc:\n             alias_attribute :id_value, :id if _has_attribute?(\"id\")\n           end\n \n-          @attribute_methods_generated = true\n-\n           generate_alias_attributes\n+\n+          @attribute_methods_generated = true\n         end\n+\n         true\n       end\n \n@@ -472,23 +473,27 @@ def respond_to_missing?(name, include_private = false)\n       end\n \n       def method_missing(name, ...)\n-        unless self.class.attribute_methods_generated?\n-          if self.class.method_defined?(name)\n-            # The method is explicitly defined in the model, but calls a generated\n-            # method with super. So we must resume the call chain at the right step.\n-            last_method = method(name)\n-            last_method = last_method.super_method while last_method.super_method\n-            self.class.define_attribute_methods\n-            if last_method.super_method\n-              return last_method.super_method.call(...)\n-            end\n-          elsif self.class.define_attribute_methods\n-            # Some attribute methods weren't generated yet, we retry the call\n-            return public_send(name, ...)\n-          end\n+        # We can't know whether some method was defined or not because\n+        # multiple thread might be concurrently be in this code path.\n+        # So the first one would define the methods and the others would\n+        # appear to already have them.\n+        self.class.define_attribute_methods\n+\n+        # So in all cases we must behave as if the method was just defined.\n+        method = begin\n+          self.class.public_instance_method(name)\n+        rescue NameError\n+          nil\n         end\n \n-        super\n+        # The method might be explicitly defined in the model, but call a generated\n+        # method with super. So we must resume the call chain at the right step.\n+        method = method.super_method while method && !method.owner.is_a?(GeneratedAttributeMethods)\n+        if method\n+          method.bind_call(self, ...)\n+        else\n+          super\n+        end\n       end\n \n       def attribute_method?(attr_name)\ndiff --git a/activerecord/test/cases/attribute_methods_test.rb b/activerecord/test/cases/attribute_methods_test.rb\nindex acd5d842442af..67fdb7e91c15e 100644\n--- a/activerecord/test/cases/attribute_methods_test.rb\n+++ b/activerecord/test/cases/attribute_methods_test.rb\n@@ -1143,6 +1143,54 @@ def name\n     assert_nothing_raised { klass.define_attribute_method(\"bar\") }\n   end\n \n+  test \"#method_missing define methods on the fly in a thread safe way\" do\n+    topic_class = Class.new(ActiveRecord::Base) do\n+      self.table_name = \"topics\"\n+    end\n+\n+    topic = topic_class.new(title: \"New topic\")\n+    topic_class.undefine_attribute_methods\n+    def topic.method_missing(...)\n+      sleep 0.1 # required to cause a race condition\n+      super\n+    end\n+\n+    threads = 5.times.map do\n+      Thread.new do\n+        assert_equal \"New topic\", topic.title\n+      end\n+    end\n+    threads.each(&:join)\n+  ensure\n+    threads&.each(&:kill)\n+  end\n+\n+  test \"#method_missing define methods on the fly in a thread safe way, even when decorated\" do\n+    topic_class = Class.new(ActiveRecord::Base) do\n+      self.table_name = \"topics\"\n+\n+      def title\n+        \"title:#{super}\"\n+      end\n+    end\n+\n+    topic = topic_class.new(title: \"New topic\")\n+    topic_class.undefine_attribute_methods\n+    def topic.method_missing(...)\n+      sleep 0.1 # required to cause a race condition\n+      super\n+    end\n+\n+    threads = 5.times.map do\n+      Thread.new do\n+        assert_equal \"title:New topic\", topic.title\n+      end\n+    end\n+    threads.each(&:join)\n+  ensure\n+    threads&.each(&:kill)\n+  end\n+\n   test \"read_attribute with nil should not asplode\" do\n     assert_nil Topic.new.read_attribute(nil)\n   end\n",
+      "changedFiles": 2,
+      "addedLines": 70,
+      "deletedLines": 17,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": ["activerecord"]
+    },
+    "testCase": {
+      "id": "rg_tc_0004",
+      "title": "Accessing a computed (non-column) attribute on a loaded record stays close to the cost of accessing a real column",
+      "preconditions": "A record is loaded from a query that selects its normal columns plus one extra computed value under an alias (for example, SELECT records.*, 42 AS extra_value), so the loaded object exposes both a real stored-column attribute and the aliased computed attribute.",
+      "steps": [
+        "Load a single record using a query that adds an aliased computed column alongside its normal columns.",
+        "Measure the wall-clock time to read the real stored-column attribute 50,000 times on that record.",
+        "Measure the wall-clock time to read the aliased computed attribute 50,000 times on the same record.",
+        "Compute the ratio of the computed-attribute read time to the real-column read time."
+      ],
+      "expectedResult": "The ratio of computed-attribute access time to real-column access time stays under roughly 20x, showing that reading the computed alias attribute remains inexpensive rather than incurring a large per-call overhead."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2024-12-10T11:11:55.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": ["performance cliff", "attribute-access"],
+      "durationMs": null,
+      "feature": "ActiveRecord attribute method dispatch",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/rails/rails/pull/53890",
+        "issueUrl": "https://github.com/rails/rails/issues/57183",
+        "evidenceTestFile": "activerecord/test/cases/attribute_methods_test.rb",
+        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x."
+      }
+    }
+  },
+  {
+    "id": "rg_0005",
+    "revision": "base",
+    "flipPairId": "rg_flip_0003",
+    "pr": {
+      "repository": "clap-rs/clap",
+      "number": 6212,
+      "baseSha": "b9009a76d1f2d62ba6af168bcef12ad7272626ca",
+      "headSha": "3604b13117cbb652c10bb44b228b300d543dcc80",
+      "title": "Fix value_terminator has no effect when it is the first argument",
+      "description": "Problem:\nWhen -- is used as the first argument, a positional value_terminator should consume it and leave following values for the next positional. Instead, parsing switched to trailing values, causing the first positional to capture everything.\n\nSolution:\nAdjust escape handling so the current positional's value_terminator takes precedence over entering trailing-values mode when it matches --.\n\nTests:\n\nAdded value_terminator_as_first_argument to cover the first-argument -- case.\n\n#5040",
+      "diff": "diff --git a/clap_builder/src/parser/parser.rs b/clap_builder/src/parser/parser.rs\nindex 58269974dc1..c0874ab1f82 100644\n--- a/clap_builder/src/parser/parser.rs\n+++ b/clap_builder/src/parser/parser.rs\n@@ -132,6 +132,10 @@ impl<'cmd> Parser<'cmd> {\n                         self.cmd[opt].is_allow_hyphen_values_set())\n                     {\n                         // ParseResult::MaybeHyphenValue, do nothing\n+                    } else if self.cmd.get_keymap().get(&pos_counter).is_some_and(|arg| {\n+                        self.check_terminator(arg, arg_os.to_value_os()).is_some()\n+                    }) {\n+                        // Value terminator for this positional, let positional parsing handle it.\n                     } else {\n                         debug!(\"Parser::get_matches_with: setting TrailingVals=true\");\n                         trailing_values = true;\ndiff --git a/tests/builder/multiple_values.rs b/tests/builder/multiple_values.rs\nindex 2c0109ef937..03d5e2e39d0 100644\n--- a/tests/builder/multiple_values.rs\n+++ b/tests/builder/multiple_values.rs\n@@ -1658,6 +1658,48 @@ fn value_terminator_restores_escaping_disabled_by_allow_hyphen_values() {\n     assert_eq!(&cmd2, &[\"/home/clap\", \"foo\"]);\n }\n \n+#[test]\n+fn escape_as_value_terminator_with_empty_list() {\n+\n+    // We expect that the value terminator `--` in \"program -- ls -l\"\n+    // results in:\n+    //   opts = [] and cmdline = [\"ls\", \"-l\"]\n+    // instead of: \n+    //   opts = [\"ls\", \"-l\"] and cmdline = []\n+\n+    let res = Command::new(\"program\")\n+        .arg(\n+            Arg::new(\"cmd1\")\n+                .action(ArgAction::Set)\n+                .num_args(0..)\n+                .allow_hyphen_values(true)\n+                .value_terminator(\"--\"),\n+        )\n+        .arg(\n+            Arg::new(\"cmd2\")\n+                .action(ArgAction::Set)\n+                .num_args(0..)\n+                .allow_hyphen_values(true),\n+        )\n+        .try_get_matches_from(vec![\"program\", \"--\", \"ls\", \"-l\"]);\n+    assert!(res.is_ok(), \"{:?}\", res.unwrap_err().kind());\n+\n+    let m = res.unwrap();\n+    let cmd1: Vec<_> = m\n+        .get_many::<String>(\"cmd1\")\n+        .map(|v| v.map(|v| v.as_str()).collect())\n+        .unwrap_or_default();\n+    let expected_cmd1: Vec<&str> = Vec::new();\n+    assert_eq!(cmd1, expected_cmd1);\n+\n+    let cmd2: Vec<_> = m\n+        .get_many::<String>(\"cmd2\")\n+        .unwrap()\n+        .map(|v| v.as_str())\n+        .collect();\n+    assert_eq!(&cmd2, &[\"ls\", \"-l\"]);\n+}\n+\n #[test]\n fn issue_1480_max_values_consumes_extra_arg_1() {\n     let res = Command::new(\"prog\")\n",
+      "changedFiles": 2,
+      "addedLines": 46,
+      "deletedLines": 0,
+      "commits": 2,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rg_tc_0005",
+      "title": "A trailing double-dash still hands off correctly to a later positional configured to collect everything after it",
+      "preconditions": "A command-line tool defines two positional arguments: the first collects a list of values and is configured to stop collecting as soon as it encounters a literal -- token; the second is configured to collect all remaining raw arguments after a -- token, including ones that look like flags.",
+      "steps": [
+        "Run the tool with arguments: value1 value2 -- --check (values for the first positional, then --, then a flag-like token intended for the second positional).",
+        "Inspect what values were captured in the first positional argument.",
+        "Inspect what values were captured in the second positional argument.",
+        "Check whether the command completed parsing without an error."
+      ],
+      "expectedResult": "The first positional contains only the values given before the --, namely value1 and value2. The second positional contains everything given after the --, namely --check, and the command parses successfully without reporting --check as an unexpected argument."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2026-01-27T20:18:05.000Z",
+      "testType": "API",
+      "tags": ["boundary", "argument-parsing"],
+      "durationMs": null,
+      "feature": "positional argument value_terminator and last interaction",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/clap-rs/clap/pull/6212",
+        "issueUrl": "https://github.com/clap-rs/clap/issues/5040",
+        "evidenceTestFile": "tests/builder/multiple_values.rs",
+        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it."
+      }
+    }
+  },
+  {
+    "id": "rg_0006",
+    "revision": "head",
+    "flipPairId": "rg_flip_0003",
+    "pr": {
+      "repository": "clap-rs/clap",
+      "number": 6212,
+      "baseSha": "b9009a76d1f2d62ba6af168bcef12ad7272626ca",
+      "headSha": "3604b13117cbb652c10bb44b228b300d543dcc80",
+      "title": "Fix value_terminator has no effect when it is the first argument",
+      "description": "Problem:\nWhen -- is used as the first argument, a positional value_terminator should consume it and leave following values for the next positional. Instead, parsing switched to trailing values, causing the first positional to capture everything.\n\nSolution:\nAdjust escape handling so the current positional's value_terminator takes precedence over entering trailing-values mode when it matches --.\n\nTests:\n\nAdded value_terminator_as_first_argument to cover the first-argument -- case.\n\n#5040",
+      "diff": "diff --git a/clap_builder/src/parser/parser.rs b/clap_builder/src/parser/parser.rs\nindex 58269974dc1..c0874ab1f82 100644\n--- a/clap_builder/src/parser/parser.rs\n+++ b/clap_builder/src/parser/parser.rs\n@@ -132,6 +132,10 @@ impl<'cmd> Parser<'cmd> {\n                         self.cmd[opt].is_allow_hyphen_values_set())\n                     {\n                         // ParseResult::MaybeHyphenValue, do nothing\n+                    } else if self.cmd.get_keymap().get(&pos_counter).is_some_and(|arg| {\n+                        self.check_terminator(arg, arg_os.to_value_os()).is_some()\n+                    }) {\n+                        // Value terminator for this positional, let positional parsing handle it.\n                     } else {\n                         debug!(\"Parser::get_matches_with: setting TrailingVals=true\");\n                         trailing_values = true;\ndiff --git a/tests/builder/multiple_values.rs b/tests/builder/multiple_values.rs\nindex 2c0109ef937..03d5e2e39d0 100644\n--- a/tests/builder/multiple_values.rs\n+++ b/tests/builder/multiple_values.rs\n@@ -1658,6 +1658,48 @@ fn value_terminator_restores_escaping_disabled_by_allow_hyphen_values() {\n     assert_eq!(&cmd2, &[\"/home/clap\", \"foo\"]);\n }\n \n+#[test]\n+fn escape_as_value_terminator_with_empty_list() {\n+\n+    // We expect that the value terminator `--` in \"program -- ls -l\"\n+    // results in:\n+    //   opts = [] and cmdline = [\"ls\", \"-l\"]\n+    // instead of: \n+    //   opts = [\"ls\", \"-l\"] and cmdline = []\n+\n+    let res = Command::new(\"program\")\n+        .arg(\n+            Arg::new(\"cmd1\")\n+                .action(ArgAction::Set)\n+                .num_args(0..)\n+                .allow_hyphen_values(true)\n+                .value_terminator(\"--\"),\n+        )\n+        .arg(\n+            Arg::new(\"cmd2\")\n+                .action(ArgAction::Set)\n+                .num_args(0..)\n+                .allow_hyphen_values(true),\n+        )\n+        .try_get_matches_from(vec![\"program\", \"--\", \"ls\", \"-l\"]);\n+    assert!(res.is_ok(), \"{:?}\", res.unwrap_err().kind());\n+\n+    let m = res.unwrap();\n+    let cmd1: Vec<_> = m\n+        .get_many::<String>(\"cmd1\")\n+        .map(|v| v.map(|v| v.as_str()).collect())\n+        .unwrap_or_default();\n+    let expected_cmd1: Vec<&str> = Vec::new();\n+    assert_eq!(cmd1, expected_cmd1);\n+\n+    let cmd2: Vec<_> = m\n+        .get_many::<String>(\"cmd2\")\n+        .unwrap()\n+        .map(|v| v.as_str())\n+        .collect();\n+    assert_eq!(&cmd2, &[\"ls\", \"-l\"]);\n+}\n+\n #[test]\n fn issue_1480_max_values_consumes_extra_arg_1() {\n     let res = Command::new(\"prog\")\n",
+      "changedFiles": 2,
+      "addedLines": 46,
+      "deletedLines": 0,
+      "commits": 2,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rg_tc_0006",
+      "title": "A trailing double-dash still hands off correctly to a later positional configured to collect everything after it",
+      "preconditions": "A command-line tool defines two positional arguments: the first collects a list of values and is configured to stop collecting as soon as it encounters a literal -- token; the second is configured to collect all remaining raw arguments after a -- token, including ones that look like flags.",
+      "steps": [
+        "Run the tool with arguments: value1 value2 -- --check (values for the first positional, then --, then a flag-like token intended for the second positional).",
+        "Inspect what values were captured in the first positional argument.",
+        "Inspect what values were captured in the second positional argument.",
+        "Check whether the command completed parsing without an error."
+      ],
+      "expectedResult": "The first positional contains only the values given before the --, namely value1 and value2. The second positional contains everything given after the --, namely --check, and the command parses successfully without reporting --check as an unexpected argument."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2026-01-27T20:18:05.000Z",
+      "testType": "API",
+      "tags": ["boundary", "argument-parsing"],
+      "durationMs": null,
+      "feature": "positional argument value_terminator and last interaction",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/clap-rs/clap/pull/6212",
+        "issueUrl": "https://github.com/clap-rs/clap/issues/5040",
+        "evidenceTestFile": "tests/builder/multiple_values.rs",
+        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it."
+      }
+    }
+  },
+  {
+    "id": "rg_0007",
+    "revision": "base",
+    "flipPairId": "rg_flip_0004",
+    "pr": {
+      "repository": "symfony/symfony",
+      "number": 63723,
+      "baseSha": "35724e5b0433a407bee257b8e0f8e05cea8d153d",
+      "headSha": "284128c0c998b663790ad3800725d29d4b312ea7",
+      "title": "[EventDispatcher] Fix memory leak in TraceableEventDispatcher for long-running processes",
+      "description": "| Q             | A\n| ------------- | ---\n| Branch?       | 6.4\n| Bug fix?      | yes\n| New feature?  | no\n| Deprecations? | no\n| Issues        | Fix #62996\n| License       | MIT\n\n## Problem\n\nTraceableEventDispatcher leaks memory in long-running CLI processes (Messenger workers, Scheduler) running in dev mode.\n\npreProcess() creates new WrappedListener objects on every dispatch() call and stores them in $callStack. Called listeners stay there permanently. In HTTP requests reset() clears them at the end. In CLI workers reset() is skipped during idle phases, so $callStack grows without limit until the process runs out of memory.\n\nRelated issues: #32422, #41709, #45386\n\n## Solution\n\nTwo changes that work together:\n\n1. Dispatch-depth counter - A per-event integer counts how deep we are in nested dispatches. We only clean up old entries at the top level (depth 1). This is safe even when listeners remove themselves during dispatch.\n\n2. Bounded aggregate for called listeners - When postProcess() finishes, it saves \"this listener was called\" into a small deduplicated list, then removes the heavy wrapper object from $callStack. The list only stores each listener once per event, so it cannot grow. getCalledListeners() and getNotCalledListeners() read from this list.\n\n## Result\n\n- $callStack is always empty after each dispatch (no more accumulation)\n- A listener that was called at any point still shows as \"called\" in the profiler\n- No change to profiler output for normal HTTP requests\n- Memory stays flat in long-running workers",
+      "diff": "diff --git a/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php b/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\nindex 2faea0463806b..12ebb1e674922 100644\n--- a/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\n+++ b/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\n@@ -40,6 +40,9 @@ class TraceableEventDispatcher implements EventDispatcherInterface, ResetInterfa\n     private EventDispatcherInterface $dispatcher;\n     private array $wrappedListeners = [];\n     private array $orphanedEvents = [];\n+    private array $dispatchDepth = [];\n+    private array $calledListenerInfos = [];\n+    private array $calledOriginalListeners = [];\n     private ?RequestStack $requestStack;\n     private string $currentRequestHash = '';\n \n@@ -155,20 +158,20 @@ public function dispatch(object $event, ?string $eventName = null): object\n \n     public function getCalledListeners(?Request $request = null): array\n     {\n-        if (null === $this->callStack) {\n+        if (!$this->calledListenerInfos) {\n             return [];\n         }\n \n         $hash = $request ? spl_object_hash($request) : null;\n         $called = [];\n-        foreach ($this->callStack as $listener) {\n-            [$eventName, $requestHash] = $this->callStack->getInfo();\n+\n+        foreach ($this->calledListenerInfos as $requestHash => $infos) {\n             if (null === $hash || $hash === $requestHash) {\n-                $called[] = $listener->getInfo($eventName);\n+                $called[] = $infos;\n             }\n         }\n \n-        return $called;\n+        return $called ? array_merge(...$called) : [];\n     }\n \n     public function getNotCalledListeners(?Request $request = null): array\n@@ -185,16 +188,14 @@ public function getNotCalledListeners(?Request $request = null): array\n         $hash = $request ? spl_object_hash($request) : null;\n         $calledListeners = [];\n \n-        if (null !== $this->callStack) {\n-            foreach ($this->callStack as $calledListener) {\n-                [, $requestHash] = $this->callStack->getInfo();\n-\n-                if (null === $hash || $hash === $requestHash) {\n-                    $calledListeners[] = $calledListener->getWrappedListener();\n-                }\n+        foreach ($this->calledOriginalListeners as $requestHash => $eventListeners) {\n+            if (null === $hash || $hash === $requestHash) {\n+                $calledListeners[] = array_merge(...array_values($eventListeners));\n             }\n         }\n \n+        $calledListeners = $calledListeners ? array_merge(...$calledListeners) : [];\n+\n         $notCalled = [];\n \n         foreach ($allListeners as $eventName => $listeners) {\n@@ -234,6 +235,9 @@ public function reset()\n         $this->callStack = null;\n         $this->orphanedEvents = [];\n         $this->currentRequestHash = '';\n+        $this->dispatchDepth = [];\n+        $this->calledListenerInfos = [];\n+        $this->calledOriginalListeners = [];\n     }\n \n     /**\n@@ -267,6 +271,8 @@ protected function afterDispatch(string $eventName, object $event)\n \n     private function preProcess(string $eventName): void\n     {\n+        $this->dispatchDepth[$eventName] = ($this->dispatchDepth[$eventName] ?? 0) + 1;\n+\n         if (!$this->dispatcher->hasListeners($eventName)) {\n             $this->orphanedEvents[$this->currentRequestHash][] = $eventName;\n \n@@ -285,6 +291,8 @@ private function preProcess(string $eventName): void\n \n     private function postProcess(string $eventName): void\n     {\n+        --$this->dispatchDepth[$eventName];\n+\n         unset($this->wrappedListeners[$eventName]);\n         $skipped = false;\n         foreach ($this->dispatcher->getListeners($eventName) as $listener) {\n@@ -302,10 +310,16 @@ private function postProcess(string $eventName): void\n \n             if ($listener->wasCalled()) {\n                 $this->logger?->debug('Notified event \"{event}\" to listener \"{listener}\".', $context);\n-            } else {\n-                unset($this->callStack[$listener]);\n+\n+                $original = $listener->getWrappedListener();\n+                if (!\\in_array($original, $this->calledOriginalListeners[$this->currentRequestHash][$eventName] ?? [], true)) {\n+                    $this->calledOriginalListeners[$this->currentRequestHash][$eventName][] = $original;\n+                    $this->calledListenerInfos[$this->currentRequestHash][] = $listener->getInfo($eventName);\n+                }\n             }\n \n+            unset($this->callStack[$listener]);\n+\n             if (null !== $this->logger && $skipped) {\n                 $this->logger->debug('Listener \"{listener}\" was not called for event \"{event}\".', $context);\n             }\n@@ -316,6 +330,28 @@ private function postProcess(string $eventName): void\n                 $skipped = true;\n             }\n         }\n+\n+        if (0 < $this->dispatchDepth[$eventName]) {\n+            return;\n+        }\n+\n+        // Clean up stale callStack entries left by nested same-event dispatches\n+        $stale = [];\n+        foreach ($this->callStack as $listener) {\n+            if ($this->callStack->getInfo()[0] === $eventName) {\n+                $stale[] = $listener;\n+            }\n+        }\n+        foreach ($stale as $listener) {\n+            if ($listener->wasCalled()) {\n+                $original = $listener->getWrappedListener();\n+                if (!\\in_array($original, $this->calledOriginalListeners[$this->currentRequestHash][$eventName] ?? [], true)) {\n+                    $this->calledOriginalListeners[$this->currentRequestHash][$eventName][] = $original;\n+                    $this->calledListenerInfos[$this->currentRequestHash][] = $listener->getInfo($eventName);\n+                }\n+            }\n+            unset($this->callStack[$listener]);\n+        }\n     }\n \n     private function sortNotCalledListeners(array $a, array $b): int\n",
+      "changedFiles": 2,
+      "addedLines": 178,
+      "deletedLines": 14,
+      "commits": 1,
+      "language": "PHP",
+      "labels": ["Bug", "EventDispatcher", "Status: Needs Review"]
+    },
+    "testCase": {
+      "id": "rg_tc_0007",
+      "title": "Debug event dispatcher reports one entry per listener invocation, not just per unique listener",
+      "preconditions": "A tracing-enabled event dispatcher (used for profiling and debugging purposes in a web framework) has a single listener registered for a named event.",
+      "steps": [
+        "Dispatch the event once.",
+        "Dispatch the same event a second time, with the same listener still registered.",
+        "Query the dispatcher for the list of listeners that were called for that event name.",
+        "Count the number of entries returned by that query."
+      ],
+      "expectedResult": "The list contains one entry for every time the listener was actually invoked, so after dispatching the event twice with one listener registered, the count is two, reflecting the true invocation count rather than only the number of distinct listeners."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2026-03-30T11:22:03.000Z",
+      "testType": "INTEGRATION",
+      "tags": ["numeric precision", "event-dispatch", "observability"],
+      "durationMs": null,
+      "feature": "traceable event dispatcher call tracking",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/symfony/symfony/pull/63723",
+        "issueUrl": "https://github.com/symfony/symfony/issues/64653",
+        "evidenceTestFile": "src/Symfony/Component/EventDispatcher/Tests/Debug/TraceableEventDispatcherTest.php",
+        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix."
+      }
+    }
+  },
+  {
+    "id": "rg_0008",
+    "revision": "head",
+    "flipPairId": "rg_flip_0004",
+    "pr": {
+      "repository": "symfony/symfony",
+      "number": 63723,
+      "baseSha": "35724e5b0433a407bee257b8e0f8e05cea8d153d",
+      "headSha": "284128c0c998b663790ad3800725d29d4b312ea7",
+      "title": "[EventDispatcher] Fix memory leak in TraceableEventDispatcher for long-running processes",
+      "description": "| Q             | A\n| ------------- | ---\n| Branch?       | 6.4\n| Bug fix?      | yes\n| New feature?  | no\n| Deprecations? | no\n| Issues        | Fix #62996\n| License       | MIT\n\n## Problem\n\nTraceableEventDispatcher leaks memory in long-running CLI processes (Messenger workers, Scheduler) running in dev mode.\n\npreProcess() creates new WrappedListener objects on every dispatch() call and stores them in $callStack. Called listeners stay there permanently. In HTTP requests reset() clears them at the end. In CLI workers reset() is skipped during idle phases, so $callStack grows without limit until the process runs out of memory.\n\nRelated issues: #32422, #41709, #45386\n\n## Solution\n\nTwo changes that work together:\n\n1. Dispatch-depth counter - A per-event integer counts how deep we are in nested dispatches. We only clean up old entries at the top level (depth 1). This is safe even when listeners remove themselves during dispatch.\n\n2. Bounded aggregate for called listeners - When postProcess() finishes, it saves \"this listener was called\" into a small deduplicated list, then removes the heavy wrapper object from $callStack. The list only stores each listener once per event, so it cannot grow. getCalledListeners() and getNotCalledListeners() read from this list.\n\n## Result\n\n- $callStack is always empty after each dispatch (no more accumulation)\n- A listener that was called at any point still shows as \"called\" in the profiler\n- No change to profiler output for normal HTTP requests\n- Memory stays flat in long-running workers",
+      "diff": "diff --git a/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php b/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\nindex 2faea0463806b..12ebb1e674922 100644\n--- a/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\n+++ b/src/Symfony/Component/EventDispatcher/Debug/TraceableEventDispatcher.php\n@@ -40,6 +40,9 @@ class TraceableEventDispatcher implements EventDispatcherInterface, ResetInterfa\n     private EventDispatcherInterface $dispatcher;\n     private array $wrappedListeners = [];\n     private array $orphanedEvents = [];\n+    private array $dispatchDepth = [];\n+    private array $calledListenerInfos = [];\n+    private array $calledOriginalListeners = [];\n     private ?RequestStack $requestStack;\n     private string $currentRequestHash = '';\n \n@@ -155,20 +158,20 @@ public function dispatch(object $event, ?string $eventName = null): object\n \n     public function getCalledListeners(?Request $request = null): array\n     {\n-        if (null === $this->callStack) {\n+        if (!$this->calledListenerInfos) {\n             return [];\n         }\n \n         $hash = $request ? spl_object_hash($request) : null;\n         $called = [];\n-        foreach ($this->callStack as $listener) {\n-            [$eventName, $requestHash] = $this->callStack->getInfo();\n+\n+        foreach ($this->calledListenerInfos as $requestHash => $infos) {\n             if (null === $hash || $hash === $requestHash) {\n-                $called[] = $listener->getInfo($eventName);\n+                $called[] = $infos;\n             }\n         }\n \n-        return $called;\n+        return $called ? array_merge(...$called) : [];\n     }\n \n     public function getNotCalledListeners(?Request $request = null): array\n@@ -185,16 +188,14 @@ public function getNotCalledListeners(?Request $request = null): array\n         $hash = $request ? spl_object_hash($request) : null;\n         $calledListeners = [];\n \n-        if (null !== $this->callStack) {\n-            foreach ($this->callStack as $calledListener) {\n-                [, $requestHash] = $this->callStack->getInfo();\n-\n-                if (null === $hash || $hash === $requestHash) {\n-                    $calledListeners[] = $calledListener->getWrappedListener();\n-                }\n+        foreach ($this->calledOriginalListeners as $requestHash => $eventListeners) {\n+            if (null === $hash || $hash === $requestHash) {\n+                $calledListeners[] = array_merge(...array_values($eventListeners));\n             }\n         }\n \n+        $calledListeners = $calledListeners ? array_merge(...$calledListeners) : [];\n+\n         $notCalled = [];\n \n         foreach ($allListeners as $eventName => $listeners) {\n@@ -234,6 +235,9 @@ public function reset()\n         $this->callStack = null;\n         $this->orphanedEvents = [];\n         $this->currentRequestHash = '';\n+        $this->dispatchDepth = [];\n+        $this->calledListenerInfos = [];\n+        $this->calledOriginalListeners = [];\n     }\n \n     /**\n@@ -267,6 +271,8 @@ protected function afterDispatch(string $eventName, object $event)\n \n     private function preProcess(string $eventName): void\n     {\n+        $this->dispatchDepth[$eventName] = ($this->dispatchDepth[$eventName] ?? 0) + 1;\n+\n         if (!$this->dispatcher->hasListeners($eventName)) {\n             $this->orphanedEvents[$this->currentRequestHash][] = $eventName;\n \n@@ -285,6 +291,8 @@ private function preProcess(string $eventName): void\n \n     private function postProcess(string $eventName): void\n     {\n+        --$this->dispatchDepth[$eventName];\n+\n         unset($this->wrappedListeners[$eventName]);\n         $skipped = false;\n         foreach ($this->dispatcher->getListeners($eventName) as $listener) {\n@@ -302,10 +310,16 @@ private function postProcess(string $eventName): void\n \n             if ($listener->wasCalled()) {\n                 $this->logger?->debug('Notified event \"{event}\" to listener \"{listener}\".', $context);\n-            } else {\n-                unset($this->callStack[$listener]);\n+\n+                $original = $listener->getWrappedListener();\n+                if (!\\in_array($original, $this->calledOriginalListeners[$this->currentRequestHash][$eventName] ?? [], true)) {\n+                    $this->calledOriginalListeners[$this->currentRequestHash][$eventName][] = $original;\n+                    $this->calledListenerInfos[$this->currentRequestHash][] = $listener->getInfo($eventName);\n+                }\n             }\n \n+            unset($this->callStack[$listener]);\n+\n             if (null !== $this->logger && $skipped) {\n                 $this->logger->debug('Listener \"{listener}\" was not called for event \"{event}\".', $context);\n             }\n@@ -316,6 +330,28 @@ private function postProcess(string $eventName): void\n                 $skipped = true;\n             }\n         }\n+\n+        if (0 < $this->dispatchDepth[$eventName]) {\n+            return;\n+        }\n+\n+        // Clean up stale callStack entries left by nested same-event dispatches\n+        $stale = [];\n+        foreach ($this->callStack as $listener) {\n+            if ($this->callStack->getInfo()[0] === $eventName) {\n+                $stale[] = $listener;\n+            }\n+        }\n+        foreach ($stale as $listener) {\n+            if ($listener->wasCalled()) {\n+                $original = $listener->getWrappedListener();\n+                if (!\\in_array($original, $this->calledOriginalListeners[$this->currentRequestHash][$eventName] ?? [], true)) {\n+                    $this->calledOriginalListeners[$this->currentRequestHash][$eventName][] = $original;\n+                    $this->calledListenerInfos[$this->currentRequestHash][] = $listener->getInfo($eventName);\n+                }\n+            }\n+            unset($this->callStack[$listener]);\n+        }\n     }\n \n     private function sortNotCalledListeners(array $a, array $b): int\n",
+      "changedFiles": 2,
+      "addedLines": 178,
+      "deletedLines": 14,
+      "commits": 1,
+      "language": "PHP",
+      "labels": ["Bug", "EventDispatcher", "Status: Needs Review"]
+    },
+    "testCase": {
+      "id": "rg_tc_0008",
+      "title": "Debug event dispatcher reports one entry per listener invocation, not just per unique listener",
+      "preconditions": "A tracing-enabled event dispatcher (used for profiling and debugging purposes in a web framework) has a single listener registered for a named event.",
+      "steps": [
+        "Dispatch the event once.",
+        "Dispatch the same event a second time, with the same listener still registered.",
+        "Query the dispatcher for the list of listeners that were called for that event name.",
+        "Count the number of entries returned by that query."
+      ],
+      "expectedResult": "The list contains one entry for every time the listener was actually invoked, so after dispatching the event twice with one listener registered, the count is two, reflecting the true invocation count rather than only the number of distinct listeners."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2026-03-30T11:22:03.000Z",
+      "testType": "INTEGRATION",
+      "tags": ["numeric precision", "event-dispatch", "observability"],
+      "durationMs": null,
+      "feature": "traceable event dispatcher call tracking",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/symfony/symfony/pull/63723",
+        "issueUrl": "https://github.com/symfony/symfony/issues/64653",
+        "evidenceTestFile": "src/Symfony/Component/EventDispatcher/Tests/Debug/TraceableEventDispatcherTest.php",
+        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix."
+      }
+    }
+  },
+  {
+    "id": "rg_0009",
+    "revision": "base",
+    "flipPairId": "rg_flip_0005",
+    "pr": {
+      "repository": "spf13/cobra",
+      "number": 889,
+      "baseSha": "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5",
+      "headSha": "020823d1b00c181eda8227fe38536ead8d867f4a",
+      "title": "bash: fix shellcheck errors",
+      "description": "Fixed shellcheck errors according to documentation:\n\nhttps://github.com/koalaman/shellcheck/wiki/SC2207\nhttps://github.com/koalaman/shellcheck/wiki/SC2164\n\n**untested** - tests are ok but someone should verify this is correct",
+      "diff": "diff --git a/bash_completions.go b/bash_completions.go\nindex 57bb8e1b3..03ddda27a 100644\n--- a/bash_completions.go\n+++ b/bash_completions.go\n@@ -72,7 +72,9 @@ __%[1]s_handle_reply()\n             else\n                 allflags=(\"${flags[*]} ${two_word_flags[*]}\")\n             fi\n-            COMPREPLY=( $(compgen -W \"${allflags[*]}\" -- \"$cur\") )\n+            while IFS='' read -r c; do\n+                COMPREPLY+=(\"$c\")\n+            done < <(compgen -W \"${allflags[*]}\" -- \"$cur\")\n             if [[ $(type -t compopt) = \"builtin\" ]]; then\n                 [[ \"${COMPREPLY[0]}\" == *= ]] || compopt +o nospace\n             fi\n@@ -122,10 +124,14 @@ __%[1]s_handle_reply()\n     if [[ ${#must_have_one_flag[@]} -ne 0 ]]; then\n         completions+=(\"${must_have_one_flag[@]}\")\n     fi\n-    COMPREPLY=( $(compgen -W \"${completions[*]}\" -- \"$cur\") )\n+    while IFS='' read -r c; do\n+        COMPREPLY+=(\"$c\")\n+    done < <(compgen -W \"${completions[*]}\" -- \"$cur\")\n \n     if [[ ${#COMPREPLY[@]} -eq 0 && ${#noun_aliases[@]} -gt 0 && ${#must_have_one_noun[@]} -ne 0 ]]; then\n-        COMPREPLY=( $(compgen -W \"${noun_aliases[*]}\" -- \"$cur\") )\n+        while IFS='' read -r c; do\n+            COMPREPLY+=(\"$c\")\n+        done < <(compgen -W \"${noun_aliases[*]}\" -- \"$cur\")\n     fi\n \n     if [[ ${#COMPREPLY[@]} -eq 0 ]]; then\n@@ -160,7 +166,7 @@ __%[1]s_handle_filename_extension_flag()\n __%[1]s_handle_subdirs_in_dir_flag()\n {\n     local dir=\"$1\"\n-    pushd \"${dir}\" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1\n+    pushd \"${dir}\" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return\n }\n \n __%[1]s_handle_flag()\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rg_tc_0009",
+      "title": "A custom shell-completion hook receives the correct current command when suggesting dynamic values",
+      "preconditions": "A command-line tool built with a Bash-completion generator defines two sibling subcommands, each registering its own custom completion function that returns different dynamic values depending on which subcommand is active. The generated completion script has been sourced into the current Bash shell.",
+      "steps": [
+        "In the shell, type the tool name followed by the first subcommand name and a space, then press Tab to request completions for a value that has no static option list (for example: tool subcommand-a <Tab>).",
+        "Note the suggestions that appear.",
+        "Clear the line, type the tool name followed by the second, sibling subcommand name and a space, then press Tab in the same position (for example: tool subcommand-b <Tab>).",
+        "Note the suggestions that appear for the second subcommand."
+      ],
+      "expectedResult": "Each subcommand's custom completion hook returns suggestions scoped to that specific subcommand: the first Tab press offers only values relevant to subcommand-a, and the second offers only values relevant to subcommand-b, because each hook correctly identifies which subcommand is currently being completed."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2019-07-11T18:18:48.000Z",
+      "testType": "INTEGRATION",
+      "tags": ["API contract", "shell-completion"],
+      "durationMs": null,
+      "feature": "bash completion custom function hook",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/cobra/pull/889",
+        "issueUrl": "https://github.com/spf13/cobra/pull/1001",
+        "evidenceTestFile": "bash_completions.go",
+        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered."
+      }
+    }
+  },
+  {
+    "id": "rg_0010",
+    "revision": "head",
+    "flipPairId": "rg_flip_0005",
+    "pr": {
+      "repository": "spf13/cobra",
+      "number": 889,
+      "baseSha": "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5",
+      "headSha": "020823d1b00c181eda8227fe38536ead8d867f4a",
+      "title": "bash: fix shellcheck errors",
+      "description": "Fixed shellcheck errors according to documentation:\n\nhttps://github.com/koalaman/shellcheck/wiki/SC2207\nhttps://github.com/koalaman/shellcheck/wiki/SC2164\n\n**untested** - tests are ok but someone should verify this is correct",
+      "diff": "diff --git a/bash_completions.go b/bash_completions.go\nindex 57bb8e1b3..03ddda27a 100644\n--- a/bash_completions.go\n+++ b/bash_completions.go\n@@ -72,7 +72,9 @@ __%[1]s_handle_reply()\n             else\n                 allflags=(\"${flags[*]} ${two_word_flags[*]}\")\n             fi\n-            COMPREPLY=( $(compgen -W \"${allflags[*]}\" -- \"$cur\") )\n+            while IFS='' read -r c; do\n+                COMPREPLY+=(\"$c\")\n+            done < <(compgen -W \"${allflags[*]}\" -- \"$cur\")\n             if [[ $(type -t compopt) = \"builtin\" ]]; then\n                 [[ \"${COMPREPLY[0]}\" == *= ]] || compopt +o nospace\n             fi\n@@ -122,10 +124,14 @@ __%[1]s_handle_reply()\n     if [[ ${#must_have_one_flag[@]} -ne 0 ]]; then\n         completions+=(\"${must_have_one_flag[@]}\")\n     fi\n-    COMPREPLY=( $(compgen -W \"${completions[*]}\" -- \"$cur\") )\n+    while IFS='' read -r c; do\n+        COMPREPLY+=(\"$c\")\n+    done < <(compgen -W \"${completions[*]}\" -- \"$cur\")\n \n     if [[ ${#COMPREPLY[@]} -eq 0 && ${#noun_aliases[@]} -gt 0 && ${#must_have_one_noun[@]} -ne 0 ]]; then\n-        COMPREPLY=( $(compgen -W \"${noun_aliases[*]}\" -- \"$cur\") )\n+        while IFS='' read -r c; do\n+            COMPREPLY+=(\"$c\")\n+        done < <(compgen -W \"${noun_aliases[*]}\" -- \"$cur\")\n     fi\n \n     if [[ ${#COMPREPLY[@]} -eq 0 ]]; then\n@@ -160,7 +166,7 @@ __%[1]s_handle_filename_extension_flag()\n __%[1]s_handle_subdirs_in_dir_flag()\n {\n     local dir=\"$1\"\n-    pushd \"${dir}\" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1\n+    pushd \"${dir}\" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return\n }\n \n __%[1]s_handle_flag()\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rg_tc_0010",
+      "title": "A custom shell-completion hook receives the correct current command when suggesting dynamic values",
+      "preconditions": "A command-line tool built with a Bash-completion generator defines two sibling subcommands, each registering its own custom completion function that returns different dynamic values depending on which subcommand is active. The generated completion script has been sourced into the current Bash shell.",
+      "steps": [
+        "In the shell, type the tool name followed by the first subcommand name and a space, then press Tab to request completions for a value that has no static option list (for example: tool subcommand-a <Tab>).",
+        "Note the suggestions that appear.",
+        "Clear the line, type the tool name followed by the second, sibling subcommand name and a space, then press Tab in the same position (for example: tool subcommand-b <Tab>).",
+        "Note the suggestions that appear for the second subcommand."
+      ],
+      "expectedResult": "Each subcommand's custom completion hook returns suggestions scoped to that specific subcommand: the first Tab press offers only values relevant to subcommand-a, and the second offers only values relevant to subcommand-b, because each hook correctly identifies which subcommand is currently being completed."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2019-07-11T18:18:48.000Z",
+      "testType": "INTEGRATION",
+      "tags": ["API contract", "shell-completion"],
+      "durationMs": null,
+      "feature": "bash completion custom function hook",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/cobra/pull/889",
+        "issueUrl": "https://github.com/spf13/cobra/pull/1001",
+        "evidenceTestFile": "bash_completions.go",
+        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered."
+      }
+    }
+  },
+  {
+    "id": "rg_0011",
+    "revision": "base",
+    "flipPairId": "rg_flip_0006",
+    "pr": {
+      "repository": "expressjs/express",
+      "number": 6909,
+      "baseSha": "7fea74fcf02764580f38f2a7f1932dfa54cddd90",
+      "headSha": "db7707b4aa5223123c1147f73648eb7b7738c865",
+      "title": "deps: qs@6.14.0",
+      "description": "As titled.\n\nRelated to https://github.com/expressjs/express/pull/6907#issuecomment-3559826048 (cc: @Phillip9587)",
+      "diff": "diff --git a/History.md b/History.md\nindex 4d7abc37205..68f854bd52f 100644\n--- a/History.md\n+++ b/History.md\n@@ -2,6 +2,7 @@ UNRELEASED\n ==========\n \n   * deps: use tilde notation for dependencies\n+  * deps: qs@6.14.0\n \n 4.21.2 / 2024-11-06\n ==========\ndiff --git a/package.json b/package.json\nindex 75c520b80b8..52ec4e2168a 100644\n--- a/package.json\n+++ b/package.json\n@@ -53,7 +53,7 @@\n     \"parseurl\": \"~1.3.3\",\n     \"path-to-regexp\": \"~0.1.12\",\n     \"proxy-addr\": \"~2.0.7\",\n-    \"qs\": \"6.13.0\",\n+    \"qs\": \"6.14.0\",\n     \"range-parser\": \"~1.2.1\",\n     \"safe-buffer\": \"5.2.1\",\n     \"send\": \"~0.19.0\",\n",
+      "changedFiles": 2,
+      "addedLines": 2,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": ["4.x"]
+    },
+    "testCase": {
+      "id": "rg_tc_0011",
+      "title": "Repeating the same query-string key more than 20 times still produces an array on the parsed query object",
+      "preconditions": "A web server parses incoming request query strings using its default query-string parsing mode. A client sends a GET request whose query string repeats the same key more than 20 times, for example ?ids=1&ids=2&...&ids=25.",
+      "steps": [
+        "Send a GET request to any route with a query string that repeats the key 'ids' 25 times, with values 1 through 25 in order.",
+        "In the request handler, read the parsed value for the 'ids' query key.",
+        "Check the JavaScript type of that value.",
+        "Check how many entries it contains and in what order."
+      ],
+      "expectedResult": "The parsed 'ids' value is an array containing all 25 string values in their original order (['1', '2', ..., '25']), not a plain object keyed by numeric index."
+    },
+    "gold": { "result": "PASS" },
+    "metadata": {
+      "executedAt": "2025-11-21T14:22:59.000Z",
+      "testType": "API",
+      "tags": ["boundary", "query-string-parsing"],
+      "durationMs": null,
+      "feature": "extended query string parsing",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/expressjs/express/pull/6909",
+        "issueUrl": "https://github.com/expressjs/express/issues/7147",
+        "evidenceTestFile": "test/req.query.js",
+        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString."
+      }
+    }
+  },
+  {
+    "id": "rg_0012",
+    "revision": "head",
+    "flipPairId": "rg_flip_0006",
+    "pr": {
+      "repository": "expressjs/express",
+      "number": 6909,
+      "baseSha": "7fea74fcf02764580f38f2a7f1932dfa54cddd90",
+      "headSha": "db7707b4aa5223123c1147f73648eb7b7738c865",
+      "title": "deps: qs@6.14.0",
+      "description": "As titled.\n\nRelated to https://github.com/expressjs/express/pull/6907#issuecomment-3559826048 (cc: @Phillip9587)",
+      "diff": "diff --git a/History.md b/History.md\nindex 4d7abc37205..68f854bd52f 100644\n--- a/History.md\n+++ b/History.md\n@@ -2,6 +2,7 @@ UNRELEASED\n ==========\n \n   * deps: use tilde notation for dependencies\n+  * deps: qs@6.14.0\n \n 4.21.2 / 2024-11-06\n ==========\ndiff --git a/package.json b/package.json\nindex 75c520b80b8..52ec4e2168a 100644\n--- a/package.json\n+++ b/package.json\n@@ -53,7 +53,7 @@\n     \"parseurl\": \"~1.3.3\",\n     \"path-to-regexp\": \"~0.1.12\",\n     \"proxy-addr\": \"~2.0.7\",\n-    \"qs\": \"6.13.0\",\n+    \"qs\": \"6.14.0\",\n     \"range-parser\": \"~1.2.1\",\n     \"safe-buffer\": \"5.2.1\",\n     \"send\": \"~0.19.0\",\n",
+      "changedFiles": 2,
+      "addedLines": 2,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": ["4.x"]
+    },
+    "testCase": {
+      "id": "rg_tc_0012",
+      "title": "Repeating the same query-string key more than 20 times still produces an array on the parsed query object",
+      "preconditions": "A web server parses incoming request query strings using its default query-string parsing mode. A client sends a GET request whose query string repeats the same key more than 20 times, for example ?ids=1&ids=2&...&ids=25.",
+      "steps": [
+        "Send a GET request to any route with a query string that repeats the key 'ids' 25 times, with values 1 through 25 in order.",
+        "In the request handler, read the parsed value for the 'ids' query key.",
+        "Check the JavaScript type of that value.",
+        "Check how many entries it contains and in what order."
+      ],
+      "expectedResult": "The parsed 'ids' value is an array containing all 25 string values in their original order (['1', '2', ..., '25']), not a plain object keyed by numeric index."
+    },
+    "gold": { "result": "FAIL" },
+    "metadata": {
+      "executedAt": "2025-11-21T14:22:59.000Z",
+      "testType": "API",
+      "tags": ["boundary", "query-string-parsing"],
+      "durationMs": null,
+      "feature": "extended query string parsing",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/expressjs/express/pull/6909",
+        "issueUrl": "https://github.com/expressjs/express/issues/7147",
+        "evidenceTestFile": "test/req.query.js",
+        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString."
+      }
+    }
+  }
+]

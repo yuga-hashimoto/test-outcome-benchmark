@@ -11,3 +11,11 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
+
+# SQLite sidecar files
+*.sqlite-shm
+*.sqlite-wal
+
+# TypeScript / Next.js generated
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,686 @@
+[
+  {
+    "id": "sys_0001",
+    "revision": "base",
+    "flipPairId": "sys_flip_0001",
+    "pr": {
+      "repository": "gin-gonic/gin",
+      "number": 4535,
+      "baseSha": "fb2583442c4d9bccb75e6d26f1aa6e7c01950db6",
+      "headSha": "f592c63f007120576902730bcdbf9f66cfec969b",
+      "title": "fix(tree): panic in findCaseInsensitivePathRec with RedirectFixedPath",
+      "description": "Fixes a panic (`invalid node type`) in `findCaseInsensitivePathRec` that occurs when `RedirectFixedPath` is enabled and a request path doesn't match any registered route. Fixes #2959. Root cause: when the current node has wildChild = true, the code grabs children[0] to find the wildcard child, but addChild() always appends the wildcard child at the end of the children array, not the beginning. So when a node has both static children and a wildcard child, children[0] points to a static node, and the switch on n.nType falls through to the default case which panics. getValue() already handles this correctly using children[len(children)-1]; this PR applies the same fix to findCaseInsensitivePathRec.",
+      "diff": "diff --git a/tree.go b/tree.go\nindex 3ac0a3b17c..580abbaf8e 100644\n--- a/tree.go\n+++ b/tree.go\n@@ -818,7 +818,72 @@ walk: // Outer loop for walking the tree\n \t\t\treturn nil\n \t\t}\n\n-\t\tn = n.children[0]\n+\t\t// When wildChild is true, try static children first (via indices)\n+\t\t// before falling back to the wildcard child. This ensures that\n+\t\t// case-insensitive lookups prefer static routes over param routes\n+\t\t// (e.g., /PREFIX/XXX should resolve to /prefix/xxx, not match :id).\n+\t\tif len(n.indices) > 0 {\n+\t\t\trb = shiftNRuneBytes(rb, npLen)\n+\n+\t\t\tif rb[0] != 0 {\n+\t\t\t\tidxc := rb[0]\n+\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\t\t\t} else {\n+\t\t\t\tvar rv rune\n+\t\t\t\tvar off int\n+\t\t\t\tfor max_ := min(npLen, 3); off < max_; off++ {\n+\t\t\t\t\tif i := npLen - off; utf8.RuneStart(oldPath[i]) {\n+\t\t\t\t\t\trv, _ = utf8.DecodeRuneInString(oldPath[i:])\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\n+\t\t\t\tlo := unicode.ToLower(rv)\n+\t\t\t\tutf8.EncodeRune(rb[:], lo)\n+\t\t\t\trb = shiftNRuneBytes(rb, off)\n+\n+\t\t\t\tidxc := rb[0]\n+\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\n+\t\t\t\tif up := unicode.ToUpper(rv); up != lo {\n+\t\t\t\t\tutf8.EncodeRune(rb[:], up)\n+\t\t\t\t\trb = shiftNRuneBytes(rb, off)\n+\n+\t\t\t\t\tidxc := rb[0]\n+\t\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t\t}\n+\t\t\t\t\t\t\tbreak\n+\t\t\t\t\t\t}\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\t\t\t}\n+\t\t}\n+\n+\t\t// Fall back to wildcard child, which is always at the end of the array\n+\t\tn = n.children[len(n.children)-1]\n \t\tswitch n.nType {\n \t\tcase param:\n \t\t\t// Find param end (either '/' or path end)\ndiff --git a/tree_test.go b/tree_test.go\nindex b580007d7f..23339af4bb 100644\n--- a/tree_test.go\n+++ b/tree_test.go\n@@ -1018,3 +1018,96 @@ func TestWildcardInvalidSlash(t *testing.T) {\n \t\t}\n \t}\n }\n+\n+func TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard(t *testing.T) {\n+\ttree := &node{}\n+\n+\t// Setup routes that create a node with both static children and a wildcard child.\n+\t// This configuration previously caused a panic (\"invalid node type\") in\n+\t// findCaseInsensitivePathRec because it accessed children[0] instead of the\n+\t// wildcard child (which is always at the end of the children array).\n+\t// See: https://github.com/gin-gonic/gin/issues/2959\n+\troutes := [...]string{\n+\t\t\"/aa/aa\",\n+\t\t\"/:bb/aa\",\n+\t}\n+\n+\tfor _, route := range routes {\n+\t\trecv := catchPanic(func() {\n+\t\t\ttree.addRoute(route, fakeHandler(route))\n+\t\t})\n+\t\tif recv != nil {\n+\t\t\tt.Fatalf(\"panic inserting route '%s': %v\", route, recv)\n+\t\t}\n+\t}\n+\n+\t// These lookups previously panicked with \"invalid node type\" because\n+\t// findCaseInsensitivePathRec picked children[0] (a static node) instead\n+\t// of the wildcard child at the end of the array.\n+\tout, found := tree.findCaseInsensitivePath(\"/aa\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/aa', but got: %s\", string(out))\n+\t}\n+\n+\tout, found = tree.findCaseInsensitivePath(\"/aa/aa/aa/aa\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/aa/aa/aa/aa', but got: %s\", string(out))\n+\t}\n+\n+\t// Case-insensitive lookup should match the static route /aa/aa\n+\tout, found = tree.findCaseInsensitivePath(\"/AA/AA\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/AA/AA' not found via case-insensitive lookup\")\n+\t} else if string(out) != \"/aa/aa\" {\n+\t\tt.Errorf(\"Wrong result for '/AA/AA': expected '/aa/aa', got: %s\", string(out))\n+\t}\n+}\n+\n+func TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild(t *testing.T) {\n+\ttree := &node{}\n+\n+\t// Another variant: param route + static route under same prefix\n+\troutes := [...]string{\n+\t\t\"/prefix/:id\",\n+\t\t\"/prefix/xxx\",\n+\t}\n+\n+\tfor _, route := range routes {\n+\t\trecv := catchPanic(func() {\n+\t\t\ttree.addRoute(route, fakeHandler(route))\n+\t\t})\n+\t\tif recv != nil {\n+\t\t\tt.Fatalf(\"panic inserting route '%s': %v\", route, recv)\n+\t\t}\n+\t}\n+\n+\t// Should NOT panic even for paths that don't match any route\n+\tout, found := tree.findCaseInsensitivePath(\"/prefix/a/b/c\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/prefix/a/b/c', but got: %s\", string(out))\n+\t}\n+\n+\t// Exact match should still work\n+\tout, found = tree.findCaseInsensitivePath(\"/prefix/xxx\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/prefix/xxx' not found\")\n+\t} else if string(out) != \"/prefix/xxx\" {\n+\t\tt.Errorf(\"Wrong result for '/prefix/xxx': %s\", string(out))\n+\t}\n+\n+\t// Case-insensitive match should work\n+\tout, found = tree.findCaseInsensitivePath(\"/PREFIX/XXX\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/PREFIX/XXX' not found via case-insensitive lookup\")\n+\t} else if string(out) != \"/prefix/xxx\" {\n+\t\tt.Errorf(\"Wrong result for '/PREFIX/XXX': expected '/prefix/xxx', got: %s\", string(out))\n+\t}\n+\n+\t// Param route should still match\n+\tout, found = tree.findCaseInsensitivePath(\"/prefix/something\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/prefix/something' not found via param match\")\n+\t} else if string(out) != \"/prefix/something\" {\n+\t\tt.Errorf(\"Wrong result for '/prefix/something': %s\", string(out))\n+\t}\n+}\n",
+      "changedFiles": 2,
+      "addedLines": 159,
+      "deletedLines": 1,
+      "commits": 5,
+      "language": "Go",
+      "labels": [
+        "type/bug"
+      ]
+    },
+    "testCase": {
+      "id": "sys_tc_0001",
+      "title": "Case-insensitive redirect resolves correctly when a route mixes a static path and a same-prefix parameterized route",
+      "preconditions": "A router has case-insensitive path correction enabled, so mis-cased incoming requests can be redirected to the correctly-cased registered route. Two routes are registered that share the same first path segment: one fully static route and one route where that segment is a named parameter.",
+      "steps": [
+        "Enable case-insensitive path correction on the router.",
+        "Register a static route at a two-segment path, e.g. /prefix/xxx.",
+        "Register a second route on the same prefix where the second segment is a named parameter, e.g. /prefix/:id.",
+        "Send an HTTP GET request to the static route's path but using the wrong letter case, e.g. /PREFIX/XXX.",
+        "Send an HTTP GET request to a path under the same prefix that does not match any registered route, e.g. /prefix/a/b/c.",
+        "Observe both HTTP responses."
+      ],
+      "expectedResult": "The mis-cased request is transparently resolved to the correctly-cased static route without any server error, and the unmatched path yields an ordinary not-found response rather than the server crashing or returning an internal server error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-02-28T03:15:27.000Z",
+      "testType": "API",
+      "tags": [
+        "off-by-one/boundary",
+        "routing"
+      ],
+      "durationMs": null,
+      "feature": "case-insensitive route redirection",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/gin-gonic/gin/pull/4535",
+        "issueUrl": "https://github.com/gin-gonic/gin/issues/2959",
+        "evidenceTestFile": "tree_test.go",
+        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback)."
+      }
+    }
+  },
+  {
+    "id": "sys_0002",
+    "revision": "head",
+    "flipPairId": "sys_flip_0001",
+    "pr": {
+      "repository": "gin-gonic/gin",
+      "number": 4535,
+      "baseSha": "fb2583442c4d9bccb75e6d26f1aa6e7c01950db6",
+      "headSha": "f592c63f007120576902730bcdbf9f66cfec969b",
+      "title": "fix(tree): panic in findCaseInsensitivePathRec with RedirectFixedPath",
+      "description": "Fixes a panic (`invalid node type`) in `findCaseInsensitivePathRec` that occurs when `RedirectFixedPath` is enabled and a request path doesn't match any registered route. Fixes #2959. Root cause: when the current node has wildChild = true, the code grabs children[0] to find the wildcard child, but addChild() always appends the wildcard child at the end of the children array, not the beginning. So when a node has both static children and a wildcard child, children[0] points to a static node, and the switch on n.nType falls through to the default case which panics. getValue() already handles this correctly using children[len(children)-1]; this PR applies the same fix to findCaseInsensitivePathRec.",
+      "diff": "diff --git a/tree.go b/tree.go\nindex 3ac0a3b17c..580abbaf8e 100644\n--- a/tree.go\n+++ b/tree.go\n@@ -818,7 +818,72 @@ walk: // Outer loop for walking the tree\n \t\t\treturn nil\n \t\t}\n\n-\t\tn = n.children[0]\n+\t\t// When wildChild is true, try static children first (via indices)\n+\t\t// before falling back to the wildcard child. This ensures that\n+\t\t// case-insensitive lookups prefer static routes over param routes\n+\t\t// (e.g., /PREFIX/XXX should resolve to /prefix/xxx, not match :id).\n+\t\tif len(n.indices) > 0 {\n+\t\t\trb = shiftNRuneBytes(rb, npLen)\n+\n+\t\t\tif rb[0] != 0 {\n+\t\t\t\tidxc := rb[0]\n+\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\t\t\t} else {\n+\t\t\t\tvar rv rune\n+\t\t\t\tvar off int\n+\t\t\t\tfor max_ := min(npLen, 3); off < max_; off++ {\n+\t\t\t\t\tif i := npLen - off; utf8.RuneStart(oldPath[i]) {\n+\t\t\t\t\t\trv, _ = utf8.DecodeRuneInString(oldPath[i:])\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\n+\t\t\t\tlo := unicode.ToLower(rv)\n+\t\t\t\tutf8.EncodeRune(rb[:], lo)\n+\t\t\t\trb = shiftNRuneBytes(rb, off)\n+\n+\t\t\t\tidxc := rb[0]\n+\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tbreak\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\n+\t\t\t\tif up := unicode.ToUpper(rv); up != lo {\n+\t\t\t\t\tutf8.EncodeRune(rb[:], up)\n+\t\t\t\t\trb = shiftNRuneBytes(rb, off)\n+\n+\t\t\t\t\tidxc := rb[0]\n+\t\t\t\t\tfor i, c := range []byte(n.indices) {\n+\t\t\t\t\t\tif c == idxc {\n+\t\t\t\t\t\t\tif out := n.children[i].findCaseInsensitivePathRec(\n+\t\t\t\t\t\t\t\tpath, ciPath, rb, fixTrailingSlash,\n+\t\t\t\t\t\t\t); out != nil {\n+\t\t\t\t\t\t\t\treturn out\n+\t\t\t\t\t\t\t}\n+\t\t\t\t\t\t\tbreak\n+\t\t\t\t\t\t}\n+\t\t\t\t\t}\n+\t\t\t\t}\n+\t\t\t}\n+\t\t}\n+\n+\t\t// Fall back to wildcard child, which is always at the end of the array\n+\t\tn = n.children[len(n.children)-1]\n \t\tswitch n.nType {\n \t\tcase param:\n \t\t\t// Find param end (either '/' or path end)\ndiff --git a/tree_test.go b/tree_test.go\nindex b580007d7f..23339af4bb 100644\n--- a/tree_test.go\n+++ b/tree_test.go\n@@ -1018,3 +1018,96 @@ func TestWildcardInvalidSlash(t *testing.T) {\n \t\t}\n \t}\n }\n+\n+func TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard(t *testing.T) {\n+\ttree := &node{}\n+\n+\t// Setup routes that create a node with both static children and a wildcard child.\n+\t// This configuration previously caused a panic (\"invalid node type\") in\n+\t// findCaseInsensitivePathRec because it accessed children[0] instead of the\n+\t// wildcard child (which is always at the end of the children array).\n+\t// See: https://github.com/gin-gonic/gin/issues/2959\n+\troutes := [...]string{\n+\t\t\"/aa/aa\",\n+\t\t\"/:bb/aa\",\n+\t}\n+\n+\tfor _, route := range routes {\n+\t\trecv := catchPanic(func() {\n+\t\t\ttree.addRoute(route, fakeHandler(route))\n+\t\t})\n+\t\tif recv != nil {\n+\t\t\tt.Fatalf(\"panic inserting route '%s': %v\", route, recv)\n+\t\t}\n+\t}\n+\n+\t// These lookups previously panicked with \"invalid node type\" because\n+\t// findCaseInsensitivePathRec picked children[0] (a static node) instead\n+\t// of the wildcard child at the end of the array.\n+\tout, found := tree.findCaseInsensitivePath(\"/aa\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/aa', but got: %s\", string(out))\n+\t}\n+\n+\tout, found = tree.findCaseInsensitivePath(\"/aa/aa/aa/aa\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/aa/aa/aa/aa', but got: %s\", string(out))\n+\t}\n+\n+\t// Case-insensitive lookup should match the static route /aa/aa\n+\tout, found = tree.findCaseInsensitivePath(\"/AA/AA\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/AA/AA' not found via case-insensitive lookup\")\n+\t} else if string(out) != \"/aa/aa\" {\n+\t\tt.Errorf(\"Wrong result for '/AA/AA': expected '/aa/aa', got: %s\", string(out))\n+\t}\n+}\n+\n+func TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild(t *testing.T) {\n+\ttree := &node{}\n+\n+\t// Another variant: param route + static route under same prefix\n+\troutes := [...]string{\n+\t\t\"/prefix/:id\",\n+\t\t\"/prefix/xxx\",\n+\t}\n+\n+\tfor _, route := range routes {\n+\t\trecv := catchPanic(func() {\n+\t\t\ttree.addRoute(route, fakeHandler(route))\n+\t\t})\n+\t\tif recv != nil {\n+\t\t\tt.Fatalf(\"panic inserting route '%s': %v\", route, recv)\n+\t\t}\n+\t}\n+\n+\t// Should NOT panic even for paths that don't match any route\n+\tout, found := tree.findCaseInsensitivePath(\"/prefix/a/b/c\", true)\n+\tif found {\n+\t\tt.Errorf(\"Expected no match for '/prefix/a/b/c', but got: %s\", string(out))\n+\t}\n+\n+\t// Exact match should still work\n+\tout, found = tree.findCaseInsensitivePath(\"/prefix/xxx\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/prefix/xxx' not found\")\n+\t} else if string(out) != \"/prefix/xxx\" {\n+\t\tt.Errorf(\"Wrong result for '/prefix/xxx': %s\", string(out))\n+\t}\n+\n+\t// Case-insensitive match should work\n+\tout, found = tree.findCaseInsensitivePath(\"/PREFIX/XXX\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/PREFIX/XXX' not found via case-insensitive lookup\")\n+\t} else if string(out) != \"/prefix/xxx\" {\n+\t\tt.Errorf(\"Wrong result for '/PREFIX/XXX': expected '/prefix/xxx', got: %s\", string(out))\n+\t}\n+\n+\t// Param route should still match\n+\tout, found = tree.findCaseInsensitivePath(\"/prefix/something\", true)\n+\tif !found {\n+\t\tt.Error(\"Route '/prefix/something' not found via param match\")\n+\t} else if string(out) != \"/prefix/something\" {\n+\t\tt.Errorf(\"Wrong result for '/prefix/something': %s\", string(out))\n+\t}\n+}\n",
+      "changedFiles": 2,
+      "addedLines": 159,
+      "deletedLines": 1,
+      "commits": 5,
+      "language": "Go",
+      "labels": [
+        "type/bug"
+      ]
+    },
+    "testCase": {
+      "id": "sys_tc_0002",
+      "title": "Case-insensitive redirect resolves correctly when a route mixes a static path and a same-prefix parameterized route",
+      "preconditions": "A router has case-insensitive path correction enabled, so mis-cased incoming requests can be redirected to the correctly-cased registered route. Two routes are registered that share the same first path segment: one fully static route and one route where that segment is a named parameter.",
+      "steps": [
+        "Enable case-insensitive path correction on the router.",
+        "Register a static route at a two-segment path, e.g. /prefix/xxx.",
+        "Register a second route on the same prefix where the second segment is a named parameter, e.g. /prefix/:id.",
+        "Send an HTTP GET request to the static route's path but using the wrong letter case, e.g. /PREFIX/XXX.",
+        "Send an HTTP GET request to a path under the same prefix that does not match any registered route, e.g. /prefix/a/b/c.",
+        "Observe both HTTP responses."
+      ],
+      "expectedResult": "The mis-cased request is transparently resolved to the correctly-cased static route without any server error, and the unmatched path yields an ordinary not-found response rather than the server crashing or returning an internal server error."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-02-28T03:15:27.000Z",
+      "testType": "API",
+      "tags": [
+        "off-by-one/boundary",
+        "routing"
+      ],
+      "durationMs": null,
+      "feature": "case-insensitive route redirection",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/gin-gonic/gin/pull/4535",
+        "issueUrl": "https://github.com/gin-gonic/gin/issues/2959",
+        "evidenceTestFile": "tree_test.go",
+        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback)."
+      }
+    }
+  },
+  {
+    "id": "sys_0003",
+    "revision": "base",
+    "flipPairId": "sys_flip_0002",
+    "pr": {
+      "repository": "jackc/pgx",
+      "number": 2602,
+      "baseSha": "8a31577a36724dd5a1bb39b675ee0f43cc588608",
+      "headSha": "6b50efed0641180ceba9d21d7b1d525dd7b499f2",
+      "title": "Fix nil pointer panic in Numeric.Int64Value when Int is nil",
+      "description": "Numeric.Int64Value panics with a nil pointer dereference when the Numeric is valid but its Int field is nil. The other methods that read a Numeric already treat a nil Int as zero: Float64Value returns 0, Value returns \"0\", and MarshalJSON returns 0. Int64Value is the exception; it goes through toBigInt, which returns the nil Int unchanged when Exp is 0, and then IsInt64 dereferences it. pgtype.Numeric{Valid: true} is an easy way to end up here. The guard is placed in toBigInt so it returns zero when Int is nil, which makes all four methods agree; this also covers uint64Wrapper and uintWrapper ScanNumeric, which reach toBigInt the same way.",
+      "diff": "diff --git a/pgtype/numeric.go b/pgtype/numeric.go\nindex caf5ff17b..90cf4307a 100644\n--- a/pgtype/numeric.go\n+++ b/pgtype/numeric.go\n@@ -149,6 +149,10 @@ func (n *Numeric) ScanScientific(src string) error {\n }\n\n func (n *Numeric) toBigInt() (*big.Int, error) {\n+\tif n.Int == nil {\n+\t\treturn big.NewInt(0), nil\n+\t}\n+\n \tif n.Exp == 0 {\n \t\treturn n.Int, nil\n \t}\ndiff --git a/pgtype/numeric_test.go b/pgtype/numeric_test.go\nindex 61faac5df..7dcdaf624 100644\n--- a/pgtype/numeric_test.go\n+++ b/pgtype/numeric_test.go\n@@ -171,6 +171,25 @@ func TestNumericFloat64Valuer(t *testing.T) {\n \tassert.True(t, f.Valid)\n }\n\n+func TestNumericInt64Valuer(t *testing.T) {\n+\tfor i, tt := range []struct {\n+\t\tn pgtype.Numeric\n+\t\ti pgtype.Int8\n+\t}{\n+\t\t{mustParseNumeric(t, \"1\"), pgtype.Int8{Int64: 1, Valid: true}},\n+\t\t{mustParseNumeric(t, \"-99999999999\"), pgtype.Int8{Int64: -99999999999, Valid: true}},\n+\t\t{mustParseNumeric(t, \"0\"), pgtype.Int8{Int64: 0, Valid: true}},\n+\t\t// A valid Numeric with a nil Int is zero, matching Float64Value, Value,\n+\t\t// and MarshalJSON. Int64Value used to dereference the nil Int and panic.\n+\t\t{pgtype.Numeric{Valid: true}, pgtype.Int8{Int64: 0, Valid: true}},\n+\t\t{pgtype.Numeric{}, pgtype.Int8{}},\n+\t} {\n+\t\tv, err := tt.n.Int64Value()\n+\t\tassert.NoErrorf(t, err, \"%d\", i)\n+\t\tassert.Equalf(t, tt.i, v, \"%d\", i)\n+\t}\n+}\n+\n func TestNumericCodecFuzz(t *testing.T) {\n \tskipCockroachDB(t, \"server formats numeric text format differently\")\n",
+      "changedFiles": 2,
+      "addedLines": 23,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0003",
+      "title": "Converting a valid-but-empty numeric value to a 64-bit integer returns zero instead of crashing",
+      "preconditions": "A numeric value object has been constructed as valid but without any underlying digits assigned, e.g. by building it as a zero-value struct literal and only setting its validity flag.",
+      "steps": [
+        "Construct a numeric value that is marked valid but has no magnitude explicitly set.",
+        "Convert the value to its floating-point representation and note the result.",
+        "Convert the same value to its 64-bit integer representation.",
+        "Compare the two conversion results for consistency."
+      ],
+      "expectedResult": "Both conversions succeed and report a value of zero; converting to a 64-bit integer does not raise a runtime error of any kind."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-18T15:20:15.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "nil-or-Option handling",
+        "numeric conversion"
+      ],
+      "durationMs": null,
+      "feature": "numeric type conversion",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/jackc/pgx/pull/2602",
+        "issueUrl": null,
+        "evidenceTestFile": "pgtype/numeric_test.go",
+        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt."
+      }
+    }
+  },
+  {
+    "id": "sys_0004",
+    "revision": "head",
+    "flipPairId": "sys_flip_0002",
+    "pr": {
+      "repository": "jackc/pgx",
+      "number": 2602,
+      "baseSha": "8a31577a36724dd5a1bb39b675ee0f43cc588608",
+      "headSha": "6b50efed0641180ceba9d21d7b1d525dd7b499f2",
+      "title": "Fix nil pointer panic in Numeric.Int64Value when Int is nil",
+      "description": "Numeric.Int64Value panics with a nil pointer dereference when the Numeric is valid but its Int field is nil. The other methods that read a Numeric already treat a nil Int as zero: Float64Value returns 0, Value returns \"0\", and MarshalJSON returns 0. Int64Value is the exception; it goes through toBigInt, which returns the nil Int unchanged when Exp is 0, and then IsInt64 dereferences it. pgtype.Numeric{Valid: true} is an easy way to end up here. The guard is placed in toBigInt so it returns zero when Int is nil, which makes all four methods agree; this also covers uint64Wrapper and uintWrapper ScanNumeric, which reach toBigInt the same way.",
+      "diff": "diff --git a/pgtype/numeric.go b/pgtype/numeric.go\nindex caf5ff17b..90cf4307a 100644\n--- a/pgtype/numeric.go\n+++ b/pgtype/numeric.go\n@@ -149,6 +149,10 @@ func (n *Numeric) ScanScientific(src string) error {\n }\n\n func (n *Numeric) toBigInt() (*big.Int, error) {\n+\tif n.Int == nil {\n+\t\treturn big.NewInt(0), nil\n+\t}\n+\n \tif n.Exp == 0 {\n \t\treturn n.Int, nil\n \t}\ndiff --git a/pgtype/numeric_test.go b/pgtype/numeric_test.go\nindex 61faac5df..7dcdaf624 100644\n--- a/pgtype/numeric_test.go\n+++ b/pgtype/numeric_test.go\n@@ -171,6 +171,25 @@ func TestNumericFloat64Valuer(t *testing.T) {\n \tassert.True(t, f.Valid)\n }\n\n+func TestNumericInt64Valuer(t *testing.T) {\n+\tfor i, tt := range []struct {\n+\t\tn pgtype.Numeric\n+\t\ti pgtype.Int8\n+\t}{\n+\t\t{mustParseNumeric(t, \"1\"), pgtype.Int8{Int64: 1, Valid: true}},\n+\t\t{mustParseNumeric(t, \"-99999999999\"), pgtype.Int8{Int64: -99999999999, Valid: true}},\n+\t\t{mustParseNumeric(t, \"0\"), pgtype.Int8{Int64: 0, Valid: true}},\n+\t\t// A valid Numeric with a nil Int is zero, matching Float64Value, Value,\n+\t\t// and MarshalJSON. Int64Value used to dereference the nil Int and panic.\n+\t\t{pgtype.Numeric{Valid: true}, pgtype.Int8{Int64: 0, Valid: true}},\n+\t\t{pgtype.Numeric{}, pgtype.Int8{}},\n+\t} {\n+\t\tv, err := tt.n.Int64Value()\n+\t\tassert.NoErrorf(t, err, \"%d\", i)\n+\t\tassert.Equalf(t, tt.i, v, \"%d\", i)\n+\t}\n+}\n+\n func TestNumericCodecFuzz(t *testing.T) {\n \tskipCockroachDB(t, \"server formats numeric text format differently\")\n",
+      "changedFiles": 2,
+      "addedLines": 23,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0004",
+      "title": "Converting a valid-but-empty numeric value to a 64-bit integer returns zero instead of crashing",
+      "preconditions": "A numeric value object has been constructed as valid but without any underlying digits assigned, e.g. by building it as a zero-value struct literal and only setting its validity flag.",
+      "steps": [
+        "Construct a numeric value that is marked valid but has no magnitude explicitly set.",
+        "Convert the value to its floating-point representation and note the result.",
+        "Convert the same value to its 64-bit integer representation.",
+        "Compare the two conversion results for consistency."
+      ],
+      "expectedResult": "Both conversions succeed and report a value of zero; converting to a 64-bit integer does not raise a runtime error of any kind."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-18T15:20:15.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "nil-or-Option handling",
+        "numeric conversion"
+      ],
+      "durationMs": null,
+      "feature": "numeric type conversion",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/jackc/pgx/pull/2602",
+        "issueUrl": null,
+        "evidenceTestFile": "pgtype/numeric_test.go",
+        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt."
+      }
+    }
+  },
+  {
+    "id": "sys_0005",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "charmbracelet/bubbletea",
+      "number": 1677,
+      "baseSha": "d81b6b64665a31c038a0234ab62338a8e0afd104",
+      "headSha": "7fa0685d412caca32b7628e75af9591f5ae5cd7e",
+      "title": "fix(renderer): restore tab stops if hard tabs are enabled",
+      "description": "When hard tabs are enabled, the renderer optimizes rendering by using actual tab characters instead of spaces. This requires setting tab stops every 8 columns at the beginning of the rendering process. Fixes: https://github.com/charmbracelet/bubbletea/issues/1614. Supersedes: https://github.com/charmbracelet/bubbletea/pull/1647.",
+      "diff": "diff --git a/cursed_renderer.go b/cursed_renderer.go\nindex f22d94a351..8eaafb23d4 100644\n--- a/cursed_renderer.go\n+++ b/cursed_renderer.go\n@@ -61,7 +61,11 @@ func (s *cursedRenderer) setOptimizations(hardTabs, backspace, mapnl bool) {\n \ts.hardTabs = hardTabs\n \ts.backspace = backspace\n \ts.mapnl = mapnl\n-\ts.scr.SetTabStops(s.width)\n+\tif s.hardTabs {\n+\t\ts.scr.SetTabStops(s.width)\n+\t} else {\n+\t\ts.scr.SetTabStops(-1)\n+\t}\n \ts.scr.SetBackspace(s.backspace)\n \ts.scr.SetMapNewline(s.mapnl)\n \ts.mu.Unlock()\n@@ -275,6 +279,11 @@ func (s *cursedRenderer) flush(closing bool) error {\n \t\t}\n \t}\n\n+\t// Restore tab stops if we have tab optimizations enabled.\n+\tif s.starting && s.hardTabs {\n+\t\t_, _ = s.scr.WriteString(ansi.SetTabEvery8Columns)\n+\t}\n+\n \tif !s.starting && !closing && s.lastView != nil && viewEquals(s.lastView, &view) && frameArea == s.cellbuf.Bounds() {\n \t\t// No changes, nothing to do.\n \t\treturn nil\n@@ -587,7 +596,11 @@ func reset(s *cursedRenderer) {\n \tscr.SetColorProfile(s.profile)\n \tscr.SetRelativeCursor(true) // Always start in inline mode\n \tscr.SetFullscreen(false)    // Always start in inline mode\n-\tscr.SetTabStops(s.width)\n+\tif s.hardTabs {\n+\t\tscr.SetTabStops(s.width)\n+\t} else {\n+\t\tscr.SetTabStops(-1)\n+\t}\n \tscr.SetBackspace(s.backspace)\n \tscr.SetMapNewline(s.mapnl)\n \tscr.SetScrollOptim(runtime.GOOS != \"windows\") // disable scroll optimization on Windows due to bugs in some terminals\n\n(diff also touches testdata/TestViewModel/altscreen_autoexit.golden, a generated golden test fixture; omitted per diff-capping rules for testdata dumps.)\n",
+      "changedFiles": 2,
+      "addedLines": 16,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0005",
+      "title": "Program shuts down promptly once told to quit from outside the update loop",
+      "preconditions": "A terminal program built on the framework is running with a minimal model that has not yet triggered its own quit condition.",
+      "steps": [
+        "Launch the program's run loop in the background.",
+        "From a separate goroutine, wait until the model reports that its work is complete.",
+        "Call the program's quit method from that separate goroutine.",
+        "Wait for the main run call to return."
+      ],
+      "expectedResult": "The run call returns without an error and without hanging, shortly after quit was invoked externally."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-04-13T14:28:53.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "buffering/streaming edge case",
+        "program lifecycle"
+      ],
+      "durationMs": null,
+      "feature": "program lifecycle / quit handling",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/charmbracelet/bubbletea/pull/1677",
+        "issueUrl": "https://github.com/charmbracelet/bubbletea/issues/1614",
+        "evidenceTestFile": "tea_test.go",
+        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions."
+      }
+    }
+  },
+  {
+    "id": "sys_0006",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "charmbracelet/bubbletea",
+      "number": 1677,
+      "baseSha": "d81b6b64665a31c038a0234ab62338a8e0afd104",
+      "headSha": "7fa0685d412caca32b7628e75af9591f5ae5cd7e",
+      "title": "fix(renderer): restore tab stops if hard tabs are enabled",
+      "description": "When hard tabs are enabled, the renderer optimizes rendering by using actual tab characters instead of spaces. This requires setting tab stops every 8 columns at the beginning of the rendering process. Fixes: https://github.com/charmbracelet/bubbletea/issues/1614. Supersedes: https://github.com/charmbracelet/bubbletea/pull/1647.",
+      "diff": "diff --git a/cursed_renderer.go b/cursed_renderer.go\nindex f22d94a351..8eaafb23d4 100644\n--- a/cursed_renderer.go\n+++ b/cursed_renderer.go\n@@ -61,7 +61,11 @@ func (s *cursedRenderer) setOptimizations(hardTabs, backspace, mapnl bool) {\n \ts.hardTabs = hardTabs\n \ts.backspace = backspace\n \ts.mapnl = mapnl\n-\ts.scr.SetTabStops(s.width)\n+\tif s.hardTabs {\n+\t\ts.scr.SetTabStops(s.width)\n+\t} else {\n+\t\ts.scr.SetTabStops(-1)\n+\t}\n \ts.scr.SetBackspace(s.backspace)\n \ts.scr.SetMapNewline(s.mapnl)\n \ts.mu.Unlock()\n@@ -275,6 +279,11 @@ func (s *cursedRenderer) flush(closing bool) error {\n \t\t}\n \t}\n\n+\t// Restore tab stops if we have tab optimizations enabled.\n+\tif s.starting && s.hardTabs {\n+\t\t_, _ = s.scr.WriteString(ansi.SetTabEvery8Columns)\n+\t}\n+\n \tif !s.starting && !closing && s.lastView != nil && viewEquals(s.lastView, &view) && frameArea == s.cellbuf.Bounds() {\n \t\t// No changes, nothing to do.\n \t\treturn nil\n@@ -587,7 +596,11 @@ func reset(s *cursedRenderer) {\n \tscr.SetColorProfile(s.profile)\n \tscr.SetRelativeCursor(true) // Always start in inline mode\n \tscr.SetFullscreen(false)    // Always start in inline mode\n-\tscr.SetTabStops(s.width)\n+\tif s.hardTabs {\n+\t\tscr.SetTabStops(s.width)\n+\t} else {\n+\t\tscr.SetTabStops(-1)\n+\t}\n \tscr.SetBackspace(s.backspace)\n \tscr.SetMapNewline(s.mapnl)\n \tscr.SetScrollOptim(runtime.GOOS != \"windows\") // disable scroll optimization on Windows due to bugs in some terminals\n\n(diff also touches testdata/TestViewModel/altscreen_autoexit.golden, a generated golden test fixture; omitted per diff-capping rules for testdata dumps.)\n",
+      "changedFiles": 2,
+      "addedLines": 16,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0006",
+      "title": "Program shuts down promptly once told to quit from outside the update loop",
+      "preconditions": "A terminal program built on the framework is running with a minimal model that has not yet triggered its own quit condition.",
+      "steps": [
+        "Launch the program's run loop in the background.",
+        "From a separate goroutine, wait until the model reports that its work is complete.",
+        "Call the program's quit method from that separate goroutine.",
+        "Wait for the main run call to return."
+      ],
+      "expectedResult": "The run call returns without an error and without hanging, shortly after quit was invoked externally."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-04-13T14:28:53.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "buffering/streaming edge case",
+        "program lifecycle"
+      ],
+      "durationMs": null,
+      "feature": "program lifecycle / quit handling",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/charmbracelet/bubbletea/pull/1677",
+        "issueUrl": "https://github.com/charmbracelet/bubbletea/issues/1614",
+        "evidenceTestFile": "tea_test.go",
+        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions."
+      }
+    }
+  },
+  {
+    "id": "sys_0007",
+    "revision": "base",
+    "flipPairId": "sys_flip_0003",
+    "pr": {
+      "repository": "tokio-rs/tokio",
+      "number": 7462,
+      "baseSha": "0a3fe460862720d005b8fa39cdde30575a063785",
+      "headSha": "600e1956e9dae8ecf9bb122da090bf85595fe947",
+      "title": "sync: fix `CancellationToken` failing to cancel the ready futures",
+      "description": "When the token is already cancelled, the provided future should not be polled. Motivation: in a loop such as `shutdown.run_until_cancelled(stream.next()).await`, as long as the stream keeps yielding new items, the loop does not terminate even after the token has been cancelled. The fix changes the order of checks so the cancellation state is checked before the wrapped future is polled at all, and documents the resulting fairness/bias behavior.",
+      "diff": "diff --git a/tokio-util/src/sync/cancellation_token.rs b/tokio-util/src/sync/cancellation_token.rs\nindex c04d8dc19e4..d785ed424de 100644\n--- a/tokio-util/src/sync/cancellation_token.rs\n+++ b/tokio-util/src/sync/cancellation_token.rs\n@@ -268,6 +268,12 @@ impl CancellationToken {\n     /// unless the [`CancellationToken`] is cancelled. In that case the function returns\n     /// `None` and the future gets dropped.\n     ///\n+    /// # Fairness\n+    ///\n+    /// Calling this on an already-cancelled token directly returns `None`.\n+    /// For all subsequent polls, in case of concurrent completion and\n+    /// cancellation, this is biased towards the future completion.\n+    ///\n     /// # Cancellation safety\n     ///\n     /// This method is only cancel safe if `fut` is cancel safe.\n@@ -303,11 +309,15 @@ impl CancellationToken {\n             }\n         }\n\n-        RunUntilCancelledFuture {\n-            cancellation: self.cancelled(),\n-            future: fut,\n+        if self.is_cancelled() {\n+            None\n+        } else {\n+            RunUntilCancelledFuture {\n+                cancellation: self.cancelled(),\n+                future: fut,\n+            }\n+            .await\n         }\n-        .await\n     }\n\n     /// Runs a future to completion and returns its result wrapped inside of an `Option`\n@@ -316,6 +326,12 @@ impl CancellationToken {\n     ///\n     /// The function takes self by value and returns a future that owns the token.\n     ///\n+    /// # Fairness\n+    ///\n+    /// Calling this on an already-cancelled token directly returns `None`.\n+    /// For all subsequent polls, in case of concurrent completion and\n+    /// cancellation, this is biased towards the future completion.\n+    ///\n     /// # Cancellation safety\n     ///\n     /// This method is only cancel safe if `fut` is cancel safe.\ndiff --git a/tokio-util/tests/sync_cancellation_token.rs b/tokio-util/tests/sync_cancellation_token.rs\nindex 9332a8f9d02..995890171b7 100644\n--- a/tokio-util/tests/sync_cancellation_token.rs\n+++ b/tokio-util/tests/sync_cancellation_token.rs\n@@ -492,6 +492,21 @@ fn run_until_cancelled_test() {\n             fut.as_mut().poll(&mut Context::from_waker(&waker))\n         );\n     }\n+\n+    // Do not poll the future when token is already cancelled.\n+    {\n+        let token = CancellationToken::new();\n+\n+        let fut = token.run_until_cancelled(async { panic!(\"fut polled after cancellation\") });\n+        pin!(fut);\n+\n+        token.cancel();\n+\n+        assert_eq!(\n+            Poll::Ready(None),\n+            fut.as_mut().poll(&mut Context::from_waker(&waker))\n+        );\n+    }\n }\n\n #[test]\n",
+      "changedFiles": 2,
+      "addedLines": 35,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "Rust",
+      "labels": [
+        "C-bug",
+        "A-tokio-util",
+        "M-sync"
+      ]
+    },
+    "testCase": {
+      "id": "sys_tc_0007",
+      "title": "Wrapping an operation with an already-cancelled cancellation signal skips the operation entirely",
+      "preconditions": "A cancellation signal object exists and has already been triggered before it is used to guard a unit of asynchronous work.",
+      "steps": [
+        "Create a fresh cancellation signal.",
+        "Trigger (cancel) the signal immediately.",
+        "Wrap an async operation that would panic if it were ever started, using the already-cancelled signal as the guard.",
+        "Poll the wrapped operation once."
+      ],
+      "expectedResult": "The wrapped operation resolves immediately to a cancelled outcome, and the inner operation never actually starts executing, so no panic is raised."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-07-20T02:03:29.000Z",
+      "testType": "API",
+      "tags": [
+        "concurrency/data race",
+        "cancellation"
+      ],
+      "durationMs": null,
+      "feature": "cooperative cancellation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/tokio-rs/tokio/pull/7462",
+        "issueUrl": null,
+        "evidenceTestFile": "tokio-util/tests/sync_cancellation_token.rs",
+        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future."
+      }
+    }
+  },
+  {
+    "id": "sys_0008",
+    "revision": "head",
+    "flipPairId": "sys_flip_0003",
+    "pr": {
+      "repository": "tokio-rs/tokio",
+      "number": 7462,
+      "baseSha": "0a3fe460862720d005b8fa39cdde30575a063785",
+      "headSha": "600e1956e9dae8ecf9bb122da090bf85595fe947",
+      "title": "sync: fix `CancellationToken` failing to cancel the ready futures",
+      "description": "When the token is already cancelled, the provided future should not be polled. Motivation: in a loop such as `shutdown.run_until_cancelled(stream.next()).await`, as long as the stream keeps yielding new items, the loop does not terminate even after the token has been cancelled. The fix changes the order of checks so the cancellation state is checked before the wrapped future is polled at all, and documents the resulting fairness/bias behavior.",
+      "diff": "diff --git a/tokio-util/src/sync/cancellation_token.rs b/tokio-util/src/sync/cancellation_token.rs\nindex c04d8dc19e4..d785ed424de 100644\n--- a/tokio-util/src/sync/cancellation_token.rs\n+++ b/tokio-util/src/sync/cancellation_token.rs\n@@ -268,6 +268,12 @@ impl CancellationToken {\n     /// unless the [`CancellationToken`] is cancelled. In that case the function returns\n     /// `None` and the future gets dropped.\n     ///\n+    /// # Fairness\n+    ///\n+    /// Calling this on an already-cancelled token directly returns `None`.\n+    /// For all subsequent polls, in case of concurrent completion and\n+    /// cancellation, this is biased towards the future completion.\n+    ///\n     /// # Cancellation safety\n     ///\n     /// This method is only cancel safe if `fut` is cancel safe.\n@@ -303,11 +309,15 @@ impl CancellationToken {\n             }\n         }\n\n-        RunUntilCancelledFuture {\n-            cancellation: self.cancelled(),\n-            future: fut,\n+        if self.is_cancelled() {\n+            None\n+        } else {\n+            RunUntilCancelledFuture {\n+                cancellation: self.cancelled(),\n+                future: fut,\n+            }\n+            .await\n         }\n-        .await\n     }\n\n     /// Runs a future to completion and returns its result wrapped inside of an `Option`\n@@ -316,6 +326,12 @@ impl CancellationToken {\n     ///\n     /// The function takes self by value and returns a future that owns the token.\n     ///\n+    /// # Fairness\n+    ///\n+    /// Calling this on an already-cancelled token directly returns `None`.\n+    /// For all subsequent polls, in case of concurrent completion and\n+    /// cancellation, this is biased towards the future completion.\n+    ///\n     /// # Cancellation safety\n     ///\n     /// This method is only cancel safe if `fut` is cancel safe.\ndiff --git a/tokio-util/tests/sync_cancellation_token.rs b/tokio-util/tests/sync_cancellation_token.rs\nindex 9332a8f9d02..995890171b7 100644\n--- a/tokio-util/tests/sync_cancellation_token.rs\n+++ b/tokio-util/tests/sync_cancellation_token.rs\n@@ -492,6 +492,21 @@ fn run_until_cancelled_test() {\n             fut.as_mut().poll(&mut Context::from_waker(&waker))\n         );\n     }\n+\n+    // Do not poll the future when token is already cancelled.\n+    {\n+        let token = CancellationToken::new();\n+\n+        let fut = token.run_until_cancelled(async { panic!(\"fut polled after cancellation\") });\n+        pin!(fut);\n+\n+        token.cancel();\n+\n+        assert_eq!(\n+            Poll::Ready(None),\n+            fut.as_mut().poll(&mut Context::from_waker(&waker))\n+        );\n+    }\n }\n\n #[test]\n",
+      "changedFiles": 2,
+      "addedLines": 35,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "Rust",
+      "labels": [
+        "C-bug",
+        "A-tokio-util",
+        "M-sync"
+      ]
+    },
+    "testCase": {
+      "id": "sys_tc_0008",
+      "title": "Wrapping an operation with an already-cancelled cancellation signal skips the operation entirely",
+      "preconditions": "A cancellation signal object exists and has already been triggered before it is used to guard a unit of asynchronous work.",
+      "steps": [
+        "Create a fresh cancellation signal.",
+        "Trigger (cancel) the signal immediately.",
+        "Wrap an async operation that would panic if it were ever started, using the already-cancelled signal as the guard.",
+        "Poll the wrapped operation once."
+      ],
+      "expectedResult": "The wrapped operation resolves immediately to a cancelled outcome, and the inner operation never actually starts executing, so no panic is raised."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-07-20T02:03:29.000Z",
+      "testType": "API",
+      "tags": [
+        "concurrency/data race",
+        "cancellation"
+      ],
+      "durationMs": null,
+      "feature": "cooperative cancellation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/tokio-rs/tokio/pull/7462",
+        "issueUrl": null,
+        "evidenceTestFile": "tokio-util/tests/sync_cancellation_token.rs",
+        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future."
+      }
+    }
+  },
+  {
+    "id": "sys_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "BurntSushi/ripgrep",
+      "number": 3496,
+      "baseSha": "dffd776a737dc19a48b758dd6a621de113794121",
+      "headSha": "5467965ad5824ca0d859a1b59dda9044c826c6e8",
+      "title": "ignore: skip loading unreachable ignore files",
+      "description": "Fixes #2565. The serial walker currently loads ignore files even when a directory is already skipped or the max depth has been reached. Since no children will be visited, that work is unnecessary. This reuses the existing add_child_with_entries(path, &[]) so the change stays localized to walk.rs. Local benchmarks show 6-9% faster on a real repo, ~3x faster on nested ignored directories, and 22-28x faster on ignore-heavy or sorted searches, with no change to parallel traversal. Also adds a regression test for malformed ignore files at the max depth.",
+      "diff": "diff --git a/crates/ignore/src/walk.rs b/crates/ignore/src/walk.rs\nindex 9e0776e6fb..2b0300ed38 100644\n--- a/crates/ignore/src/walk.rs\n+++ b/crates/ignore/src/walk.rs\n@@ -636,6 +636,7 @@ impl WalkBuilder {\n             it: None,\n             ig_root: ig_root.clone(),\n             ig: ig_root.clone(),\n+            max_depth: self.max_depth,\n             max_filesize: self.max_filesize,\n             skip: self.skip.clone(),\n             filter: self.filter.clone(),\n@@ -1118,6 +1119,7 @@ pub struct Walk {\n     it: Option<WalkEventIter>,\n     ig_root: Ignore,\n     ig: Ignore,\n+    max_depth: Option<usize>,\n     max_filesize: Option<u64>,\n     skip: Option<Arc<Handle>>,\n     filter: Option<Filter>,\n@@ -1228,12 +1230,17 @@ impl Iterator for Walk {\n                         self.it.as_mut().unwrap().it.skip_current_dir();\n                         // Still need to push this on the stack because\n                         // we'll get a WalkEvent::Exit event for this dir.\n-                        // We don't care if it errors though.\n-                        let (igtmp, _) = self.ig.add_child(ent.path());\n+                        // Its ignore files cannot apply to any visited entry.\n+                        let (igtmp, _) =\n+                            self.ig.add_child_with_entries(ent.path(), &[]);\n                         self.ig = igtmp;\n                         continue;\n                     }\n-                    let (igtmp, err) = self.ig.add_child(ent.path());\n+                    let (igtmp, err) = if self.max_depth == Some(ent.depth()) {\n+                        self.ig.add_child_with_entries(ent.path(), &[])\n+                    } else {\n+                        self.ig.add_child(ent.path())\n+                    };\n                     self.ig = igtmp;\n                     ent.err = err;\n                     return Some(Ok(ent));\n@@ -2427,6 +2434,27 @@ mod tests {\n         );\n     }\n\n+    #[test]\n+    fn max_depth_does_not_load_unreachable_ignore_files() {\n+        let td = tmpdir();\n+        let leaf = td.path().join(\"leaf\");\n+        mkdirp(&leaf);\n+        wfile(leaf.join(\".ignore\"), \"{invalid\\n\");\n+\n+        let mut builder = WalkBuilder::new(td.path());\n+        builder.max_depth(Some(1));\n+        let entry = builder\n+            .build()\n+            .find_map(|result| {\n+                let entry = result.unwrap();\n+                (entry.path() == leaf).then_some(entry)\n+            })\n+            .unwrap();\n+\n+        assert!(entry.error().is_none());\n+        assert_paths(td.path(), &builder, &[\"leaf\"]);\n+    }\n+\n     #[test]\n     fn min_depth() {\n         let td = tmpdir();\n",
+      "changedFiles": 1,
+      "addedLines": 31,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0009",
+      "title": "Searching a file for a pattern using case-insensitive matching finds matches regardless of letter case",
+      "preconditions": "A plain text file containing a mix of uppercase and lowercase occurrences of a search term exists in the search path.",
+      "steps": [
+        "Run a search over the file for the term, enabling the tool's case-insensitive search option.",
+        "Provide the search term in a single letter case, e.g. all lowercase.",
+        "Inspect which lines are reported as matches."
+      ],
+      "expectedResult": "Every line containing the term is reported as a match, regardless of whether the term appears in uppercase, lowercase, or mixed case within that line."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T15:00:03.000Z",
+      "testType": "E2E",
+      "tags": [
+        "resource leak",
+        "case-insensitive search"
+      ],
+      "durationMs": null,
+      "feature": "case-insensitive text search",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/BurntSushi/ripgrep/pull/3496",
+        "issueUrl": "https://github.com/BurntSushi/ripgrep/issues/2565",
+        "evidenceTestFile": "tests/misc.rs",
+        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides."
+      }
+    }
+  },
+  {
+    "id": "sys_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "BurntSushi/ripgrep",
+      "number": 3496,
+      "baseSha": "dffd776a737dc19a48b758dd6a621de113794121",
+      "headSha": "5467965ad5824ca0d859a1b59dda9044c826c6e8",
+      "title": "ignore: skip loading unreachable ignore files",
+      "description": "Fixes #2565. The serial walker currently loads ignore files even when a directory is already skipped or the max depth has been reached. Since no children will be visited, that work is unnecessary. This reuses the existing add_child_with_entries(path, &[]) so the change stays localized to walk.rs. Local benchmarks show 6-9% faster on a real repo, ~3x faster on nested ignored directories, and 22-28x faster on ignore-heavy or sorted searches, with no change to parallel traversal. Also adds a regression test for malformed ignore files at the max depth.",
+      "diff": "diff --git a/crates/ignore/src/walk.rs b/crates/ignore/src/walk.rs\nindex 9e0776e6fb..2b0300ed38 100644\n--- a/crates/ignore/src/walk.rs\n+++ b/crates/ignore/src/walk.rs\n@@ -636,6 +636,7 @@ impl WalkBuilder {\n             it: None,\n             ig_root: ig_root.clone(),\n             ig: ig_root.clone(),\n+            max_depth: self.max_depth,\n             max_filesize: self.max_filesize,\n             skip: self.skip.clone(),\n             filter: self.filter.clone(),\n@@ -1118,6 +1119,7 @@ pub struct Walk {\n     it: Option<WalkEventIter>,\n     ig_root: Ignore,\n     ig: Ignore,\n+    max_depth: Option<usize>,\n     max_filesize: Option<u64>,\n     skip: Option<Arc<Handle>>,\n     filter: Option<Filter>,\n@@ -1228,12 +1230,17 @@ impl Iterator for Walk {\n                         self.it.as_mut().unwrap().it.skip_current_dir();\n                         // Still need to push this on the stack because\n                         // we'll get a WalkEvent::Exit event for this dir.\n-                        // We don't care if it errors though.\n-                        let (igtmp, _) = self.ig.add_child(ent.path());\n+                        // Its ignore files cannot apply to any visited entry.\n+                        let (igtmp, _) =\n+                            self.ig.add_child_with_entries(ent.path(), &[]);\n                         self.ig = igtmp;\n                         continue;\n                     }\n-                    let (igtmp, err) = self.ig.add_child(ent.path());\n+                    let (igtmp, err) = if self.max_depth == Some(ent.depth()) {\n+                        self.ig.add_child_with_entries(ent.path(), &[])\n+                    } else {\n+                        self.ig.add_child(ent.path())\n+                    };\n                     self.ig = igtmp;\n                     ent.err = err;\n                     return Some(Ok(ent));\n@@ -2427,6 +2434,27 @@ mod tests {\n         );\n     }\n\n+    #[test]\n+    fn max_depth_does_not_load_unreachable_ignore_files() {\n+        let td = tmpdir();\n+        let leaf = td.path().join(\"leaf\");\n+        mkdirp(&leaf);\n+        wfile(leaf.join(\".ignore\"), \"{invalid\\n\");\n+\n+        let mut builder = WalkBuilder::new(td.path());\n+        builder.max_depth(Some(1));\n+        let entry = builder\n+            .build()\n+            .find_map(|result| {\n+                let entry = result.unwrap();\n+                (entry.path() == leaf).then_some(entry)\n+            })\n+            .unwrap();\n+\n+        assert!(entry.error().is_none());\n+        assert_paths(td.path(), &builder, &[\"leaf\"]);\n+    }\n+\n     #[test]\n     fn min_depth() {\n         let td = tmpdir();\n",
+      "changedFiles": 1,
+      "addedLines": 31,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0010",
+      "title": "Searching a file for a pattern using case-insensitive matching finds matches regardless of letter case",
+      "preconditions": "A plain text file containing a mix of uppercase and lowercase occurrences of a search term exists in the search path.",
+      "steps": [
+        "Run a search over the file for the term, enabling the tool's case-insensitive search option.",
+        "Provide the search term in a single letter case, e.g. all lowercase.",
+        "Inspect which lines are reported as matches."
+      ],
+      "expectedResult": "Every line containing the term is reported as a match, regardless of whether the term appears in uppercase, lowercase, or mixed case within that line."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T15:00:03.000Z",
+      "testType": "E2E",
+      "tags": [
+        "resource leak",
+        "case-insensitive search"
+      ],
+      "durationMs": null,
+      "feature": "case-insensitive text search",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/BurntSushi/ripgrep/pull/3496",
+        "issueUrl": "https://github.com/BurntSushi/ripgrep/issues/2565",
+        "evidenceTestFile": "tests/misc.rs",
+        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides."
+      }
+    }
+  },
+  {
+    "id": "sys_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "serde-rs/serde",
+      "number": 3001,
+      "baseSha": "4e278703c62428b0a72e4ecec434a99c0e8576a3",
+      "headSha": "086353c581742d64790ff41ee1134430e794dd90",
+      "title": "refactor: remove 1 level of nesting",
+      "description": "",
+      "diff": "diff --git a/serde_derive/src/internals/attr.rs b/serde_derive/src/internals/attr.rs\nindex f982f03a3..dbc14f6aa 100644\n--- a/serde_derive/src/internals/attr.rs\n+++ b/serde_derive/src/internals/attr.rs\n@@ -1185,13 +1185,11 @@ impl Field {\n             }\n         }\n\n-        // Is skip_deserializing, initialize the field to Default::default() unless a\n+        // If skip_deserializing, initialize the field to Default::default() unless a\n         // different default is specified by `#[serde(default = \"...\")]` on\n         // ourselves or our container (e.g. the struct we are in).\n-        if let Default::None = *container_default {\n-            if skip_deserializing.0.value.is_some() {\n-                default.set_if_none(Default::Default);\n-            }\n+        if container_default.is_none() && skip_deserializing.0.value.is_some() {\n+            default.set_if_none(Default::Default);\n         }\n\n         let mut borrowed_lifetimes = borrowed_lifetimes.get().unwrap_or_default();\n",
+      "changedFiles": 1,
+      "addedLines": 3,
+      "deletedLines": 5,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0011",
+      "title": "A struct field marked to skip deserialization still receives its type's default value when the input omits it",
+      "preconditions": "A struct type derives deserialization support and marks one field to always be skipped during deserialization, without specifying a custom default for that field or for the struct as a whole.",
+      "steps": [
+        "Deserialize an input payload that does not include the skipped field at all.",
+        "Read the resulting struct instance.",
+        "Check the value assigned to the skipped field."
+      ],
+      "expectedResult": "The skipped field holds its type's ordinary default value (for example zero for a numeric type) rather than being left in an invalid state or causing deserialization to fail."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-10-17T17:35:18.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "API contract regression",
+        "derive macros"
+      ],
+      "durationMs": null,
+      "feature": "derive-generated deserialization defaults",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/serde-rs/serde/pull/3001",
+        "issueUrl": null,
+        "evidenceTestFile": "test_suite/tests/test_annotations.rs",
+        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides."
+      }
+    }
+  },
+  {
+    "id": "sys_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "serde-rs/serde",
+      "number": 3001,
+      "baseSha": "4e278703c62428b0a72e4ecec434a99c0e8576a3",
+      "headSha": "086353c581742d64790ff41ee1134430e794dd90",
+      "title": "refactor: remove 1 level of nesting",
+      "description": "",
+      "diff": "diff --git a/serde_derive/src/internals/attr.rs b/serde_derive/src/internals/attr.rs\nindex f982f03a3..dbc14f6aa 100644\n--- a/serde_derive/src/internals/attr.rs\n+++ b/serde_derive/src/internals/attr.rs\n@@ -1185,13 +1185,11 @@ impl Field {\n             }\n         }\n\n-        // Is skip_deserializing, initialize the field to Default::default() unless a\n+        // If skip_deserializing, initialize the field to Default::default() unless a\n         // different default is specified by `#[serde(default = \"...\")]` on\n         // ourselves or our container (e.g. the struct we are in).\n-        if let Default::None = *container_default {\n-            if skip_deserializing.0.value.is_some() {\n-                default.set_if_none(Default::Default);\n-            }\n+        if container_default.is_none() && skip_deserializing.0.value.is_some() {\n+            default.set_if_none(Default::Default);\n         }\n\n         let mut borrowed_lifetimes = borrowed_lifetimes.get().unwrap_or_default();\n",
+      "changedFiles": 1,
+      "addedLines": 3,
+      "deletedLines": 5,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sys_tc_0012",
+      "title": "A struct field marked to skip deserialization still receives its type's default value when the input omits it",
+      "preconditions": "A struct type derives deserialization support and marks one field to always be skipped during deserialization, without specifying a custom default for that field or for the struct as a whole.",
+      "steps": [
+        "Deserialize an input payload that does not include the skipped field at all.",
+        "Read the resulting struct instance.",
+        "Check the value assigned to the skipped field."
+      ],
+      "expectedResult": "The skipped field holds its type's ordinary default value (for example zero for a numeric type) rather than being left in an invalid state or causing deserialization to fail."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-10-17T17:35:18.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "API contract regression",
+        "derive macros"
+      ],
+      "durationMs": null,
+      "feature": "derive-generated deserialization defaults",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/serde-rs/serde/pull/3001",
+        "issueUrl": null,
+        "evidenceTestFile": "test_suite/tests/test_annotations.rs",
+        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides."
+      }
+    }
+  }
+]

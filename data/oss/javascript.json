@@ -1,0 +1,678 @@
+[
+  {
+    "id": "js_0001",
+    "revision": "base",
+    "flipPairId": "js_flip_0001",
+    "pr": {
+      "repository": "iamkun/dayjs",
+      "number": 3016,
+      "baseSha": "acf21cd152fcf0851162cba92b56fb4281673b1a",
+      "headSha": "ccc379460e0b8e2dd28a19b14595dde529c52b31",
+      "title": "fix: preserve unsupported year tokens in format (#3015)",
+      "description": "This changes format() so unsupported year tokens are preserved literally instead of falling through to the timezone-offset fallback. Closes #3015.\n\nRoot Cause: REGEX_FORMAT matches Y{1,4}, but format() only implements YY and YYYY. Previously, unmatched tokens fell through to `matches(match) || zoneStr.replace(':', '')`. That fallback was intended for ZZ, but it also affected unsupported tokens such as Y and YYY, causing them to be formatted as timezone offsets.\n\nChanges: handle ZZ explicitly in format(); preserve unsupported matched tokens literally; add regression coverage in display.test.js for Y and YYY.",
+      "diff": "diff --git a/src/constant.js b/src/constant.js\nindex 22d6e8adc..52547342e 100644\n--- a/src/constant.js\n+++ b/src/constant.js\n@@ -27,4 +27,4 @@ export const INVALID_DATE_STRING = 'Invalid Date'\n \n // regex\n export const REGEX_PARSE = /^(\\d{4})[-/]?(\\d{1,2})?[-/]?(\\d{0,2})[Tt\\s]*(\\d{1,2})?:?(\\d{1,2})?:?(\\d{1,2})?[.:]?(\\d+)?$/\n-export const REGEX_FORMAT = /\\[([^\\]]+)]|Y{1,4}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g\n+export const REGEX_FORMAT = /\\[([^\\]]+)]|YYYY|YY|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g\ndiff --git a/src/plugin/duration/index.js b/src/plugin/duration/index.js\nindex e2060c344..5aaacee21 100644\n--- a/src/plugin/duration/index.js\n+++ b/src/plugin/duration/index.js\n@@ -3,14 +3,14 @@ import {\n   MILLISECONDS_A_HOUR,\n   MILLISECONDS_A_MINUTE,\n   MILLISECONDS_A_SECOND,\n-  MILLISECONDS_A_WEEK,\n-  REGEX_FORMAT\n+  MILLISECONDS_A_WEEK\n } from '../../constant'\n \n const MILLISECONDS_A_YEAR = MILLISECONDS_A_DAY * 365\n const MILLISECONDS_A_MONTH = MILLISECONDS_A_YEAR / 12\n \n-const durationRegex = /^(-|\\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/\n+const DURATION_REGEX_PARSE = /^(-|\\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/\n+const DURATION_REGEX_FORMAT = /\\[([^\\]]+)]|YYYY|YY|Y|M{1,2}|D{1,2}|H{1,2}|m{1,2}|s{1,2}|SSS/g\n \n const unitToMS = {\n   years: MILLISECONDS_A_YEAR,\n@@ -81,7 +81,7 @@ class Duration {\n       return this\n     }\n     if (typeof input === 'string') {\n-      const d = input.match(durationRegex)\n+      const d = input.match(DURATION_REGEX_PARSE)\n       if (d) {\n         const properties = d.slice(2)\n         const numberD = properties.map(value => (value != null ? Number(value) : 0));\n@@ -182,7 +182,7 @@ class Duration {\n       ss: $u.s(this.$d.seconds, 2, '0'),\n       SSS: $u.s(this.$d.milliseconds, 3, '0')\n     }\n-    return str.replace(REGEX_FORMAT, (match, $1) => $1 || String(matches[match]))\n+    return str.replace(DURATION_REGEX_FORMAT, (match, $1) => $1 || String(matches[match]))\n   }\n \n   as(unit) {\ndiff --git a/test/display.test.js b/test/display.test.js\nindex ce1f47893..b98073cf2 100644\n--- a/test/display.test.js\n+++ b/test/display.test.js\n@@ -24,6 +24,8 @@ it('Format invalid date', () => {\n it('Format Year YY YYYY', () => {\n   expect(dayjs().format('YY')).toBe(moment().format('YY'))\n   expect(dayjs().format('YYYY')).toBe(moment().format('YYYY'))\n+  expect(dayjs().format('Y')).toBe('Y')\n+  expect(dayjs().format('YYY')).toBe(`${moment().format('YY')}Y`)\n })\n \n it('Format Month M MM MMM MMMM', () => {\ndiff --git a/test/plugin/duration.test.js b/test/plugin/duration.test.js\nindex 3e726af91..f9a4c7cf4 100644\n--- a/test/plugin/duration.test.js\n+++ b/test/plugin/duration.test.js\n@@ -308,4 +308,9 @@ describe('Format', () => {\n     expect(d.format('Y/YY.YYYYTESTM:MM:D:DD:H:HH:m:mm:s:ss:SSS'))\n       .toBe('2/02.0002TEST9:09:6:06:8:08:5:05:1:01:010')\n   })\n+\n+  test('formats YYY as YY + Y', () => {\n+    const d = dayjs.duration(2, 'years')\n+    expect(d.format('YYY')).toBe('022')\n+  })\n })\n",
+      "changedFiles": 4,
+      "addedLines": 13,
+      "deletedLines": 6,
+      "commits": 3,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0001",
+      "title": "Custom format pattern with a lone 'Y' character outputs the literal letter",
+      "preconditions": "A date-time object is created for a fixed, known date using the library's date formatting API, which accepts a custom pattern string of letter tokens.",
+      "steps": [
+        "Format the date using a custom pattern string consisting of a single letter 'Y' (only one Y character, not two or four).",
+        "Record the exact string that is returned.",
+        "Format the same date using a custom pattern string of three consecutive 'Y' characters ('YYY').",
+        "Record the exact string that is returned."
+      ],
+      "expectedResult": "The single-'Y' pattern returns the literal character 'Y' unchanged. The 'YYY' pattern returns the two-digit year followed by a literal 'Y' (for example '24Y'). Neither result looks like a UTC offset such as '+0000' or '+0900'."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-03-16T03:02:51.000Z",
+      "testType": "API",
+      "tags": [
+        "regex",
+        "date-formatting",
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "custom date format tokens",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/iamkun/dayjs/pull/3016",
+        "issueUrl": "https://github.com/iamkun/dayjs/issues/3015",
+        "evidenceTestFile": "test/display.test.js",
+        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head."
+      }
+    }
+  },
+  {
+    "id": "js_0002",
+    "revision": "head",
+    "flipPairId": "js_flip_0001",
+    "pr": {
+      "repository": "iamkun/dayjs",
+      "number": 3016,
+      "baseSha": "acf21cd152fcf0851162cba92b56fb4281673b1a",
+      "headSha": "ccc379460e0b8e2dd28a19b14595dde529c52b31",
+      "title": "fix: preserve unsupported year tokens in format (#3015)",
+      "description": "This changes format() so unsupported year tokens are preserved literally instead of falling through to the timezone-offset fallback. Closes #3015.\n\nRoot Cause: REGEX_FORMAT matches Y{1,4}, but format() only implements YY and YYYY. Previously, unmatched tokens fell through to `matches(match) || zoneStr.replace(':', '')`. That fallback was intended for ZZ, but it also affected unsupported tokens such as Y and YYY, causing them to be formatted as timezone offsets.\n\nChanges: handle ZZ explicitly in format(); preserve unsupported matched tokens literally; add regression coverage in display.test.js for Y and YYY.",
+      "diff": "diff --git a/src/constant.js b/src/constant.js\nindex 22d6e8adc..52547342e 100644\n--- a/src/constant.js\n+++ b/src/constant.js\n@@ -27,4 +27,4 @@ export const INVALID_DATE_STRING = 'Invalid Date'\n \n // regex\n export const REGEX_PARSE = /^(\\d{4})[-/]?(\\d{1,2})?[-/]?(\\d{0,2})[Tt\\s]*(\\d{1,2})?:?(\\d{1,2})?:?(\\d{1,2})?[.:]?(\\d+)?$/\n-export const REGEX_FORMAT = /\\[([^\\]]+)]|Y{1,4}|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g\n+export const REGEX_FORMAT = /\\[([^\\]]+)]|YYYY|YY|M{1,4}|D{1,2}|d{1,4}|H{1,2}|h{1,2}|a|A|m{1,2}|s{1,2}|Z{1,2}|SSS/g\ndiff --git a/src/plugin/duration/index.js b/src/plugin/duration/index.js\nindex e2060c344..5aaacee21 100644\n--- a/src/plugin/duration/index.js\n+++ b/src/plugin/duration/index.js\n@@ -3,14 +3,14 @@ import {\n   MILLISECONDS_A_HOUR,\n   MILLISECONDS_A_MINUTE,\n   MILLISECONDS_A_SECOND,\n-  MILLISECONDS_A_WEEK,\n-  REGEX_FORMAT\n+  MILLISECONDS_A_WEEK\n } from '../../constant'\n \n const MILLISECONDS_A_YEAR = MILLISECONDS_A_DAY * 365\n const MILLISECONDS_A_MONTH = MILLISECONDS_A_YEAR / 12\n \n-const durationRegex = /^(-|\\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/\n+const DURATION_REGEX_PARSE = /^(-|\\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/\n+const DURATION_REGEX_FORMAT = /\\[([^\\]]+)]|YYYY|YY|Y|M{1,2}|D{1,2}|H{1,2}|m{1,2}|s{1,2}|SSS/g\n \n const unitToMS = {\n   years: MILLISECONDS_A_YEAR,\n@@ -81,7 +81,7 @@ class Duration {\n       return this\n     }\n     if (typeof input === 'string') {\n-      const d = input.match(durationRegex)\n+      const d = input.match(DURATION_REGEX_PARSE)\n       if (d) {\n         const properties = d.slice(2)\n         const numberD = properties.map(value => (value != null ? Number(value) : 0));\n@@ -182,7 +182,7 @@ class Duration {\n       ss: $u.s(this.$d.seconds, 2, '0'),\n       SSS: $u.s(this.$d.milliseconds, 3, '0')\n     }\n-    return str.replace(REGEX_FORMAT, (match, $1) => $1 || String(matches[match]))\n+    return str.replace(DURATION_REGEX_FORMAT, (match, $1) => $1 || String(matches[match]))\n   }\n \n   as(unit) {\ndiff --git a/test/display.test.js b/test/display.test.js\nindex ce1f47893..b98073cf2 100644\n--- a/test/display.test.js\n+++ b/test/display.test.js\n@@ -24,6 +24,8 @@ it('Format invalid date', () => {\n it('Format Year YY YYYY', () => {\n   expect(dayjs().format('YY')).toBe(moment().format('YY'))\n   expect(dayjs().format('YYYY')).toBe(moment().format('YYYY'))\n+  expect(dayjs().format('Y')).toBe('Y')\n+  expect(dayjs().format('YYY')).toBe(`${moment().format('YY')}Y`)\n })\n \n it('Format Month M MM MMM MMMM', () => {\ndiff --git a/test/plugin/duration.test.js b/test/plugin/duration.test.js\nindex 3e726af91..f9a4c7cf4 100644\n--- a/test/plugin/duration.test.js\n+++ b/test/plugin/duration.test.js\n@@ -308,4 +308,9 @@ describe('Format', () => {\n     expect(d.format('Y/YY.YYYYTESTM:MM:D:DD:H:HH:m:mm:s:ss:SSS'))\n       .toBe('2/02.0002TEST9:09:6:06:8:08:5:05:1:01:010')\n   })\n+\n+  test('formats YYY as YY + Y', () => {\n+    const d = dayjs.duration(2, 'years')\n+    expect(d.format('YYY')).toBe('022')\n+  })\n })\n",
+      "changedFiles": 4,
+      "addedLines": 13,
+      "deletedLines": 6,
+      "commits": 3,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0002",
+      "title": "Custom format pattern with a lone 'Y' character outputs the literal letter",
+      "preconditions": "A date-time object is created for a fixed, known date using the library's date formatting API, which accepts a custom pattern string of letter tokens.",
+      "steps": [
+        "Format the date using a custom pattern string consisting of a single letter 'Y' (only one Y character, not two or four).",
+        "Record the exact string that is returned.",
+        "Format the same date using a custom pattern string of three consecutive 'Y' characters ('YYY').",
+        "Record the exact string that is returned."
+      ],
+      "expectedResult": "The single-'Y' pattern returns the literal character 'Y' unchanged. The 'YYY' pattern returns the two-digit year followed by a literal 'Y' (for example '24Y'). Neither result looks like a UTC offset such as '+0000' or '+0900'."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-03-16T03:02:51.000Z",
+      "testType": "API",
+      "tags": [
+        "regex",
+        "date-formatting",
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "custom date format tokens",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/iamkun/dayjs/pull/3016",
+        "issueUrl": "https://github.com/iamkun/dayjs/issues/3015",
+        "evidenceTestFile": "test/display.test.js",
+        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head."
+      }
+    }
+  },
+  {
+    "id": "js_0003",
+    "revision": "base",
+    "flipPairId": "js_flip_0002",
+    "pr": {
+      "repository": "colinhacks/zod",
+      "number": 6407,
+      "baseSha": "421cc9a507086377f257d76030966371b7b8f1b2",
+      "headSha": "e844d0c5e361464e1a22bc4f4a06126279c1f853",
+      "title": "fix(v4): stop the object JIT fastpass keeping a swallowed issue's value",
+      "description": "The object JIT fastpass keeps a value written alongside an issue it swallowed, so a failing check can land its value in a successful result.\n\nconst schema = z.object({ a: z.string().optional().superRefine((_v, ctx) => { ctx.addIssue({ code: \"custom\", message: \"bad\" }); ctx.value = \"leaked\"; }) });\nschema.safeParse({}); // { success: true, data: { a: \"leaked\" } }\nschema.safeParse({}, { jitless: true }); // { success: true, data: {} }\n\nThe optin/optout-optional codegen branch guards only the payload.issues concat with the presence check, not the assignment that follows. handlePropertyResult returns early in the same situation, and async goes through it, so the divergence is JIT-only. Any check that writes ctx.value reaches it -- no transform required.\n\nThe generated branch now guards both on !issues.length || present.",
+      "diff": "diff --git a/packages/zod/src/v4/classic/tests/optional.test.ts b/packages/zod/src/v4/classic/tests/optional.test.ts\nindex 99b2f48018..57a0f9ad45 100644\n--- a/packages/zod/src/v4/classic/tests/optional.test.ts\n+++ b/packages/zod/src/v4/classic/tests/optional.test.ts\n@@ -331,3 +331,30 @@ test(\"tuple tail optionality through optout propagation\", () => {\n   const interiorOptional = z.tuple([z.string(), z.number().optional(), z.string()]);\n   expectTypeOf<z.output<typeof interiorOptional>>().toEqualTypeOf<[string, number | undefined, string]>();\n });\n+\n+// An absent optional key whose check fails has its issue swallowed; the value the\n+// check wrote must go with it, on the JIT fastpass as well as the interpreted path.\n+test(\"swallowed issue on an absent optional key drops its value\", async () => {\n+  const schema = z.object({\n+    a: z\n+      .string()\n+      .optional()\n+      .superRefine((_v, ctx) => {\n+        ctx.addIssue({ code: \"custom\", message: \"bad\" });\n+        ctx.value = \"leaked\";\n+      }),\n+  });\n+\n+  for (const result of [\n+    schema.safeParse({}),\n+    schema.safeParse({}, { jitless: true }),\n+    await schema.safeParseAsync({}),\n+  ]) {\n+    expect(result.success).toEqual(true);\n+    expect(\"a\" in result.data!).toEqual(false);\n+  }\n+\n+  // A present key keeps both the issue and its value.\n+  expect(schema.safeParse({ a: \"x\" }).success).toEqual(false);\n+  expect(schema.safeParse({ a: \"x\" }, { jitless: true }).success).toEqual(false);\n+});\ndiff --git a/packages/zod/src/v4/core/schemas.ts b/packages/zod/src/v4/core/schemas.ts\nindex 06ae942428..d27f92e189 100644\n--- a/packages/zod/src/v4/core/schemas.ts\n+++ b/packages/zod/src/v4/core/schemas.ts\n@@ -2087,23 +2087,21 @@ export const $ZodObjectJIT: core.$constructor<$ZodObject> = /*@__PURE__*/ core.$\n         doc.write(`const ${id} = ${parseStr(key)};`);\n \n         if (isOptionalIn && isOptionalOut) {\n-          // For optional-in/out schemas, ignore errors on absent keys\n+          // For optional-in/out schemas, ignore errors on absent keys — and,\n+          // like the interpreted path, drop the value produced alongside them.\n           doc.write(`\n-        if (${id}.issues.length) {\n-          if (${isPresent}) {\n+        const ${id}_present = ${isPresent};\n+        if (!${id}.issues.length || ${id}_present) {\n+          if (${id}.issues.length) {\n             payload.issues = payload.issues.concat(${id}.issues.map(iss => ({\n               ...iss,\n               path: iss.path ? [${k}, ...iss.path] : [${k}]\n             })));\n           }\n-        }\n-        \n-        if (${id}.value === undefined) {\n-          if (${isPresent}) {\n-            newResult[${k}] = undefined;\n+\n+          if (${id}.value !== undefined || ${id}_present) {\n+            newResult[${k}] = ${id}.value;\n           }\n-        } else {\n-          newResult[${k}] = ${id}.value;\n         }\n \n       `);\n@@ -2126,11 +2124,7 @@ export const $ZodObjectJIT: core.$constructor<$ZodObject> = /*@__PURE__*/ core.$\n         }\n \n         if (${id}_present) {\n-          if (${id}.value === undefined) {\n-            newResult[${k}] = undefined;\n-          } else {\n-            newResult[${k}] = ${id}.value;\n-          }\n+          newResult[${k}] = ${id}.value;\n         }\n \n       `);\n",
+      "changedFiles": 2,
+      "addedLines": 36,
+      "deletedLines": 15,
+      "commits": 1,
+      "language": "TypeScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0003",
+      "title": "An optional object field with an extra validation rule is omitted cleanly when not supplied",
+      "preconditions": "A schema describes an object with one optional property. That property carries an additional custom validation rule that reports a failure under some condition, and that rule can also try to overwrite the value it received.",
+      "steps": [
+        "Validate an input object that does not include the optional property at all.",
+        "Check whether the validation call reports overall success.",
+        "Inspect the parsed output object to see whether it has a key for the optional property.",
+        "Separately, validate an input object that does include the property with a value that fails the custom rule, and check whether that call reports success."
+      ],
+      "expectedResult": "When the property is left out of the input, validation reports success and the parsed output object has no key at all for that property. When the property is present with a value that fails the custom rule, validation reports failure."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-14T05:35:56.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "null-handling",
+        "error-handling",
+        "object-validation"
+      ],
+      "durationMs": null,
+      "feature": "optional field validation",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/colinhacks/zod/pull/6407",
+        "issueUrl": null,
+        "evidenceTestFile": "packages/zod/src/v4/classic/tests/optional.test.ts",
+        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead."
+      }
+    }
+  },
+  {
+    "id": "js_0004",
+    "revision": "head",
+    "flipPairId": "js_flip_0002",
+    "pr": {
+      "repository": "colinhacks/zod",
+      "number": 6407,
+      "baseSha": "421cc9a507086377f257d76030966371b7b8f1b2",
+      "headSha": "e844d0c5e361464e1a22bc4f4a06126279c1f853",
+      "title": "fix(v4): stop the object JIT fastpass keeping a swallowed issue's value",
+      "description": "The object JIT fastpass keeps a value written alongside an issue it swallowed, so a failing check can land its value in a successful result.\n\nconst schema = z.object({ a: z.string().optional().superRefine((_v, ctx) => { ctx.addIssue({ code: \"custom\", message: \"bad\" }); ctx.value = \"leaked\"; }) });\nschema.safeParse({}); // { success: true, data: { a: \"leaked\" } }\nschema.safeParse({}, { jitless: true }); // { success: true, data: {} }\n\nThe optin/optout-optional codegen branch guards only the payload.issues concat with the presence check, not the assignment that follows. handlePropertyResult returns early in the same situation, and async goes through it, so the divergence is JIT-only. Any check that writes ctx.value reaches it -- no transform required.\n\nThe generated branch now guards both on !issues.length || present.",
+      "diff": "diff --git a/packages/zod/src/v4/classic/tests/optional.test.ts b/packages/zod/src/v4/classic/tests/optional.test.ts\nindex 99b2f48018..57a0f9ad45 100644\n--- a/packages/zod/src/v4/classic/tests/optional.test.ts\n+++ b/packages/zod/src/v4/classic/tests/optional.test.ts\n@@ -331,3 +331,30 @@ test(\"tuple tail optionality through optout propagation\", () => {\n   const interiorOptional = z.tuple([z.string(), z.number().optional(), z.string()]);\n   expectTypeOf<z.output<typeof interiorOptional>>().toEqualTypeOf<[string, number | undefined, string]>();\n });\n+\n+// An absent optional key whose check fails has its issue swallowed; the value the\n+// check wrote must go with it, on the JIT fastpass as well as the interpreted path.\n+test(\"swallowed issue on an absent optional key drops its value\", async () => {\n+  const schema = z.object({\n+    a: z\n+      .string()\n+      .optional()\n+      .superRefine((_v, ctx) => {\n+        ctx.addIssue({ code: \"custom\", message: \"bad\" });\n+        ctx.value = \"leaked\";\n+      }),\n+  });\n+\n+  for (const result of [\n+    schema.safeParse({}),\n+    schema.safeParse({}, { jitless: true }),\n+    await schema.safeParseAsync({}),\n+  ]) {\n+    expect(result.success).toEqual(true);\n+    expect(\"a\" in result.data!).toEqual(false);\n+  }\n+\n+  // A present key keeps both the issue and its value.\n+  expect(schema.safeParse({ a: \"x\" }).success).toEqual(false);\n+  expect(schema.safeParse({ a: \"x\" }, { jitless: true }).success).toEqual(false);\n+});\ndiff --git a/packages/zod/src/v4/core/schemas.ts b/packages/zod/src/v4/core/schemas.ts\nindex 06ae942428..d27f92e189 100644\n--- a/packages/zod/src/v4/core/schemas.ts\n+++ b/packages/zod/src/v4/core/schemas.ts\n@@ -2087,23 +2087,21 @@ export const $ZodObjectJIT: core.$constructor<$ZodObject> = /*@__PURE__*/ core.$\n         doc.write(`const ${id} = ${parseStr(key)};`);\n \n         if (isOptionalIn && isOptionalOut) {\n-          // For optional-in/out schemas, ignore errors on absent keys\n+          // For optional-in/out schemas, ignore errors on absent keys — and,\n+          // like the interpreted path, drop the value produced alongside them.\n           doc.write(`\n-        if (${id}.issues.length) {\n-          if (${isPresent}) {\n+        const ${id}_present = ${isPresent};\n+        if (!${id}.issues.length || ${id}_present) {\n+          if (${id}.issues.length) {\n             payload.issues = payload.issues.concat(${id}.issues.map(iss => ({\n               ...iss,\n               path: iss.path ? [${k}, ...iss.path] : [${k}]\n             })));\n           }\n-        }\n-        \n-        if (${id}.value === undefined) {\n-          if (${isPresent}) {\n-            newResult[${k}] = undefined;\n+\n+          if (${id}.value !== undefined || ${id}_present) {\n+            newResult[${k}] = ${id}.value;\n           }\n-        } else {\n-          newResult[${k}] = ${id}.value;\n         }\n \n       `);\n@@ -2126,11 +2124,7 @@ export const $ZodObjectJIT: core.$constructor<$ZodObject> = /*@__PURE__*/ core.$\n         }\n \n         if (${id}_present) {\n-          if (${id}.value === undefined) {\n-            newResult[${k}] = undefined;\n-          } else {\n-            newResult[${k}] = ${id}.value;\n-          }\n+          newResult[${k}] = ${id}.value;\n         }\n \n       `);\n",
+      "changedFiles": 2,
+      "addedLines": 36,
+      "deletedLines": 15,
+      "commits": 1,
+      "language": "TypeScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0004",
+      "title": "An optional object field with an extra validation rule is omitted cleanly when not supplied",
+      "preconditions": "A schema describes an object with one optional property. That property carries an additional custom validation rule that reports a failure under some condition, and that rule can also try to overwrite the value it received.",
+      "steps": [
+        "Validate an input object that does not include the optional property at all.",
+        "Check whether the validation call reports overall success.",
+        "Inspect the parsed output object to see whether it has a key for the optional property.",
+        "Separately, validate an input object that does include the property with a value that fails the custom rule, and check whether that call reports success."
+      ],
+      "expectedResult": "When the property is left out of the input, validation reports success and the parsed output object has no key at all for that property. When the property is present with a value that fails the custom rule, validation reports failure."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-14T05:35:56.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "null-handling",
+        "error-handling",
+        "object-validation"
+      ],
+      "durationMs": null,
+      "feature": "optional field validation",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/colinhacks/zod/pull/6407",
+        "issueUrl": null,
+        "evidenceTestFile": "packages/zod/src/v4/classic/tests/optional.test.ts",
+        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead."
+      }
+    }
+  },
+  {
+    "id": "js_0005",
+    "revision": "base",
+    "flipPairId": "js_flip_0003",
+    "pr": {
+      "repository": "markedjs/marked",
+      "number": 4007,
+      "baseSha": "33928d06634570d44c3426f4f48615f4c0a30b11",
+      "headSha": "cfa3d4ce4d58f5a777926c7e45e25b6d902199be",
+      "title": "fix: treat a line of only tabs as a blank line between paragraphs",
+      "description": "Markdown flavor: CommonMark. A line that's only tabs (or tabs mixed with spaces) is a blank line in CommonMark, so it should separate paragraphs. Marked only treated a spaces-only line as blank, so when the blank line between two paragraphs happens to contain a tab, that line gets swallowed as a lazy continuation and the two paragraphs merge into one.\n\nWith a single tab on the middle line:\nfoo\\n\\t\\nbar\nmarked currently returns one paragraph (<p>foo\\tbar</p>) instead of <p>foo</p>\\n<p>bar</p>. A space-only middle line already works, which is what made this easy to miss.\n\nThe paragraph rule's continuation lookahead was checking for spaces only; widened it so a tab-only line counts as blank too. GFM and pedantic paragraphs build on the same base rule, so they pick up the fix as well. Added a spec test under test/specs/new.",
+      "diff": "diff --git a/src/rules.ts b/src/rules.ts\nindex c9bc07c5d6..997f9be52a 100644\n--- a/src/rules.ts\n+++ b/src/rules.ts\n@@ -128,7 +128,7 @@ const lheadingGfm = edit(lheadingCore)\n   .replace(/html/g, / {0,3}<[^\\n>]+>\\n/) // block html can interrupt\n   .replace(/table/g, / {0,3}\\|?(?:[:\\- ]*\\|)+[\\:\\- ]*\\n/) // table can interrupt\n   .getRegex();\n-const _paragraph = /^([^\\n]+(?:\\n(?!hr|heading|lheading|blockquote|fences|list|html|table| +\\n)[^\\n]+)*)/;\n+const _paragraph = /^([^\\n]+(?:\\n(?!hr|heading|lheading|blockquote|fences|list|html|table|[ \\t]+\\n)[^\\n]+)*)/;\n const blockText = /^[^\\n]+/;\n const _blockLabel = /(?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+/;\n const def = edit(/^ {0,3}\\[(label)\\]: *(?:\\n[ \\t]*)?([^<\\s][^\\s]*|<.*?>)(?:(?: +(?:\\n[ \\t]*)?| *\\n[ \\t]*)(title))? *(?:\\n+|$)/)\ndiff --git a/test/specs/new/blank_line_with_tabs.html b/test/specs/new/blank_line_with_tabs.html\nnew file mode 100644\nindex 0000000000..83dc66c022\n--- /dev/null\n+++ b/test/specs/new/blank_line_with_tabs.html\n@@ -0,0 +1,4 @@\n+<p>foo</p>\n+<p>bar</p>\n+<p>baz</p>\n+<p>qux</p>\ndiff --git a/test/specs/new/blank_line_with_tabs.md b/test/specs/new/blank_line_with_tabs.md\nnew file mode 100644\nindex 0000000000..a79bd0f899\n--- /dev/null\n+++ b/test/specs/new/blank_line_with_tabs.md\n@@ -0,0 +1,10 @@\n+---\n+gfm: false\n+---\n+foo\n+\t\n+bar\n+\n+baz\n+\t \t\n+qux\n",
+      "changedFiles": 3,
+      "addedLines": 15,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0005",
+      "title": "A separator line made only of a tab character splits two paragraphs",
+      "preconditions": "A block of plain text is prepared for the parser: one line of text, followed by a line that contains only a single tab character and nothing else, followed by another line of text.",
+      "steps": [
+        "Render the text block through the parser.",
+        "Inspect the resulting output markup.",
+        "Count how many separate paragraph elements were produced."
+      ],
+      "expectedResult": "The output contains two distinct paragraph elements, one for each line of text, because the tab-only line is treated as a separator between paragraphs rather than being absorbed into the surrounding text as part of one paragraph."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-14T03:07:07.000Z",
+      "testType": "API",
+      "tags": [
+        "whitespace",
+        "boundary",
+        "markdown-parsing"
+      ],
+      "durationMs": null,
+      "feature": "paragraph block parsing",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/markedjs/marked/pull/4007",
+        "issueUrl": null,
+        "evidenceTestFile": "test/specs/new/blank_line_with_tabs.md",
+        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph."
+      }
+    }
+  },
+  {
+    "id": "js_0006",
+    "revision": "head",
+    "flipPairId": "js_flip_0003",
+    "pr": {
+      "repository": "markedjs/marked",
+      "number": 4007,
+      "baseSha": "33928d06634570d44c3426f4f48615f4c0a30b11",
+      "headSha": "cfa3d4ce4d58f5a777926c7e45e25b6d902199be",
+      "title": "fix: treat a line of only tabs as a blank line between paragraphs",
+      "description": "Markdown flavor: CommonMark. A line that's only tabs (or tabs mixed with spaces) is a blank line in CommonMark, so it should separate paragraphs. Marked only treated a spaces-only line as blank, so when the blank line between two paragraphs happens to contain a tab, that line gets swallowed as a lazy continuation and the two paragraphs merge into one.\n\nWith a single tab on the middle line:\nfoo\\n\\t\\nbar\nmarked currently returns one paragraph (<p>foo\\tbar</p>) instead of <p>foo</p>\\n<p>bar</p>. A space-only middle line already works, which is what made this easy to miss.\n\nThe paragraph rule's continuation lookahead was checking for spaces only; widened it so a tab-only line counts as blank too. GFM and pedantic paragraphs build on the same base rule, so they pick up the fix as well. Added a spec test under test/specs/new.",
+      "diff": "diff --git a/src/rules.ts b/src/rules.ts\nindex c9bc07c5d6..997f9be52a 100644\n--- a/src/rules.ts\n+++ b/src/rules.ts\n@@ -128,7 +128,7 @@ const lheadingGfm = edit(lheadingCore)\n   .replace(/html/g, / {0,3}<[^\\n>]+>\\n/) // block html can interrupt\n   .replace(/table/g, / {0,3}\\|?(?:[:\\- ]*\\|)+[\\:\\- ]*\\n/) // table can interrupt\n   .getRegex();\n-const _paragraph = /^([^\\n]+(?:\\n(?!hr|heading|lheading|blockquote|fences|list|html|table| +\\n)[^\\n]+)*)/;\n+const _paragraph = /^([^\\n]+(?:\\n(?!hr|heading|lheading|blockquote|fences|list|html|table|[ \\t]+\\n)[^\\n]+)*)/;\n const blockText = /^[^\\n]+/;\n const _blockLabel = /(?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+/;\n const def = edit(/^ {0,3}\\[(label)\\]: *(?:\\n[ \\t]*)?([^<\\s][^\\s]*|<.*?>)(?:(?: +(?:\\n[ \\t]*)?| *\\n[ \\t]*)(title))? *(?:\\n+|$)/)\ndiff --git a/test/specs/new/blank_line_with_tabs.html b/test/specs/new/blank_line_with_tabs.html\nnew file mode 100644\nindex 0000000000..83dc66c022\n--- /dev/null\n+++ b/test/specs/new/blank_line_with_tabs.html\n@@ -0,0 +1,4 @@\n+<p>foo</p>\n+<p>bar</p>\n+<p>baz</p>\n+<p>qux</p>\ndiff --git a/test/specs/new/blank_line_with_tabs.md b/test/specs/new/blank_line_with_tabs.md\nnew file mode 100644\nindex 0000000000..a79bd0f899\n--- /dev/null\n+++ b/test/specs/new/blank_line_with_tabs.md\n@@ -0,0 +1,10 @@\n+---\n+gfm: false\n+---\n+foo\n+\t\n+bar\n+\n+baz\n+\t \t\n+qux\n",
+      "changedFiles": 3,
+      "addedLines": 15,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0006",
+      "title": "A separator line made only of a tab character splits two paragraphs",
+      "preconditions": "A block of plain text is prepared for the parser: one line of text, followed by a line that contains only a single tab character and nothing else, followed by another line of text.",
+      "steps": [
+        "Render the text block through the parser.",
+        "Inspect the resulting output markup.",
+        "Count how many separate paragraph elements were produced."
+      ],
+      "expectedResult": "The output contains two distinct paragraph elements, one for each line of text, because the tab-only line is treated as a separator between paragraphs rather than being absorbed into the surrounding text as part of one paragraph."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-14T03:07:07.000Z",
+      "testType": "API",
+      "tags": [
+        "whitespace",
+        "boundary",
+        "markdown-parsing"
+      ],
+      "durationMs": null,
+      "feature": "paragraph block parsing",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/markedjs/marked/pull/4007",
+        "issueUrl": null,
+        "evidenceTestFile": "test/specs/new/blank_line_with_tabs.md",
+        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph."
+      }
+    }
+  },
+  {
+    "id": "js_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "axios/axios",
+      "number": 11109,
+      "baseSha": "712e02373f1c5ac72fdf5da16f04838338ba817e",
+      "headSha": "e02bd93def49bfc17520379fe8c7cb08cb5f6ce3",
+      "title": "fix(core): tolerate non-string stack when decorating request errors",
+      "description": "The stack-decoration block in Axios.prototype.request's catch handler guards dummy.stack only for truthiness. When the global Error.prepareStackTrace is overridden to return a non-string (a common instrumentation pattern -- APM agents and callsites-style libraries return raw CallSite data), dummy.stack is truthy but not a string, .indexOf('\\n') throws, and the original request error is replaced by an unrelated TypeError. Since this runs in the error path, a purely cosmetic step ends up destroying the error it was meant to decorate. This change applies the same try/catch defensiveness already used for the adjacent err.stack manipulation to the dummy.stack read. Includes a regression test (tests/unit/core/Axios.test.js) that fails without the fix and passes with it. Fixes #11108.",
+      "diff": "diff --git a/lib/core/Axios.js b/lib/core/Axios.js\nindex fe81632ffc..180d456d7b 100644\n--- a/lib/core/Axios.js\n+++ b/lib/core/Axios.js\n@@ -41,21 +41,21 @@ class Axios {\n       return await this._request(configOrUrl, config);\n     } catch (err) {\n       if (err instanceof Error) {\n-        let dummy = {};\n+        try {\n+          let dummy = {};\n \n-        Error.captureStackTrace ? Error.captureStackTrace(dummy) : (dummy = new Error());\n+          Error.captureStackTrace ? Error.captureStackTrace(dummy) : (dummy = new Error());\n \n-        // slice off the Error: ... line\n-        const stack = (() => {\n-          if (!dummy.stack) {\n-            return '';\n-          }\n+          const dummyStack = dummy.stack;\n+          let stack = '';\n \n-          const firstNewlineIndex = dummy.stack.indexOf('\\n');\n+          // slice off the Error: ... line\n+          if (typeof dummyStack === 'string') {\n+            const firstNewlineIndex = dummyStack.indexOf('\\n');\n+\n+            stack = firstNewlineIndex === -1 ? '' : dummyStack.slice(firstNewlineIndex + 1);\n+          }\n \n-          return firstNewlineIndex === -1 ? '' : dummy.stack.slice(firstNewlineIndex + 1);\n-        })();\n-        try {\n           if (!err.stack) {\n             err.stack = stack;\n             // match without the 2 top stack lines\n@@ -71,7 +71,7 @@ class Axios {\n             }\n           }\n         } catch (e) {\n-          // ignore the case where \"stack\" is an un-writable property\n+          // Ignore failures from custom stack hooks or un-writable stack properties.\n         }\n       }\n \ndiff --git a/tests/unit/core/Axios.test.js b/tests/unit/core/Axios.test.js\nnew file mode 100644\nindex 0000000000..07e3d366d5\n--- /dev/null\n+++ b/tests/unit/core/Axios.test.js\n@@ -0,0 +1,56 @@\n+import { describe, it, expect } from 'vitest';\n+import axios from '../../../index.js';\n+\n+describe('core::Axios', () => {\n+  describe('request error stack decoration', () => {\n+    async function expectAdapterFailurePreserved() {\n+      const failure = new Error('adapter failure');\n+\n+      await expect(\n+        axios.request({\n+          url: 'http://localhost/test',\n+          adapter: () => Promise.reject(failure),\n+        })\n+      ).rejects.toBe(failure);\n+    }\n+\n+    it('preserves the original error when Error.prepareStackTrace returns a non-string stack', async () => {\n+      const original = Error.prepareStackTrace;\n+      // Simulates instrumentation that overrides the V8 hook to return\n+      // structured call-site data instead of a formatted string.\n+      Error.prepareStackTrace = () => ({});\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.prepareStackTrace = original;\n+      }\n+    });\n+\n+    it('preserves the original error when Error.prepareStackTrace throws', async () => {\n+      const original = Error.prepareStackTrace;\n+      Error.prepareStackTrace = () => {\n+        throw new Error('stack formatting failure');\n+      };\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.prepareStackTrace = original;\n+      }\n+    });\n+\n+    it('preserves the original error when Error.captureStackTrace throws', async () => {\n+      const original = Error.captureStackTrace;\n+      Error.captureStackTrace = () => {\n+        throw new Error('stack capture failure');\n+      };\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.captureStackTrace = original;\n+      }\n+    });\n+  });\n+});\n",
+      "changedFiles": 3,
+      "addedLines": 69,
+      "deletedLines": 12,
+      "commits": 3,
+      "language": "JavaScript",
+      "labels": [
+        "commit::fix"
+      ]
+    },
+    "testCase": {
+      "id": "js_tc_0007",
+      "title": "A successful request with a JSON response body is exposed as a parsed object",
+      "preconditions": "A server endpoint responds to a request with an HTTP 200 status, a Content-Type of application/json, and a valid JSON document as the body.",
+      "steps": [
+        "Issue a GET request to the endpoint using the client's default configuration, without overriding response parsing.",
+        "Wait for the request to resolve.",
+        "Inspect the type of the resolved response's data property."
+      ],
+      "expectedResult": "The request resolves successfully, and the response's data property is a JavaScript object whose fields match the JSON document the server returned, not a raw JSON string."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T17:58:28.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "api-contract",
+        "json-parsing"
+      ],
+      "durationMs": null,
+      "feature": "response body parsing",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": true,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/axios/axios/pull/11109",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions."
+      }
+    }
+  },
+  {
+    "id": "js_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "axios/axios",
+      "number": 11109,
+      "baseSha": "712e02373f1c5ac72fdf5da16f04838338ba817e",
+      "headSha": "e02bd93def49bfc17520379fe8c7cb08cb5f6ce3",
+      "title": "fix(core): tolerate non-string stack when decorating request errors",
+      "description": "The stack-decoration block in Axios.prototype.request's catch handler guards dummy.stack only for truthiness. When the global Error.prepareStackTrace is overridden to return a non-string (a common instrumentation pattern -- APM agents and callsites-style libraries return raw CallSite data), dummy.stack is truthy but not a string, .indexOf('\\n') throws, and the original request error is replaced by an unrelated TypeError. Since this runs in the error path, a purely cosmetic step ends up destroying the error it was meant to decorate. This change applies the same try/catch defensiveness already used for the adjacent err.stack manipulation to the dummy.stack read. Includes a regression test (tests/unit/core/Axios.test.js) that fails without the fix and passes with it. Fixes #11108.",
+      "diff": "diff --git a/lib/core/Axios.js b/lib/core/Axios.js\nindex fe81632ffc..180d456d7b 100644\n--- a/lib/core/Axios.js\n+++ b/lib/core/Axios.js\n@@ -41,21 +41,21 @@ class Axios {\n       return await this._request(configOrUrl, config);\n     } catch (err) {\n       if (err instanceof Error) {\n-        let dummy = {};\n+        try {\n+          let dummy = {};\n \n-        Error.captureStackTrace ? Error.captureStackTrace(dummy) : (dummy = new Error());\n+          Error.captureStackTrace ? Error.captureStackTrace(dummy) : (dummy = new Error());\n \n-        // slice off the Error: ... line\n-        const stack = (() => {\n-          if (!dummy.stack) {\n-            return '';\n-          }\n+          const dummyStack = dummy.stack;\n+          let stack = '';\n \n-          const firstNewlineIndex = dummy.stack.indexOf('\\n');\n+          // slice off the Error: ... line\n+          if (typeof dummyStack === 'string') {\n+            const firstNewlineIndex = dummyStack.indexOf('\\n');\n+\n+            stack = firstNewlineIndex === -1 ? '' : dummyStack.slice(firstNewlineIndex + 1);\n+          }\n \n-          return firstNewlineIndex === -1 ? '' : dummy.stack.slice(firstNewlineIndex + 1);\n-        })();\n-        try {\n           if (!err.stack) {\n             err.stack = stack;\n             // match without the 2 top stack lines\n@@ -71,7 +71,7 @@ class Axios {\n             }\n           }\n         } catch (e) {\n-          // ignore the case where \"stack\" is an un-writable property\n+          // Ignore failures from custom stack hooks or un-writable stack properties.\n         }\n       }\n \ndiff --git a/tests/unit/core/Axios.test.js b/tests/unit/core/Axios.test.js\nnew file mode 100644\nindex 0000000000..07e3d366d5\n--- /dev/null\n+++ b/tests/unit/core/Axios.test.js\n@@ -0,0 +1,56 @@\n+import { describe, it, expect } from 'vitest';\n+import axios from '../../../index.js';\n+\n+describe('core::Axios', () => {\n+  describe('request error stack decoration', () => {\n+    async function expectAdapterFailurePreserved() {\n+      const failure = new Error('adapter failure');\n+\n+      await expect(\n+        axios.request({\n+          url: 'http://localhost/test',\n+          adapter: () => Promise.reject(failure),\n+        })\n+      ).rejects.toBe(failure);\n+    }\n+\n+    it('preserves the original error when Error.prepareStackTrace returns a non-string stack', async () => {\n+      const original = Error.prepareStackTrace;\n+      // Simulates instrumentation that overrides the V8 hook to return\n+      // structured call-site data instead of a formatted string.\n+      Error.prepareStackTrace = () => ({});\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.prepareStackTrace = original;\n+      }\n+    });\n+\n+    it('preserves the original error when Error.prepareStackTrace throws', async () => {\n+      const original = Error.prepareStackTrace;\n+      Error.prepareStackTrace = () => {\n+        throw new Error('stack formatting failure');\n+      };\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.prepareStackTrace = original;\n+      }\n+    });\n+\n+    it('preserves the original error when Error.captureStackTrace throws', async () => {\n+      const original = Error.captureStackTrace;\n+      Error.captureStackTrace = () => {\n+        throw new Error('stack capture failure');\n+      };\n+\n+      try {\n+        await expectAdapterFailurePreserved();\n+      } finally {\n+        Error.captureStackTrace = original;\n+      }\n+    });\n+  });\n+});\n",
+      "changedFiles": 3,
+      "addedLines": 69,
+      "deletedLines": 12,
+      "commits": 3,
+      "language": "JavaScript",
+      "labels": [
+        "commit::fix"
+      ]
+    },
+    "testCase": {
+      "id": "js_tc_0008",
+      "title": "A successful request with a JSON response body is exposed as a parsed object",
+      "preconditions": "A server endpoint responds to a request with an HTTP 200 status, a Content-Type of application/json, and a valid JSON document as the body.",
+      "steps": [
+        "Issue a GET request to the endpoint using the client's default configuration, without overriding response parsing.",
+        "Wait for the request to resolve.",
+        "Inspect the type of the resolved response's data property."
+      ],
+      "expectedResult": "The request resolves successfully, and the response's data property is a JavaScript object whose fields match the JSON document the server returned, not a raw JSON string."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T17:58:28.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "api-contract",
+        "json-parsing"
+      ],
+      "durationMs": null,
+      "feature": "response body parsing",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": true,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/axios/axios/pull/11109",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions."
+      }
+    }
+  },
+  {
+    "id": "js_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "tj/commander.js",
+      "number": 2544,
+      "baseSha": "c3ffcfcdac9237cb446ae0acc5b228380e6ba52a",
+      "headSha": "b2e92c61d2045c99a7014924d60148a6e426ca82",
+      "title": "fix: accept uppercase E exponent in negative number args",
+      "description": "Commander accepts unescaped negative numbers as command-arguments and as optional/variadic option-arguments. The negative-number detector matches only a lowercase 'e' exponent, so a negative number written with an uppercase 'E' (-1E3, -1.2E-3) is not recognised and is rejected as an unknown option, even though JavaScript parses -1E3 and -1e3 identically. Fix: add the i flag to the negative-number regex pattern so both cases match; invalid inputs such as -1X3, -0xFF and -1e3.0 stay rejected. Extended the existing parametrized negativeNumbers test cases with the uppercase-E forms.",
+      "diff": "diff --git a/lib/command.js b/lib/command.js\nindex 9a3d03e7d..6a70c4a66 100644\n--- a/lib/command.js\n+++ b/lib/command.js\n@@ -1768,7 +1768,7 @@ Expecting one of '${allowedValues.join(\"', '\")}'`);\n \n     const negativeNumberArg = (arg) => {\n       // return false if not a negative number\n-      if (!/^-(\\d+|\\d*\\.\\d+)(e[+-]?\\d+)?$/.test(arg)) return false;\n+      if (!/^-(\\d+|\\d*\\.\\d+)([eE][+-]?\\d+)?$/.test(arg)) return false;\n       // negative number is ok unless digit used as an option in command hierarchy\n       return !this._getCommandAndAncestors().some((cmd) =>\n         cmd.options\ndiff --git a/tests/negatives.test.js b/tests/negatives.test.js\nindex 2499785b4..1bd4a0194 100644\n--- a/tests/negatives.test.js\n+++ b/tests/negatives.test.js\n@@ -16,6 +16,10 @@ describe('negative numbers', () => {\n       ['-1.2e3', true],\n       ['-1.2e+3', true],\n       ['-1.2e-3', true],\n+      ['-1E3', true],\n+      ['-1E+3', true],\n+      ['-1E-3', true],\n+      ['-1.2E3', true],\n       ['-1e-3.0', false], // invalid number format\n       ['--1 ', false], // invalid number format\n       ['-0', true],\n",
+      "changedFiles": 2,
+      "addedLines": 5,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "pending release"
+      ]
+    },
+    "testCase": {
+      "id": "js_tc_0009",
+      "title": "A simple boolean flag is recognized when passed on the command line",
+      "preconditions": "A command-line program defines a boolean option flag (one that takes no value, only presence or absence) and exposes a way to read whether it was set after parsing.",
+      "steps": [
+        "Invoke the program's argument parser with an argument list that includes only the flag itself (for example '--verbose') and no other options or values.",
+        "After parsing completes, read the flag's value from the parsed options."
+      ],
+      "expectedResult": "The flag reads as true after parsing, and no unknown-option error is raised."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-05T12:28:45.000Z",
+      "testType": "API",
+      "tags": [
+        "config-parsing",
+        "cli-options"
+      ],
+      "durationMs": null,
+      "feature": "boolean option flags",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/tj/commander.js/pull/2544",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change."
+      }
+    }
+  },
+  {
+    "id": "js_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "tj/commander.js",
+      "number": 2544,
+      "baseSha": "c3ffcfcdac9237cb446ae0acc5b228380e6ba52a",
+      "headSha": "b2e92c61d2045c99a7014924d60148a6e426ca82",
+      "title": "fix: accept uppercase E exponent in negative number args",
+      "description": "Commander accepts unescaped negative numbers as command-arguments and as optional/variadic option-arguments. The negative-number detector matches only a lowercase 'e' exponent, so a negative number written with an uppercase 'E' (-1E3, -1.2E-3) is not recognised and is rejected as an unknown option, even though JavaScript parses -1E3 and -1e3 identically. Fix: add the i flag to the negative-number regex pattern so both cases match; invalid inputs such as -1X3, -0xFF and -1e3.0 stay rejected. Extended the existing parametrized negativeNumbers test cases with the uppercase-E forms.",
+      "diff": "diff --git a/lib/command.js b/lib/command.js\nindex 9a3d03e7d..6a70c4a66 100644\n--- a/lib/command.js\n+++ b/lib/command.js\n@@ -1768,7 +1768,7 @@ Expecting one of '${allowedValues.join(\"', '\")}'`);\n \n     const negativeNumberArg = (arg) => {\n       // return false if not a negative number\n-      if (!/^-(\\d+|\\d*\\.\\d+)(e[+-]?\\d+)?$/.test(arg)) return false;\n+      if (!/^-(\\d+|\\d*\\.\\d+)([eE][+-]?\\d+)?$/.test(arg)) return false;\n       // negative number is ok unless digit used as an option in command hierarchy\n       return !this._getCommandAndAncestors().some((cmd) =>\n         cmd.options\ndiff --git a/tests/negatives.test.js b/tests/negatives.test.js\nindex 2499785b4..1bd4a0194 100644\n--- a/tests/negatives.test.js\n+++ b/tests/negatives.test.js\n@@ -16,6 +16,10 @@ describe('negative numbers', () => {\n       ['-1.2e3', true],\n       ['-1.2e+3', true],\n       ['-1.2e-3', true],\n+      ['-1E3', true],\n+      ['-1E+3', true],\n+      ['-1E-3', true],\n+      ['-1.2E3', true],\n       ['-1e-3.0', false], // invalid number format\n       ['--1 ', false], // invalid number format\n       ['-0', true],\n",
+      "changedFiles": 2,
+      "addedLines": 5,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "pending release"
+      ]
+    },
+    "testCase": {
+      "id": "js_tc_0010",
+      "title": "A simple boolean flag is recognized when passed on the command line",
+      "preconditions": "A command-line program defines a boolean option flag (one that takes no value, only presence or absence) and exposes a way to read whether it was set after parsing.",
+      "steps": [
+        "Invoke the program's argument parser with an argument list that includes only the flag itself (for example '--verbose') and no other options or values.",
+        "After parsing completes, read the flag's value from the parsed options."
+      ],
+      "expectedResult": "The flag reads as true after parsing, and no unknown-option error is raised."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-05T12:28:45.000Z",
+      "testType": "API",
+      "tags": [
+        "config-parsing",
+        "cli-options"
+      ],
+      "durationMs": null,
+      "feature": "boolean option flags",
+      "platform": "node",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/tj/commander.js/pull/2544",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change."
+      }
+    }
+  },
+  {
+    "id": "js_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "honojs/hono",
+      "number": 5158,
+      "baseSha": "a8c61afa60d83bf3fef617b102bfa31a0cd2a517",
+      "headSha": "ffcf025853816e53c061bf5644e68ec85e33fe9e",
+      "title": "perf(urls): refactor `tryDecodeURIComponent`",
+      "description": "The bundle size decreased by 47B compared to the next branch. This extracts the existing percent-decode-if-needed check (previously duplicated inline in request parameter decoding, cookie parsing, and query decoding) into a single exported tryDecodeURIComponent utility in utils/url.ts, and updates request.ts and utils/cookie.ts to call it instead of repeating the 'contains %' check locally.",
+      "diff": "diff --git a/src/request.ts b/src/request.ts\nindex 3f8c98565..1e91fde3f 100644\n--- a/src/request.ts\n+++ b/src/request.ts\n@@ -15,7 +15,7 @@ import { parseBody } from './utils/body'\n import type { BodyData, ParseBodyOptions } from './utils/body'\n import type { CustomHeader, RequestHeader } from './utils/headers'\n import type { Simplify, UnionToIntersection } from './utils/types'\n-import { decodeURIComponent_, getQueryParam, getQueryParams, tryDecode } from './utils/url'\n+import { getQueryParam, getQueryParams, tryDecodeURIComponent } from './utils/url'\n \n type Body = {\n   json: any\n@@ -31,8 +31,6 @@ type RequiredRequestInit = Required<Omit<RequestInit, OptionalRequestInitPropert\n   [Key in OptionalRequestInitProperties]?: RequestInit[Key]\n }\n \n-const tryDecodeURIComponent = (str: string) => tryDecode(str, decodeURIComponent_)\n-\n export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n   /**\n    * `.raw` can get the raw Request object.\n@@ -106,7 +104,7 @@ export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n   #getDecodedParam(key: string): string | undefined {\n     const paramKey = this.#matchResult[0][this.routeIndex][1][key]\n     const param = this.#getParamValue(paramKey)\n-    return param && param.indexOf('%') !== -1 ? tryDecodeURIComponent(param) : param\n+    return param && tryDecodeURIComponent(param)\n   }\n \n   #getAllDecodedParams(): Record<string, string> {\n@@ -116,7 +114,7 @@ export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n     for (const key of keys) {\n       const value = this.#getParamValue(this.#matchResult[0][this.routeIndex][1][key])\n       if (value !== undefined) {\n-        decoded[key] = value.indexOf('%') !== -1 ? tryDecodeURIComponent(value) : value\n+        decoded[key] = tryDecodeURIComponent(value)\n       }\n     }\n \ndiff --git a/src/utils/cookie.ts b/src/utils/cookie.ts\nindex 20ba90c5a..f5e3bfb37 100644\n--- a/src/utils/cookie.ts\n+++ b/src/utils/cookie.ts\n@@ -3,7 +3,7 @@\n  * Cookie utility.\n  */\n \n-import { decodeURIComponent_, tryDecode } from './url'\n+import { tryDecodeURIComponent } from './url'\n \n export type Cookie = Record<string, string>\n export type SignedCookie = Record<string, string | false>\n@@ -126,8 +126,7 @@ export const parse = (cookie: string, name?: string): Cookie => {\n       cookieValue = cookieValue.slice(1, -1)\n     }\n     if (validCookieValueRegEx.test(cookieValue)) {\n-      parsedCookie[cookieName] =\n-        cookieValue.indexOf('%') !== -1 ? tryDecode(cookieValue, decodeURIComponent_) : cookieValue\n+      parsedCookie[cookieName] = tryDecodeURIComponent(cookieValue)\n       if (name) {\n         // Fast-path: return only the demanded-key immediately. Other keys are not needed.\n         break\ndiff --git a/src/utils/url.ts b/src/utils/url.ts\nindex 59c96f334..9d5cc02b6 100644\n--- a/src/utils/url.ts\n+++ b/src/utils/url.ts\n@@ -205,12 +205,15 @@ export const checkOptionalParameter = (path: string): string[] | null => {\n   return results.filter((v, i, a) => a.indexOf(v) === i)\n }\n \n+export const tryDecodeURIComponent = (str: string): string =>\n+  str.indexOf('%') !== -1 ? tryDecode(str, decodeURIComponent_) : str\n+\n // Optimized\n-const _decodeURI = (value: string) => {\n+const _decodeURI = (value: string): string => {\n   if (value.indexOf('+') !== -1) {\n     value = value.replace(/\\+/g, ' ')\n   }\n-  return value.indexOf('%') !== -1 ? tryDecode(value, decodeURIComponent_) : value\n+  return tryDecodeURIComponent(value)\n }\n \n const _getQueryParam = (\n",
+      "changedFiles": 3,
+      "addedLines": 10,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "TypeScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0011",
+      "title": "A percent-encoded route parameter is decoded to its original character when read",
+      "preconditions": "A web application defines a route with a named path parameter and a handler that reads that parameter's value from the incoming request.",
+      "steps": [
+        "Send a request to the route with a percent-encoded character (for example %20, representing a space) inside the path parameter segment.",
+        "Inside the route handler, read the value of the named path parameter."
+      ],
+      "expectedResult": "The value read by the handler contains the decoded character (a literal space in this example), not the raw percent-encoded sequence."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-23T12:45:42.000Z",
+      "testType": "API",
+      "tags": [
+        "unicode",
+        "url-decoding",
+        "routing"
+      ],
+      "durationMs": null,
+      "feature": "route parameter decoding",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/honojs/hono/pull/5158",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions."
+      }
+    }
+  },
+  {
+    "id": "js_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "honojs/hono",
+      "number": 5158,
+      "baseSha": "a8c61afa60d83bf3fef617b102bfa31a0cd2a517",
+      "headSha": "ffcf025853816e53c061bf5644e68ec85e33fe9e",
+      "title": "perf(urls): refactor `tryDecodeURIComponent`",
+      "description": "The bundle size decreased by 47B compared to the next branch. This extracts the existing percent-decode-if-needed check (previously duplicated inline in request parameter decoding, cookie parsing, and query decoding) into a single exported tryDecodeURIComponent utility in utils/url.ts, and updates request.ts and utils/cookie.ts to call it instead of repeating the 'contains %' check locally.",
+      "diff": "diff --git a/src/request.ts b/src/request.ts\nindex 3f8c98565..1e91fde3f 100644\n--- a/src/request.ts\n+++ b/src/request.ts\n@@ -15,7 +15,7 @@ import { parseBody } from './utils/body'\n import type { BodyData, ParseBodyOptions } from './utils/body'\n import type { CustomHeader, RequestHeader } from './utils/headers'\n import type { Simplify, UnionToIntersection } from './utils/types'\n-import { decodeURIComponent_, getQueryParam, getQueryParams, tryDecode } from './utils/url'\n+import { getQueryParam, getQueryParams, tryDecodeURIComponent } from './utils/url'\n \n type Body = {\n   json: any\n@@ -31,8 +31,6 @@ type RequiredRequestInit = Required<Omit<RequestInit, OptionalRequestInitPropert\n   [Key in OptionalRequestInitProperties]?: RequestInit[Key]\n }\n \n-const tryDecodeURIComponent = (str: string) => tryDecode(str, decodeURIComponent_)\n-\n export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n   /**\n    * `.raw` can get the raw Request object.\n@@ -106,7 +104,7 @@ export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n   #getDecodedParam(key: string): string | undefined {\n     const paramKey = this.#matchResult[0][this.routeIndex][1][key]\n     const param = this.#getParamValue(paramKey)\n-    return param && param.indexOf('%') !== -1 ? tryDecodeURIComponent(param) : param\n+    return param && tryDecodeURIComponent(param)\n   }\n \n   #getAllDecodedParams(): Record<string, string> {\n@@ -116,7 +114,7 @@ export class HonoRequest<P extends string = '/', I extends Input['out'] = {}> {\n     for (const key of keys) {\n       const value = this.#getParamValue(this.#matchResult[0][this.routeIndex][1][key])\n       if (value !== undefined) {\n-        decoded[key] = value.indexOf('%') !== -1 ? tryDecodeURIComponent(value) : value\n+        decoded[key] = tryDecodeURIComponent(value)\n       }\n     }\n \ndiff --git a/src/utils/cookie.ts b/src/utils/cookie.ts\nindex 20ba90c5a..f5e3bfb37 100644\n--- a/src/utils/cookie.ts\n+++ b/src/utils/cookie.ts\n@@ -3,7 +3,7 @@\n  * Cookie utility.\n  */\n \n-import { decodeURIComponent_, tryDecode } from './url'\n+import { tryDecodeURIComponent } from './url'\n \n export type Cookie = Record<string, string>\n export type SignedCookie = Record<string, string | false>\n@@ -126,8 +126,7 @@ export const parse = (cookie: string, name?: string): Cookie => {\n       cookieValue = cookieValue.slice(1, -1)\n     }\n     if (validCookieValueRegEx.test(cookieValue)) {\n-      parsedCookie[cookieName] =\n-        cookieValue.indexOf('%') !== -1 ? tryDecode(cookieValue, decodeURIComponent_) : cookieValue\n+      parsedCookie[cookieName] = tryDecodeURIComponent(cookieValue)\n       if (name) {\n         // Fast-path: return only the demanded-key immediately. Other keys are not needed.\n         break\ndiff --git a/src/utils/url.ts b/src/utils/url.ts\nindex 59c96f334..9d5cc02b6 100644\n--- a/src/utils/url.ts\n+++ b/src/utils/url.ts\n@@ -205,12 +205,15 @@ export const checkOptionalParameter = (path: string): string[] | null => {\n   return results.filter((v, i, a) => a.indexOf(v) === i)\n }\n \n+export const tryDecodeURIComponent = (str: string): string =>\n+  str.indexOf('%') !== -1 ? tryDecode(str, decodeURIComponent_) : str\n+\n // Optimized\n-const _decodeURI = (value: string) => {\n+const _decodeURI = (value: string): string => {\n   if (value.indexOf('+') !== -1) {\n     value = value.replace(/\\+/g, ' ')\n   }\n-  return value.indexOf('%') !== -1 ? tryDecode(value, decodeURIComponent_) : value\n+  return tryDecodeURIComponent(value)\n }\n \n const _getQueryParam = (\n",
+      "changedFiles": 3,
+      "addedLines": 10,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "TypeScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "js_tc_0012",
+      "title": "A percent-encoded route parameter is decoded to its original character when read",
+      "preconditions": "A web application defines a route with a named path parameter and a handler that reads that parameter's value from the incoming request.",
+      "steps": [
+        "Send a request to the route with a percent-encoded character (for example %20, representing a space) inside the path parameter segment.",
+        "Inside the route handler, read the value of the named path parameter."
+      ],
+      "expectedResult": "The value read by the handler contains the decoded character (a literal space in this example), not the raw percent-encoded sequence."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-23T12:45:42.000Z",
+      "testType": "API",
+      "tags": [
+        "unicode",
+        "url-decoding",
+        "routing"
+      ],
+      "durationMs": null,
+      "feature": "route parameter decoding",
+      "platform": "node",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/honojs/hono/pull/5158",
+        "issueUrl": null,
+        "evidenceTestFile": null,
+        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions."
+      }
+    }
+  }
+]

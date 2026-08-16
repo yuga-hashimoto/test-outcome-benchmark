@@ -1,0 +1,678 @@
+[
+  {
+    "id": "kb_0001",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "Automattic/node-canvas",
+      "number": 2546,
+      "baseSha": "7f34c9bec84c9637b3dec216ae7f4a83a8022fdf",
+      "headSha": "095371111c3d0809ba4e07a0ceeea3bd43c83526",
+      "title": "Fix compilation on GCC 15 by including <cstdint>",
+      "description": "As per the GCC 15 porting guide, section \"Header dependency changes\": some C++ Standard Library headers no longer include other headers used internally. <cstdint> must now be explicitly included to use these types and was missing from CharData.h. This resolves issue #2545.",
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 59fad2f10..c47018705 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -13,6 +13,7 @@ project adheres to [Semantic Versioning](http://semver.org/).\n * Fix error message HTTP response status code in image src setter\n * `roundRect()` shape incorrect when radii were large relative to rectangle size (#2400)\n * Reject loadImage when src is null or invalid (#2304)\n+* Fix compilation on GCC 15 by including <cstdint> (#2545)\n \n 3.2.0\n ==================\ndiff --git a/src/CharData.h b/src/CharData.h\nindex ebc2dd5e1..00fc4effc 100644\n--- a/src/CharData.h\n+++ b/src/CharData.h\n@@ -3,6 +3,8 @@\n \n #pragma once\n \n+#include <cstdint>\n+\n namespace CharData {\n   static constexpr uint8_t Whitespace = 0x1;\n   static constexpr uint8_t Newline = 0x2;",
+      "changedFiles": 2,
+      "addedLines": 3,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0001",
+      "title": "SVG data URI with percent-encoded characters loads as an image",
+      "preconditions": "A canvas 2D rendering context has been created, and an SVG image is represented as a data URI whose payload has been percent-encoded (for example, produced by running the SVG markup through a standard URI-encoding function before building the `data:image/svg+xml;charset=utf-8,...` string).",
+      "steps": [
+        "Construct a new Image object.",
+        "Set the Image's src property to the percent-encoded SVG data URI.",
+        "Wait for the image's onload callback to fire (or check that onerror was not called).",
+        "Draw the loaded image onto the canvas context using drawImage."
+      ],
+      "expectedResult": "The percent-escaped octets in the data URI are decoded before the SVG payload is parsed, consistent with how browsers handle data URIs, so the image loads successfully and renders on the canvas without an error being thrown."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-12-16T15:11:51.000Z",
+      "testType": "API",
+      "tags": [
+        "encoding"
+      ],
+      "durationMs": null,
+      "feature": "SVG data URI image loading",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/Automattic/node-canvas/pull/2546",
+        "issueUrl": "https://github.com/Automattic/node-canvas/issues/2126",
+        "evidenceTestFile": null,
+        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0002",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "Automattic/node-canvas",
+      "number": 2546,
+      "baseSha": "7f34c9bec84c9637b3dec216ae7f4a83a8022fdf",
+      "headSha": "095371111c3d0809ba4e07a0ceeea3bd43c83526",
+      "title": "Fix compilation on GCC 15 by including <cstdint>",
+      "description": "As per the GCC 15 porting guide, section \"Header dependency changes\": some C++ Standard Library headers no longer include other headers used internally. <cstdint> must now be explicitly included to use these types and was missing from CharData.h. This resolves issue #2545.",
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 59fad2f10..c47018705 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -13,6 +13,7 @@ project adheres to [Semantic Versioning](http://semver.org/).\n * Fix error message HTTP response status code in image src setter\n * `roundRect()` shape incorrect when radii were large relative to rectangle size (#2400)\n * Reject loadImage when src is null or invalid (#2304)\n+* Fix compilation on GCC 15 by including <cstdint> (#2545)\n \n 3.2.0\n ==================\ndiff --git a/src/CharData.h b/src/CharData.h\nindex ebc2dd5e1..00fc4effc 100644\n--- a/src/CharData.h\n+++ b/src/CharData.h\n@@ -3,6 +3,8 @@\n \n #pragma once\n \n+#include <cstdint>\n+\n namespace CharData {\n   static constexpr uint8_t Whitespace = 0x1;\n   static constexpr uint8_t Newline = 0x2;",
+      "changedFiles": 2,
+      "addedLines": 3,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0001",
+      "title": "SVG data URI with percent-encoded characters loads as an image",
+      "preconditions": "A canvas 2D rendering context has been created, and an SVG image is represented as a data URI whose payload has been percent-encoded (for example, produced by running the SVG markup through a standard URI-encoding function before building the `data:image/svg+xml;charset=utf-8,...` string).",
+      "steps": [
+        "Construct a new Image object.",
+        "Set the Image's src property to the percent-encoded SVG data URI.",
+        "Wait for the image's onload callback to fire (or check that onerror was not called).",
+        "Draw the loaded image onto the canvas context using drawImage."
+      ],
+      "expectedResult": "The percent-escaped octets in the data URI are decoded before the SVG payload is parsed, consistent with how browsers handle data URIs, so the image loads successfully and renders on the canvas without an error being thrown."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-12-16T15:11:51.000Z",
+      "testType": "API",
+      "tags": [
+        "encoding"
+      ],
+      "durationMs": null,
+      "feature": "SVG data URI image loading",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/Automattic/node-canvas/pull/2546",
+        "issueUrl": "https://github.com/Automattic/node-canvas/issues/2126",
+        "evidenceTestFile": null,
+        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0003",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "vapor/vapor",
+      "number": 3436,
+      "baseSha": "6c5ed03efe8f678f33203b6673f8afa764a9dfa1",
+      "headSha": "d385c875d64f0a876fd8d6076dc6d3c7740736ac",
+      "title": "Parse directives from all Cookie headers, not just the first",
+      "description": "Fixes #3435. These changes are now available in 4.121.3.",
+      "diff": "diff --git a/Sources/Vapor/HTTP/Headers/HTTPCookies.swift b/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\nindex a7d3f4797d..6eb57fe72b 100644\n--- a/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\n+++ b/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\n@@ -6,9 +6,7 @@ extension HTTPHeaders {\n     /// This accesses the `\"Cookie\"` header.\n     public var cookie: HTTPCookies? {\n         get {\n-            self.parseDirectives(name: .cookie).first.map {\n-                HTTPCookies(directives: $0)\n-            }\n+            HTTPCookies(directives: self.parseDirectives(name: .cookie).flatMap { $0 })\n         }\n         set {\n             if let cookieHeader = newValue?.cookieHeader {\ndiff --git a/Tests/VaporTests/HTTPHeaderTests.swift b/Tests/VaporTests/HTTPHeaderTests.swift\nindex abaa4f3758..c195f4984b 100644\n--- a/Tests/VaporTests/HTTPHeaderTests.swift\n+++ b/Tests/VaporTests/HTTPHeaderTests.swift\n@@ -233,6 +233,18 @@ final class HTTPHeaderTests: XCTestCase {\n         XCTAssertEqual(headers.cookie?[\"!#$%&'*+-.^_`~\"]?.string, \"symbols\")\n     }\n \n+    // https://github.com/vpor/vapor/issues/3435\n+    func testMultipleCookieHeaders() throws {\n+        let headers = HTTPHeaders([\n+            (\"cookie\", \"a=1\"),\n+            (\"cookie\", \"b=2\"),\n+            (\"cookie\", \"c=3\"),\n+        ])\n+        XCTAssertEqual(headers.cookie?[\"a\"]?.string, \"1\")\n+        XCTAssertEqual(headers.cookie?[\"b\"]?.string, \"2\")\n+        XCTAssertEqual(headers.cookie?[\"c\"]?.string, \"3\")\n+    }\n+\n     // https://github.com/vapor/vapor/issues/2316\n     func testCookie_complexParsing() throws {\n         let headers = HTTPHeaders([",
+      "changedFiles": 2,
+      "addedLines": 13,
+      "deletedLines": 3,
+      "commits": 2,
+      "language": "Swift",
+      "labels": [
+        "semver-patch"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0002",
+      "title": "Decoding a form-urlencoded request with an empty body succeeds when all fields are optional",
+      "preconditions": "A route handler declares a Decodable content type where every stored property is optional, and the route accepts POST requests with Content-Type application/x-www-form-urlencoded.",
+      "steps": [
+        "Send a POST request to the route with header Content-Type: application/x-www-form-urlencoded and no request body.",
+        "Inside the handler, call the request's content-decoding method for the optional-only type.",
+        "Observe whether the decode call throws an error or returns a value.",
+        "Inspect the HTTP response status code and body returned to the client."
+      ],
+      "expectedResult": "Decoding succeeds and produces an instance of the type with all optional properties set to nil, since an empty body is a valid representation of a value whose fields are all optional; the handler completes normally and the client receives the handler's normal response rather than a 422 Unprocessable Entity error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-02-24T17:37:41.000Z",
+      "testType": "API",
+      "tags": [
+        "error handling"
+      ],
+      "durationMs": null,
+      "feature": "form body decoding",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/vapor/vapor/pull/3436",
+        "issueUrl": "https://github.com/vapor/vapor/issues/3288",
+        "evidenceTestFile": null,
+        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0004",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "vapor/vapor",
+      "number": 3436,
+      "baseSha": "6c5ed03efe8f678f33203b6673f8afa764a9dfa1",
+      "headSha": "d385c875d64f0a876fd8d6076dc6d3c7740736ac",
+      "title": "Parse directives from all Cookie headers, not just the first",
+      "description": "Fixes #3435. These changes are now available in 4.121.3.",
+      "diff": "diff --git a/Sources/Vapor/HTTP/Headers/HTTPCookies.swift b/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\nindex a7d3f4797d..6eb57fe72b 100644\n--- a/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\n+++ b/Sources/Vapor/HTTP/Headers/HTTPCookies.swift\n@@ -6,9 +6,7 @@ extension HTTPHeaders {\n     /// This accesses the `\"Cookie\"` header.\n     public var cookie: HTTPCookies? {\n         get {\n-            self.parseDirectives(name: .cookie).first.map {\n-                HTTPCookies(directives: $0)\n-            }\n+            HTTPCookies(directives: self.parseDirectives(name: .cookie).flatMap { $0 })\n         }\n         set {\n             if let cookieHeader = newValue?.cookieHeader {\ndiff --git a/Tests/VaporTests/HTTPHeaderTests.swift b/Tests/VaporTests/HTTPHeaderTests.swift\nindex abaa4f3758..c195f4984b 100644\n--- a/Tests/VaporTests/HTTPHeaderTests.swift\n+++ b/Tests/VaporTests/HTTPHeaderTests.swift\n@@ -233,6 +233,18 @@ final class HTTPHeaderTests: XCTestCase {\n         XCTAssertEqual(headers.cookie?[\"!#$%&'*+-.^_`~\"]?.string, \"symbols\")\n     }\n \n+    // https://github.com/vpor/vapor/issues/3435\n+    func testMultipleCookieHeaders() throws {\n+        let headers = HTTPHeaders([\n+            (\"cookie\", \"a=1\"),\n+            (\"cookie\", \"b=2\"),\n+            (\"cookie\", \"c=3\"),\n+        ])\n+        XCTAssertEqual(headers.cookie?[\"a\"]?.string, \"1\")\n+        XCTAssertEqual(headers.cookie?[\"b\"]?.string, \"2\")\n+        XCTAssertEqual(headers.cookie?[\"c\"]?.string, \"3\")\n+    }\n+\n     // https://github.com/vapor/vapor/issues/2316\n     func testCookie_complexParsing() throws {\n         let headers = HTTPHeaders([",
+      "changedFiles": 2,
+      "addedLines": 13,
+      "deletedLines": 3,
+      "commits": 2,
+      "language": "Swift",
+      "labels": [
+        "semver-patch"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0002",
+      "title": "Decoding a form-urlencoded request with an empty body succeeds when all fields are optional",
+      "preconditions": "A route handler declares a Decodable content type where every stored property is optional, and the route accepts POST requests with Content-Type application/x-www-form-urlencoded.",
+      "steps": [
+        "Send a POST request to the route with header Content-Type: application/x-www-form-urlencoded and no request body.",
+        "Inside the handler, call the request's content-decoding method for the optional-only type.",
+        "Observe whether the decode call throws an error or returns a value.",
+        "Inspect the HTTP response status code and body returned to the client."
+      ],
+      "expectedResult": "Decoding succeeds and produces an instance of the type with all optional properties set to nil, since an empty body is a valid representation of a value whose fields are all optional; the handler completes normally and the client receives the handler's normal response rather than a 422 Unprocessable Entity error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-02-24T17:37:41.000Z",
+      "testType": "API",
+      "tags": [
+        "error handling"
+      ],
+      "durationMs": null,
+      "feature": "form body decoding",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/vapor/vapor/pull/3436",
+        "issueUrl": "https://github.com/vapor/vapor/issues/3288",
+        "evidenceTestFile": null,
+        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0005",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "spf13/afero",
+      "number": 523,
+      "baseSha": "65d5aa13c34cfcf9211978fd26804d852b0152f3",
+      "headSha": "c448d4915fd021670a243a36d571bc75ce2f3bf9",
+      "title": "fix: spelling errors (excpected -> expected, iself -> itself)",
+      "description": "",
+      "diff": "diff --git a/basepath_test.go b/basepath_test.go\nindex 1120210c..828bb6a8 100644\n--- a/basepath_test.go\n+++ b/basepath_test.go\n@@ -80,10 +80,10 @@ func TestRealPath(t *testing.T) {\n \t\t\tt.Errorf(\"Got error %s\", err)\n \t\t}\n \n-\t\texcpected := filepath.Join(baseDir, anotherDir)\n+\t\texpected := filepath.Join(baseDir, anotherDir)\n \n-\t\tif surrealPath != excpected {\n-\t\t\tt.Errorf(\"Expected \\n%s got \\n%s\", excpected, surrealPath)\n+\t\tif surrealPath != expected {\n+\t\t\tt.Errorf(\"Expected \\n%s got \\n%s\", expected, surrealPath)\n \t\t}\n \t}\n }\ndiff --git a/lstater.go b/lstater.go\nindex 360edf93..2dcbdb1f 100644\n--- a/lstater.go\n+++ b/lstater.go\n@@ -19,7 +19,7 @@ import (\n \n // Lstater is an optional interface in Afero. It is only implemented by the\n // filesystems saying so.\n-// It will call Lstat if the filesystem iself is, or it delegates to, the os filesystem.\n+// It will call Lstat if the filesystem itself is, or it delegates to, the os filesystem.\n // Else it will call Stat.\n // In addition to the FileInfo, it will return a boolean telling whether Lstat was called or not.\n type Lstater interface {",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0003",
+      "title": "Removing a non-empty directory from the in-memory filesystem is rejected",
+      "preconditions": "An in-memory filesystem instance has been created and a file has been written at path /dirname/file, so /dirname is a directory containing one file.",
+      "steps": [
+        "Create the in-memory filesystem and write a file at /dirname/file.",
+        "Call the filesystem's Remove operation on the directory path /dirname.",
+        "Capture the error value returned by Remove.",
+        "Check whether /dirname and its contents still exist on the filesystem."
+      ],
+      "expectedResult": "Remove returns a non-nil error stating that the directory is not empty, and /dirname together with its contained file remains present on the filesystem afterward, matching how removing a non-empty directory behaves on a real OS filesystem."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-09-08T16:25:29.000Z",
+      "testType": "API",
+      "tags": [
+        "validation"
+      ],
+      "durationMs": null,
+      "feature": "in-memory filesystem directory removal",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/afero/pull/523",
+        "issueUrl": "https://github.com/spf13/afero/issues/232",
+        "evidenceTestFile": null,
+        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0006",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "spf13/afero",
+      "number": 523,
+      "baseSha": "65d5aa13c34cfcf9211978fd26804d852b0152f3",
+      "headSha": "c448d4915fd021670a243a36d571bc75ce2f3bf9",
+      "title": "fix: spelling errors (excpected -> expected, iself -> itself)",
+      "description": "",
+      "diff": "diff --git a/basepath_test.go b/basepath_test.go\nindex 1120210c..828bb6a8 100644\n--- a/basepath_test.go\n+++ b/basepath_test.go\n@@ -80,10 +80,10 @@ func TestRealPath(t *testing.T) {\n \t\t\tt.Errorf(\"Got error %s\", err)\n \t\t}\n \n-\t\texcpected := filepath.Join(baseDir, anotherDir)\n+\t\texpected := filepath.Join(baseDir, anotherDir)\n \n-\t\tif surrealPath != excpected {\n-\t\t\tt.Errorf(\"Expected \\n%s got \\n%s\", excpected, surrealPath)\n+\t\tif surrealPath != expected {\n+\t\t\tt.Errorf(\"Expected \\n%s got \\n%s\", expected, surrealPath)\n \t\t}\n \t}\n }\ndiff --git a/lstater.go b/lstater.go\nindex 360edf93..2dcbdb1f 100644\n--- a/lstater.go\n+++ b/lstater.go\n@@ -19,7 +19,7 @@ import (\n \n // Lstater is an optional interface in Afero. It is only implemented by the\n // filesystems saying so.\n-// It will call Lstat if the filesystem iself is, or it delegates to, the os filesystem.\n+// It will call Lstat if the filesystem itself is, or it delegates to, the os filesystem.\n // Else it will call Stat.\n // In addition to the FileInfo, it will return a boolean telling whether Lstat was called or not.\n type Lstater interface {",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0003",
+      "title": "Removing a non-empty directory from the in-memory filesystem is rejected",
+      "preconditions": "An in-memory filesystem instance has been created and a file has been written at path /dirname/file, so /dirname is a directory containing one file.",
+      "steps": [
+        "Create the in-memory filesystem and write a file at /dirname/file.",
+        "Call the filesystem's Remove operation on the directory path /dirname.",
+        "Capture the error value returned by Remove.",
+        "Check whether /dirname and its contents still exist on the filesystem."
+      ],
+      "expectedResult": "Remove returns a non-nil error stating that the directory is not empty, and /dirname together with its contained file remains present on the filesystem afterward, matching how removing a non-empty directory behaves on a real OS filesystem."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-09-08T16:25:29.000Z",
+      "testType": "API",
+      "tags": [
+        "validation"
+      ],
+      "durationMs": null,
+      "feature": "in-memory filesystem directory removal",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/afero/pull/523",
+        "issueUrl": "https://github.com/spf13/afero/issues/232",
+        "evidenceTestFile": null,
+        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "doctrine/dbal",
+      "number": 7498,
+      "baseSha": "09c49355c94f31d591913dc60e1e6c8a1bb0a7d3",
+      "headSha": "a8c6132a8e4ec46ab9047867cc6e8905fd1a6793",
+      "title": "Don't pass JSON flags as depth",
+      "description": "",
+      "diff": "diff --git a/tests/Types/JsonTest.php b/tests/Types/JsonTest.php\nindex 5d7f837f0d3..e0fb350795a 100644\n--- a/tests/Types/JsonTest.php\n+++ b/tests/Types/JsonTest.php\n@@ -62,7 +62,7 @@ public function testJsonEmptyStringConvertsToPHPValue(): void\n     public function testJsonStringConvertsToPHPValue(): void\n     {\n         $value         = ['foo' => 'bar', 'bar' => 'foo'];\n-        $databaseValue = json_encode($value, 0, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);\n+        $databaseValue = json_encode($value, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);\n         $phpValue      = $this->type->convertToPHPValue($databaseValue, $this->platform);\n \n         self::assertEquals($value, $phpValue);",
+      "changedFiles": 1,
+      "addedLines": 1,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "PHP",
+      "labels": [
+        "Test Suite"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0004",
+      "title": "Schema comparison succeeds when two added indexes are equally valid renames of one removed index",
+      "preconditions": "A database schema contains one manually named index, and the target schema definition contains two logically equivalent indexes (covering the same columns) under two different auto-generated names, so a single removed index has two equally matching added-index candidates.",
+      "steps": [
+        "Build a Comparator and compare the current schema (with the single manually named index) against the target schema containing the two equivalent index definitions.",
+        "Run the schema comparison, for example via compareSchemas or a migrations diff command.",
+        "Observe whether the comparison completes and inspect the resulting SchemaDiff.",
+        "Check the process output/logs for any PHP warnings."
+      ],
+      "expectedResult": "The comparison completes normally and returns a valid diff describing the necessary rename, add, and drop operations for the indexes involved, with no PHP warning or error about an undefined array key being raised."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T13:14:05.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "schema index comparison",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/doctrine/dbal/pull/7498",
+        "issueUrl": "https://github.com/doctrine/dbal/issues/7323",
+        "evidenceTestFile": null,
+        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "doctrine/dbal",
+      "number": 7498,
+      "baseSha": "09c49355c94f31d591913dc60e1e6c8a1bb0a7d3",
+      "headSha": "a8c6132a8e4ec46ab9047867cc6e8905fd1a6793",
+      "title": "Don't pass JSON flags as depth",
+      "description": "",
+      "diff": "diff --git a/tests/Types/JsonTest.php b/tests/Types/JsonTest.php\nindex 5d7f837f0d3..e0fb350795a 100644\n--- a/tests/Types/JsonTest.php\n+++ b/tests/Types/JsonTest.php\n@@ -62,7 +62,7 @@ public function testJsonEmptyStringConvertsToPHPValue(): void\n     public function testJsonStringConvertsToPHPValue(): void\n     {\n         $value         = ['foo' => 'bar', 'bar' => 'foo'];\n-        $databaseValue = json_encode($value, 0, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);\n+        $databaseValue = json_encode($value, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);\n         $phpValue      = $this->type->convertToPHPValue($databaseValue, $this->platform);\n \n         self::assertEquals($value, $phpValue);",
+      "changedFiles": 1,
+      "addedLines": 1,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "PHP",
+      "labels": [
+        "Test Suite"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0004",
+      "title": "Schema comparison succeeds when two added indexes are equally valid renames of one removed index",
+      "preconditions": "A database schema contains one manually named index, and the target schema definition contains two logically equivalent indexes (covering the same columns) under two different auto-generated names, so a single removed index has two equally matching added-index candidates.",
+      "steps": [
+        "Build a Comparator and compare the current schema (with the single manually named index) against the target schema containing the two equivalent index definitions.",
+        "Run the schema comparison, for example via compareSchemas or a migrations diff command.",
+        "Observe whether the comparison completes and inspect the resulting SchemaDiff.",
+        "Check the process output/logs for any PHP warnings."
+      ],
+      "expectedResult": "The comparison completes normally and returns a valid diff describing the necessary rename, add, and drop operations for the indexes involved, with no PHP warning or error about an undefined array key being raised."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T13:14:05.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "schema index comparison",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/doctrine/dbal/pull/7498",
+        "issueUrl": "https://github.com/doctrine/dbal/issues/7323",
+        "evidenceTestFile": null,
+        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "arrow-py/arrow",
+      "number": 1234,
+      "baseSha": "9da15b8fd2159c3b5c74ed6c505c22a6ec062332",
+      "headSha": "b18b243c163efae8c01ffae1d33773ea132d552e",
+      "title": "Added weeks to afrikaans locale",
+      "description": "Adds week and weeks translations for Afrikaans, adds very basic tests for Afrikaans.",
+      "diff": "diff --git a/arrow/locales.py b/arrow/locales.py\nindex 5d31aa24..757df480 100644\n--- a/arrow/locales.py\n+++ b/arrow/locales.py\n@@ -1619,6 +1619,8 @@ class AfrikaansLocale(Locale):\n         \"hours\": \"{0} ure\",\n         \"day\": \"een dag\",\n         \"days\": \"{0} dae\",\n+        \"week\": \"een week\",\n+        \"weeks\": \"{0} weke\",\n         \"month\": \"een maand\",\n         \"months\": \"{0} maande\",\n         \"year\": \"een jaar\",\ndiff --git a/tests/test_locales.py b/tests/test_locales.py\nindex 1a7a0b2e..3d7120e3 100644\n--- a/tests/test_locales.py\n+++ b/tests/test_locales.py\n@@ -3408,17 +3408,22 @@ def test_format_timeframe(self):\n class TestAfrikaansLocale:\n     def test_timeframes(self):\n         assert self.locale._format_timeframe(\"now\", 0) == \"nou\"\n+\n+        # singular\n         assert self.locale._format_timeframe(\"second\", 1) == \"n sekonde\"\n         assert self.locale._format_timeframe(\"minute\", 1) == \"minuut\"\n         assert self.locale._format_timeframe(\"hour\", 1) == \"uur\"\n         assert self.locale._format_timeframe(\"day\", 1) == \"een dag\"\n+        assert self.locale._format_timeframe(\"week\", 1) == \"een week\"\n         assert self.locale._format_timeframe(\"month\", 1) == \"een maand\"\n         assert self.locale._format_timeframe(\"year\", 1) == \"een jaar\"\n \n+        # plural\n         assert self.locale._format_timeframe(\"seconds\", 2) == \"2 sekondes\"\n         assert self.locale._format_timeframe(\"minutes\", 2) == \"2 minute\"\n         assert self.locale._format_timeframe(\"hours\", 2) == \"2 ure\"\n         assert self.locale._format_timeframe(\"days\", 2) == \"2 dae\"\n+        assert self.locale._format_timeframe(\"weeks\", 2) == \"2 weke\"\n         assert self.locale._format_timeframe(\"months\", 2) == \"2 maande\"\n         assert self.locale._format_timeframe(\"years\", 2) == \"2 jaar\"\n ",
+      "changedFiles": 2,
+      "addedLines": 7,
+      "deletedLines": 0,
+      "commits": 6,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0005",
+      "title": "Shifting a datetime by hours across a daylight-saving transition adds the correct wall-clock offset",
+      "preconditions": "A timezone-aware datetime object is created for local time 2025-03-08T18:30:00 in the US/Central zone, where the daylight-saving 'spring forward' transition occurs at 2:00 a.m. local time on 2025-03-09.",
+      "steps": [
+        "Create a datetime object for 2025-03-08T18:30:00 and set its timezone to US/Central.",
+        "Call the shift operation on that object requesting a shift of 10 hours.",
+        "Read the resulting date and time of the shifted object.",
+        "Read the resulting UTC offset of the shifted object."
+      ],
+      "expectedResult": "The shifted result represents exactly 10 hours later in wall-clock terms across the daylight-saving boundary: 2025-03-09T05:30:00 with the post-transition UTC offset of -05:00, correctly accounting for the hour skipped by the spring-forward transition."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-12-16T04:41:26.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "timezone"
+      ],
+      "durationMs": null,
+      "feature": "datetime shift across DST",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/arrow-py/arrow/pull/1234",
+        "issueUrl": "https://github.com/arrow-py/arrow/issues/1209",
+        "evidenceTestFile": null,
+        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_00010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "arrow-py/arrow",
+      "number": 1234,
+      "baseSha": "9da15b8fd2159c3b5c74ed6c505c22a6ec062332",
+      "headSha": "b18b243c163efae8c01ffae1d33773ea132d552e",
+      "title": "Added weeks to afrikaans locale",
+      "description": "Adds week and weeks translations for Afrikaans, adds very basic tests for Afrikaans.",
+      "diff": "diff --git a/arrow/locales.py b/arrow/locales.py\nindex 5d31aa24..757df480 100644\n--- a/arrow/locales.py\n+++ b/arrow/locales.py\n@@ -1619,6 +1619,8 @@ class AfrikaansLocale(Locale):\n         \"hours\": \"{0} ure\",\n         \"day\": \"een dag\",\n         \"days\": \"{0} dae\",\n+        \"week\": \"een week\",\n+        \"weeks\": \"{0} weke\",\n         \"month\": \"een maand\",\n         \"months\": \"{0} maande\",\n         \"year\": \"een jaar\",\ndiff --git a/tests/test_locales.py b/tests/test_locales.py\nindex 1a7a0b2e..3d7120e3 100644\n--- a/tests/test_locales.py\n+++ b/tests/test_locales.py\n@@ -3408,17 +3408,22 @@ def test_format_timeframe(self):\n class TestAfrikaansLocale:\n     def test_timeframes(self):\n         assert self.locale._format_timeframe(\"now\", 0) == \"nou\"\n+\n+        # singular\n         assert self.locale._format_timeframe(\"second\", 1) == \"n sekonde\"\n         assert self.locale._format_timeframe(\"minute\", 1) == \"minuut\"\n         assert self.locale._format_timeframe(\"hour\", 1) == \"uur\"\n         assert self.locale._format_timeframe(\"day\", 1) == \"een dag\"\n+        assert self.locale._format_timeframe(\"week\", 1) == \"een week\"\n         assert self.locale._format_timeframe(\"month\", 1) == \"een maand\"\n         assert self.locale._format_timeframe(\"year\", 1) == \"een jaar\"\n \n+        # plural\n         assert self.locale._format_timeframe(\"seconds\", 2) == \"2 sekondes\"\n         assert self.locale._format_timeframe(\"minutes\", 2) == \"2 minute\"\n         assert self.locale._format_timeframe(\"hours\", 2) == \"2 ure\"\n         assert self.locale._format_timeframe(\"days\", 2) == \"2 dae\"\n+        assert self.locale._format_timeframe(\"weeks\", 2) == \"2 weke\"\n         assert self.locale._format_timeframe(\"months\", 2) == \"2 maande\"\n         assert self.locale._format_timeframe(\"years\", 2) == \"2 jaar\"\n ",
+      "changedFiles": 2,
+      "addedLines": 7,
+      "deletedLines": 0,
+      "commits": 6,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "kb_tc_0005",
+      "title": "Shifting a datetime by hours across a daylight-saving transition adds the correct wall-clock offset",
+      "preconditions": "A timezone-aware datetime object is created for local time 2025-03-08T18:30:00 in the US/Central zone, where the daylight-saving 'spring forward' transition occurs at 2:00 a.m. local time on 2025-03-09.",
+      "steps": [
+        "Create a datetime object for 2025-03-08T18:30:00 and set its timezone to US/Central.",
+        "Call the shift operation on that object requesting a shift of 10 hours.",
+        "Read the resulting date and time of the shifted object.",
+        "Read the resulting UTC offset of the shifted object."
+      ],
+      "expectedResult": "The shifted result represents exactly 10 hours later in wall-clock terms across the daylight-saving boundary: 2025-03-09T05:30:00 with the post-transition UTC offset of -05:00, correctly accounting for the hour skipped by the spring-forward transition."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-12-16T04:41:26.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "timezone"
+      ],
+      "durationMs": null,
+      "feature": "datetime shift across DST",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/arrow-py/arrow/pull/1234",
+        "issueUrl": "https://github.com/arrow-py/arrow/issues/1209",
+        "evidenceTestFile": null,
+        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "resilience4j/resilience4j",
+      "number": 2488,
+      "baseSha": "94982b82577d06e7e76ef5fe0e4a7329b8fb2ddd",
+      "headSha": "96c45ec2029cb18353c0fbf0410d4f80edaf245b",
+      "title": "Issue #2324: Prevent permit leak when a CircuitBreaker record/ignore predicate throws",
+      "description": "In CircuitBreakerStateMachine, user-supplied ignoreException/recordException/recordResult predicates were evaluated without a try/catch, so a predicate that throws leaves an acquired permission neither released nor recorded, wedging the breaker in HALF_OPEN. Predicate evaluations now go through a helper that releases the permission and rethrows the original exception if the predicate fails.",
+      "diff": "diff --git a/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java b/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\nindex 2879b00a3..0e9095ce1 100644\n--- a/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\n+++ b/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\n@@ -41,6 +41,7 @@\n import java.util.concurrent.atomic.AtomicReference;\n import java.util.concurrent.locks.ReentrantLock;\n import java.util.function.Function;\n+import java.util.function.Predicate;\n import java.util.function.Supplier;\n import java.util.function.UnaryOperator;\n \n@@ -203,13 +204,13 @@ public void onError(long duration, TimeUnit durationUnit, Throwable throwable) {\n     }\n \n     private void handleThrowable(long duration, TimeUnit durationUnit, Throwable throwable) {\n-        if (circuitBreakerConfig.getIgnoreExceptionPredicate().test(throwable)) {\n+        if (evaluatePredicate(circuitBreakerConfig.getIgnoreExceptionPredicate(), throwable)) {\n             LOG.debug(\"CircuitBreaker '{}' ignored an exception:\", name, throwable);\n             releasePermission();\n             publishCircuitIgnoredErrorEvent(name, duration, durationUnit, throwable);\n             return;\n         }\n-        if (circuitBreakerConfig.getRecordExceptionPredicate().test(throwable)) {\n+        if (evaluatePredicate(circuitBreakerConfig.getRecordExceptionPredicate(), throwable)) {\n             LOG.debug(\"CircuitBreaker '{}' recorded an exception as failure:\", name, throwable);\n             publishCircuitErrorEvent(name, duration, durationUnit, throwable);\n             stateReference.get().onError(duration, durationUnit, throwable);\n@@ -230,7 +231,7 @@ public void onSuccess(long duration, TimeUnit durationUnit) {\n \n     @Override\n     public void onResult(long duration, TimeUnit durationUnit, @Nullable Object result) {\n-        if (result != null && circuitBreakerConfig.getRecordResultPredicate().test(result)) {\n+        if (result != null && evaluatePredicate(circuitBreakerConfig.getRecordResultPredicate(), result)) {\n             LOG.debug(\"CircuitBreaker '{}' recorded a result type '{}' as failure:\", name, result.getClass());\n             ResultRecordedAsFailureException failure = new ResultRecordedAsFailureException(name, result);\n             publishCircuitErrorEvent(name, duration, durationUnit, failure);\n@@ -243,6 +244,22 @@ public void onResult(long duration, TimeUnit durationUnit, @Nullable Object resu\n         }\n     }\n \n+    /**\n+     * Evaluates a user-supplied predicate, making sure a permission that was previously acquired is\n+     * not leaked if the predicate throws. Without this, an exception escaping a record/ignore\n+     * predicate would bypass {@link #releasePermission()} and the recording of the call, leaving the\n+     * CircuitBreaker with a permanently lost permit (most visibly wedging the HALF_OPEN state). The\n+     * exception thrown by the predicate is rethrown so the caller still observes the failure.\n+     */\n+    private <T> boolean evaluatePredicate(Predicate<T> predicate, T value) {\n+        try {\n+            return predicate.test(value);\n+        } catch (Exception predicateException) {\n+            releasePermission();\n+            throw predicateException;\n+        }\n+    }\n+\n     private void handlePossibleTransition(Either<Object, Throwable> result) {\n         CircuitBreakerConfig.TransitionCheckResult transitionCheckResult = circuitBreakerConfig.getTransitionOnResult()\n             .apply(result);\ndiff --git a/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java b/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java\nnew file mode 100644\nindex 000000000..fb1c570f3\n--- /dev/null\n+++ b/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java\n@@ -0,0 +1,91 @@\n+/*\n+ *\n+ *  Copyright 2026 Robert Winkler\n+ *\n+ *  Licensed under the Apache License, Version 2.0 (the \"License\");\n+ *  you may not use this file except in compliance with the License.\n+ *  You may obtain a copy of the License at\n+ *\n+ *         http://www.apache.org/licenses/LICENSE-2.0\n+ *\n+ *  Unless required by applicable law or agreed to in writing, software\n+ *  distributed under the License is distributed on an \"AS IS\" BASIS,\n+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n+ *  See the License for the specific language governing permissions and\n+ *  limitations under the License.\n+ *\n+ *\n+ */\n+package io.github.resilience4j.circuitbreaker.internal;\n+\n+import io.github.resilience4j.circuitbreaker.CircuitBreaker;\n+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;\n+import org.junit.jupiter.api.Test;\n+\n+import java.util.concurrent.TimeUnit;\n+\n+import static org.assertj.core.api.Assertions.assertThat;\n+import static org.assertj.core.api.Assertions.assertThatThrownBy;\n+\n+/**\n+ * Reproduction for issue #2324 (Java core variant): a user-supplied record/ignore exception\n+ * predicate that throws inside {@code handleThrowable} leaks the acquired permission, because\n+ * neither {@code releasePermission()} nor {@code stateReference.onError()} is reached.\n+ */\n+class CircuitBreakerThrowingPredicateLeakTest {\n+\n+    @Test\n+    void shouldNotLeakPermitWhenRecordExceptionPredicateThrowsInHalfOpen() {\n+        RuntimeException predicateFailure = new RuntimeException(\"predicate boom\");\n+        CircuitBreaker circuitBreaker = new CircuitBreakerStateMachine(\"test\",\n+            CircuitBreakerConfig.custom()\n+                .permittedNumberOfCallsInHalfOpenState(1)\n+                .recordException(throwable -> {\n+                    throw predicateFailure;\n+                })\n+                .build());\n+\n+        circuitBreaker.transitionToOpenState();\n+        circuitBreaker.transitionToHalfOpenState();\n+\n+        // Acquire the single half-open trial permit.\n+        assertThat(circuitBreaker.tryAcquirePermission()).isTrue();\n+        assertThat(circuitBreaker.tryAcquirePermission()).isFalse();\n+\n+        // The user-supplied predicate throws while the breaker handles the error.\n+        assertThatThrownBy(\n+            () -> circuitBreaker.onError(0, TimeUnit.NANOSECONDS, new IllegalStateException()))\n+            .isSameAs(predicateFailure);\n+\n+        // The acquired permit must not be lost: a correct implementation releases it so the\n+        // half-open breaker can keep permitting trial calls instead of being wedged forever.\n+        assertThat(circuitBreaker.tryAcquirePermission())\n+            .as(\"permit should be released after the predicate throws, but it leaks\")\n+            .isTrue();\n+    }\n+\n+    @Test\n+    void shouldNotLeakPermitWhenRecordResultPredicateThrowsInHalfOpen() {\n+        RuntimeException predicateFailure = new RuntimeException(\"predicate boom\");\n+        CircuitBreaker circuitBreaker = new CircuitBreakerStateMachine(\"test\",\n+            CircuitBreakerConfig.custom()\n+                .permittedNumberOfCallsInHalfOpenState(1)\n+                .recordResult(result -> {\n+                    throw predicateFailure;\n+                })\n+                .build());\n+\n+        circuitBreaker.transitionToOpenState();\n+        circuitBreaker.transitionToHalfOpenState();\n+\n+        assertThat(circuitBreaker.tryAcquirePermission()).isTrue();\n+        assertThat(circuitBreaker.tryAcquirePermission()).isFalse();\n+\n+        assertThatThrownBy(() -> circuitBreaker.onResult(0, TimeUnit.NANOSECONDS, \"someResult\"))\n+            .isSameAs(predicateFailure);\n+\n+        assertThat(circuitBreaker.tryAcquirePermission())\n+            .as(\"permit should be released after the result predicate throws, but it leaks\")\n+            .isTrue();\n+    }\n+}",
+      "changedFiles": 2,
+      "addedLines": 111,
+      "deletedLines": 3,
+      "commits": 2,
+      "language": "Java",
+      "labels": [
+        "bug",
+        "java",
+        "size:S"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0006",
+      "title": "Rate limiter keeps replenishing permits after its limit is lowered below the currently available permits",
+      "preconditions": "A semaphore-based rate limiter is configured with an initial limitForPeriod of 5 and a short scheduled refresh period (e.g. 5 milliseconds), and has accumulated available permits up to that initial limit.",
+      "steps": [
+        "Create the rate limiter with limitForPeriod=5 and a 5ms refresh period.",
+        "Call changeLimitForPeriod(1) to lower the configured limit below the number of currently available permits.",
+        "Wait for at least one scheduled refresh interval to elapse.",
+        "Attempt to acquire a permit from the rate limiter on each of several subsequent refresh cycles."
+      ],
+      "expectedResult": "The scheduled refresh task keeps executing on every interval after the limit is lowered, continuing to replenish permits up to the new limit, so the rate limiter keeps admitting calls at the newly configured rate indefinitely rather than permanently stopping all further admissions."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-08T06:46:06.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "concurrency"
+      ],
+      "durationMs": null,
+      "feature": "rate limiter permit refresh",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/resilience4j/resilience4j/pull/2488",
+        "issueUrl": "https://github.com/resilience4j/resilience4j/issues/2489",
+        "evidenceTestFile": null,
+        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions."
+      }
+    }
+  },
+  {
+    "id": "kb_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "resilience4j/resilience4j",
+      "number": 2488,
+      "baseSha": "94982b82577d06e7e76ef5fe0e4a7329b8fb2ddd",
+      "headSha": "96c45ec2029cb18353c0fbf0410d4f80edaf245b",
+      "title": "Issue #2324: Prevent permit leak when a CircuitBreaker record/ignore predicate throws",
+      "description": "In CircuitBreakerStateMachine, user-supplied ignoreException/recordException/recordResult predicates were evaluated without a try/catch, so a predicate that throws leaves an acquired permission neither released nor recorded, wedging the breaker in HALF_OPEN. Predicate evaluations now go through a helper that releases the permission and rethrows the original exception if the predicate fails.",
+      "diff": "diff --git a/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java b/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\nindex 2879b00a3..0e9095ce1 100644\n--- a/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\n+++ b/resilience4j-circuitbreaker/src/main/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerStateMachine.java\n@@ -41,6 +41,7 @@\n import java.util.concurrent.atomic.AtomicReference;\n import java.util.concurrent.locks.ReentrantLock;\n import java.util.function.Function;\n+import java.util.function.Predicate;\n import java.util.function.Supplier;\n import java.util.function.UnaryOperator;\n \n@@ -203,13 +204,13 @@ public void onError(long duration, TimeUnit durationUnit, Throwable throwable) {\n     }\n \n     private void handleThrowable(long duration, TimeUnit durationUnit, Throwable throwable) {\n-        if (circuitBreakerConfig.getIgnoreExceptionPredicate().test(throwable)) {\n+        if (evaluatePredicate(circuitBreakerConfig.getIgnoreExceptionPredicate(), throwable)) {\n             LOG.debug(\"CircuitBreaker '{}' ignored an exception:\", name, throwable);\n             releasePermission();\n             publishCircuitIgnoredErrorEvent(name, duration, durationUnit, throwable);\n             return;\n         }\n-        if (circuitBreakerConfig.getRecordExceptionPredicate().test(throwable)) {\n+        if (evaluatePredicate(circuitBreakerConfig.getRecordExceptionPredicate(), throwable)) {\n             LOG.debug(\"CircuitBreaker '{}' recorded an exception as failure:\", name, throwable);\n             publishCircuitErrorEvent(name, duration, durationUnit, throwable);\n             stateReference.get().onError(duration, durationUnit, throwable);\n@@ -230,7 +231,7 @@ public void onSuccess(long duration, TimeUnit durationUnit) {\n \n     @Override\n     public void onResult(long duration, TimeUnit durationUnit, @Nullable Object result) {\n-        if (result != null && circuitBreakerConfig.getRecordResultPredicate().test(result)) {\n+        if (result != null && evaluatePredicate(circuitBreakerConfig.getRecordResultPredicate(), result)) {\n             LOG.debug(\"CircuitBreaker '{}' recorded a result type '{}' as failure:\", name, result.getClass());\n             ResultRecordedAsFailureException failure = new ResultRecordedAsFailureException(name, result);\n             publishCircuitErrorEvent(name, duration, durationUnit, failure);\n@@ -243,6 +244,22 @@ public void onResult(long duration, TimeUnit durationUnit, @Nullable Object resu\n         }\n     }\n \n+    /**\n+     * Evaluates a user-supplied predicate, making sure a permission that was previously acquired is\n+     * not leaked if the predicate throws. Without this, an exception escaping a record/ignore\n+     * predicate would bypass {@link #releasePermission()} and the recording of the call, leaving the\n+     * CircuitBreaker with a permanently lost permit (most visibly wedging the HALF_OPEN state). The\n+     * exception thrown by the predicate is rethrown so the caller still observes the failure.\n+     */\n+    private <T> boolean evaluatePredicate(Predicate<T> predicate, T value) {\n+        try {\n+            return predicate.test(value);\n+        } catch (Exception predicateException) {\n+            releasePermission();\n+            throw predicateException;\n+        }\n+    }\n+\n     private void handlePossibleTransition(Either<Object, Throwable> result) {\n         CircuitBreakerConfig.TransitionCheckResult transitionCheckResult = circuitBreakerConfig.getTransitionOnResult()\n             .apply(result);\ndiff --git a/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java b/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java\nnew file mode 100644\nindex 000000000..fb1c570f3\n--- /dev/null\n+++ b/resilience4j-circuitbreaker/src/test/java/io/github/resilience4j/circuitbreaker/internal/CircuitBreakerThrowingPredicateLeakTest.java\n@@ -0,0 +1,91 @@\n+/*\n+ *\n+ *  Copyright 2026 Robert Winkler\n+ *\n+ *  Licensed under the Apache License, Version 2.0 (the \"License\");\n+ *  you may not use this file except in compliance with the License.\n+ *  You may obtain a copy of the License at\n+ *\n+ *         http://www.apache.org/licenses/LICENSE-2.0\n+ *\n+ *  Unless required by applicable law or agreed to in writing, software\n+ *  distributed under the License is distributed on an \"AS IS\" BASIS,\n+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n+ *  See the License for the specific language governing permissions and\n+ *  limitations under the License.\n+ *\n+ *\n+ */\n+package io.github.resilience4j.circuitbreaker.internal;\n+\n+import io.github.resilience4j.circuitbreaker.CircuitBreaker;\n+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;\n+import org.junit.jupiter.api.Test;\n+\n+import java.util.concurrent.TimeUnit;\n+\n+import static org.assertj.core.api.Assertions.assertThat;\n+import static org.assertj.core.api.Assertions.assertThatThrownBy;\n+\n+/**\n+ * Reproduction for issue #2324 (Java core variant): a user-supplied record/ignore exception\n+ * predicate that throws inside {@code handleThrowable} leaks the acquired permission, because\n+ * neither {@code releasePermission()} nor {@code stateReference.onError()} is reached.\n+ */\n+class CircuitBreakerThrowingPredicateLeakTest {\n+\n+    @Test\n+    void shouldNotLeakPermitWhenRecordExceptionPredicateThrowsInHalfOpen() {\n+        RuntimeException predicateFailure = new RuntimeException(\"predicate boom\");\n+        CircuitBreaker circuitBreaker = new CircuitBreakerStateMachine(\"test\",\n+            CircuitBreakerConfig.custom()\n+                .permittedNumberOfCallsInHalfOpenState(1)\n+                .recordException(throwable -> {\n+                    throw predicateFailure;\n+                })\n+                .build());\n+\n+        circuitBreaker.transitionToOpenState();\n+        circuitBreaker.transitionToHalfOpenState();\n+\n+        // Acquire the single half-open trial permit.\n+        assertThat(circuitBreaker.tryAcquirePermission()).isTrue();\n+        assertThat(circuitBreaker.tryAcquirePermission()).isFalse();\n+\n+        // The user-supplied predicate throws while the breaker handles the error.\n+        assertThatThrownBy(\n+            () -> circuitBreaker.onError(0, TimeUnit.NANOSECONDS, new IllegalStateException()))\n+            .isSameAs(predicateFailure);\n+\n+        // The acquired permit must not be lost: a correct implementation releases it so the\n+        // half-open breaker can keep permitting trial calls instead of being wedged forever.\n+        assertThat(circuitBreaker.tryAcquirePermission())\n+            .as(\"permit should be released after the predicate throws, but it leaks\")\n+            .isTrue();\n+    }\n+\n+    @Test\n+    void shouldNotLeakPermitWhenRecordResultPredicateThrowsInHalfOpen() {\n+        RuntimeException predicateFailure = new RuntimeException(\"predicate boom\");\n+        CircuitBreaker circuitBreaker = new CircuitBreakerStateMachine(\"test\",\n+            CircuitBreakerConfig.custom()\n+                .permittedNumberOfCallsInHalfOpenState(1)\n+                .recordResult(result -> {\n+                    throw predicateFailure;\n+                })\n+                .build());\n+\n+        circuitBreaker.transitionToOpenState();\n+        circuitBreaker.transitionToHalfOpenState();\n+\n+        assertThat(circuitBreaker.tryAcquirePermission()).isTrue();\n+        assertThat(circuitBreaker.tryAcquirePermission()).isFalse();\n+\n+        assertThatThrownBy(() -> circuitBreaker.onResult(0, TimeUnit.NANOSECONDS, \"someResult\"))\n+            .isSameAs(predicateFailure);\n+\n+        assertThat(circuitBreaker.tryAcquirePermission())\n+            .as(\"permit should be released after the result predicate throws, but it leaks\")\n+            .isTrue();\n+    }\n+}",
+      "changedFiles": 2,
+      "addedLines": 111,
+      "deletedLines": 3,
+      "commits": 2,
+      "language": "Java",
+      "labels": [
+        "bug",
+        "java",
+        "size:S"
+      ]
+    },
+    "testCase": {
+      "id": "kb_tc_0006",
+      "title": "Rate limiter keeps replenishing permits after its limit is lowered below the currently available permits",
+      "preconditions": "A semaphore-based rate limiter is configured with an initial limitForPeriod of 5 and a short scheduled refresh period (e.g. 5 milliseconds), and has accumulated available permits up to that initial limit.",
+      "steps": [
+        "Create the rate limiter with limitForPeriod=5 and a 5ms refresh period.",
+        "Call changeLimitForPeriod(1) to lower the configured limit below the number of currently available permits.",
+        "Wait for at least one scheduled refresh interval to elapse.",
+        "Attempt to acquire a permit from the rate limiter on each of several subsequent refresh cycles."
+      ],
+      "expectedResult": "The scheduled refresh task keeps executing on every interval after the limit is lowered, continuing to replenish permits up to the new limit, so the rate limiter keeps admitting calls at the newly configured rate indefinitely rather than permanently stopping all further admissions."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-08T06:46:06.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "concurrency"
+      ],
+      "durationMs": null,
+      "feature": "rate limiter permit refresh",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/resilience4j/resilience4j/pull/2488",
+        "issueUrl": "https://github.com/resilience4j/resilience4j/issues/2489",
+        "evidenceTestFile": null,
+        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions."
+      }
+    }
+  }
+]

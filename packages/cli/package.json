@@ -1,0 +1,22 @@
+{
+  "name": "@tob/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "benchmark": "./src/bin.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@tob/core": "workspace:*",
+    "@tob/db": "workspace:*",
+    "@tob/providers": "workspace:*",
+    "@tob/runner": "workspace:*",
+    "commander": "^13.0.0"
+  }
+}

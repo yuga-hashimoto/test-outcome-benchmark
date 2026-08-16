@@ -1,0 +1,32 @@
+{
+  "name": "test-outcome-benchmark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "benchmark": "tsx packages/cli/src/bin.ts",
+    "seed": "tsx packages/cli/src/bin.ts seed",
+    "db:migrate": "tsx packages/cli/src/bin.ts db migrate",
+    "dev": "pnpm --filter @tob/web dev",
+    "build": "pnpm --filter @tob/web build",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.10.5",
+    "@vitest/coverage-v8": "^3.0.5",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

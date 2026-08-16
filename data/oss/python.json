@@ -1,0 +1,690 @@
+[
+  {
+    "id": "py_0001",
+    "revision": "base",
+    "flipPairId": "py_flip_0001",
+    "pr": {
+      "repository": "encode/httpx",
+      "number": 2659,
+      "baseSha": "7d7c4f15b8784e4a550d974139acfa64193b32c2",
+      "headSha": "045ad02a63b75411a65aad5fa105b165bb28d9b9",
+      "title": "fix: NO_PROXY should support IPv4, IPv6 and localhost",
+      "description": "Closes #2660\n\nThe proxy-environment parsing that builds no-proxy bypass rules always prefixed entries with a wildcard, treating every NO_PROXY entry as a domain name. IPv4, IPv6, and 'localhost' entries were not handled correctly. In particular an IPv6 entry such as '::1' was wrongly transformed into a pattern that a later URL parsing step could not interpret, causing an error. This PR handles NO_PROXY hostnames as domains, IPv4, IPv6, and localhost separately.",
+      "diff": "diff --git a/httpx/_utils.py b/httpx/_utils.py\nindex c55d33a6f5..2568fdca1c 100644\n--- a/httpx/_utils.py\n+++ b/httpx/_utils.py\n@@ -1,5 +1,6 @@\n import codecs\n import email.message\n+import ipaddress\n import mimetypes\n import os\n import re\n@@ -259,7 +260,16 @@ def get_environment_proxies() -> typing.Dict[str, typing.Optional[str]]:\n             # NO_PROXY=google.com is marked as \"all://*google.com,\n             #   which disables \"www.google.com\" and \"google.com\".\n             #   (But not \"wwwgoogle.com\")\n-            mounts[f\"all://*{hostname}\"] = None\n+            # NO_PROXY can include domains, IPv6, IPv4 addresses and \"localhost\"\n+            #   NO_PROXY=example.com,::1,localhost,192.168.0.0/16\n+            if is_ipv4_hostname(hostname):\n+                mounts[f\"all://{hostname}\"] = None\n+            elif is_ipv6_hostname(hostname):\n+                mounts[f\"all://[{hostname}]\"] = None\n+            elif hostname.lower() == \"localhost\":\n+                mounts[f\"all://{hostname}\"] = None\n+            else:\n+                mounts[f\"all://*{hostname}\"] = None\n \n     return mounts\n \n@@ -449,3 +459,19 @@ def __lt__(self, other: \"URLPattern\") -> bool:\n \n     def __eq__(self, other: typing.Any) -> bool:\n         return isinstance(other, URLPattern) and self.pattern == other.pattern\n+\n+\n+def is_ipv4_hostname(hostname: str) -> bool:\n+    try:\n+        ipaddress.IPv4Address(hostname.split(\"/\")[0])\n+    except:\n+        return False\n+    return True\n+\n+\n+def is_ipv6_hostname(hostname: str) -> bool:\n+    try:\n+        ipaddress.IPv6Address(hostname.split(\"/\")[0])\n+    except:\n+        return False\n+    return True\ndiff --git a/tests/test_utils.py b/tests/test_utils.py\nindex 3eaf2451d6..ab0fcbecd9 100644\n--- a/tests/test_utils.py\n+++ b/tests/test_utils.py\n@@ -185,6 +185,12 @@ def test_get_ssl_cert_file():\n         ),\n         ({\"all_proxy\": \"http://127.0.0.1\"}, {\"all://\": \"http://127.0.0.1\"}),\n         ({\"TRAVIS_APT_PROXY\": \"http://127.0.0.1\"}, {}),\n+        ({\"no_proxy\": \"127.0.0.1\"}, {\"all://127.0.0.1\": None}),\n+        ({\"no_proxy\": \"192.168.0.0/16\"}, {\"all://192.168.0.0/16\": None}),\n+        ({\"no_proxy\": \"::1\"}, {\"all://[::1]\": None}),\n+        ({\"no_proxy\": \"localhost\"}, {\"all://localhost\": None}),\n+        ({\"no_proxy\": \"github.com\"}, {\"all://*github.com\": None}),\n+        ({\"no_proxy\": \".github.com\"}, {\"all://*.github.com\": None}),\n     ],\n )\n def test_get_environment_proxies(environment, proxies):\n",
+      "changedFiles": 2,
+      "addedLines": 33,
+      "deletedLines": 1,
+      "commits": 4,
+      "language": "Python",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0001",
+      "title": "Client construction succeeds when NO_PROXY names an IPv6 loopback address",
+      "preconditions": "The environment variable NO_PROXY (or no_proxy) is set to the single value '::1', the IPv6 loopback address. No other proxy-related environment variables are set.",
+      "steps": [
+        "Set the NO_PROXY environment variable to '::1'.",
+        "Create a new HTTP client instance that reads proxy configuration from the environment (the default behaviour).",
+        "Observe whether the client is created successfully.",
+        "If creation succeeds, send a request to a host other than the loopback address and confirm it still goes through normally."
+      ],
+      "expectedResult": "The client is created without raising any error, correctly recognizing '::1' as a host that should bypass proxying, and it can still be used to make requests normally."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2023-04-19T12:14:37.000Z",
+      "testType": "API",
+      "tags": [
+        "config-parsing",
+        "ipv6",
+        "environment-variables"
+      ],
+      "durationMs": null,
+      "feature": "proxy configuration from environment",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/encode/httpx/pull/2659",
+        "issueUrl": "https://github.com/encode/httpx/issues/2660",
+        "evidenceTestFile": "tests/test_utils.py",
+        "note": "Before the fix, every NO_PROXY entry (including IPv6 addresses) was prefixed with a domain wildcard when building the client's proxy-bypass rules, which are constructed eagerly at client-creation time; an IPv6 entry like '::1' produced a malformed rule that later URL parsing could not handle, so client creation raised an error at the base revision."
+      }
+    }
+  },
+  {
+    "id": "py_0002",
+    "revision": "head",
+    "flipPairId": "py_flip_0001",
+    "pr": {
+      "repository": "encode/httpx",
+      "number": 2659,
+      "baseSha": "7d7c4f15b8784e4a550d974139acfa64193b32c2",
+      "headSha": "045ad02a63b75411a65aad5fa105b165bb28d9b9",
+      "title": "fix: NO_PROXY should support IPv4, IPv6 and localhost",
+      "description": "Closes #2660\n\nThe proxy-environment parsing that builds no-proxy bypass rules always prefixed entries with a wildcard, treating every NO_PROXY entry as a domain name. IPv4, IPv6, and 'localhost' entries were not handled correctly. In particular an IPv6 entry such as '::1' was wrongly transformed into a pattern that a later URL parsing step could not interpret, causing an error. This PR handles NO_PROXY hostnames as domains, IPv4, IPv6, and localhost separately.",
+      "diff": "diff --git a/httpx/_utils.py b/httpx/_utils.py\nindex c55d33a6f5..2568fdca1c 100644\n--- a/httpx/_utils.py\n+++ b/httpx/_utils.py\n@@ -1,5 +1,6 @@\n import codecs\n import email.message\n+import ipaddress\n import mimetypes\n import os\n import re\n@@ -259,7 +260,16 @@ def get_environment_proxies() -> typing.Dict[str, typing.Optional[str]]:\n             # NO_PROXY=google.com is marked as \"all://*google.com,\n             #   which disables \"www.google.com\" and \"google.com\".\n             #   (But not \"wwwgoogle.com\")\n-            mounts[f\"all://*{hostname}\"] = None\n+            # NO_PROXY can include domains, IPv6, IPv4 addresses and \"localhost\"\n+            #   NO_PROXY=example.com,::1,localhost,192.168.0.0/16\n+            if is_ipv4_hostname(hostname):\n+                mounts[f\"all://{hostname}\"] = None\n+            elif is_ipv6_hostname(hostname):\n+                mounts[f\"all://[{hostname}]\"] = None\n+            elif hostname.lower() == \"localhost\":\n+                mounts[f\"all://{hostname}\"] = None\n+            else:\n+                mounts[f\"all://*{hostname}\"] = None\n \n     return mounts\n \n@@ -449,3 +459,19 @@ def __lt__(self, other: \"URLPattern\") -> bool:\n \n     def __eq__(self, other: typing.Any) -> bool:\n         return isinstance(other, URLPattern) and self.pattern == other.pattern\n+\n+\n+def is_ipv4_hostname(hostname: str) -> bool:\n+    try:\n+        ipaddress.IPv4Address(hostname.split(\"/\")[0])\n+    except:\n+        return False\n+    return True\n+\n+\n+def is_ipv6_hostname(hostname: str) -> bool:\n+    try:\n+        ipaddress.IPv6Address(hostname.split(\"/\")[0])\n+    except:\n+        return False\n+    return True\ndiff --git a/tests/test_utils.py b/tests/test_utils.py\nindex 3eaf2451d6..ab0fcbecd9 100644\n--- a/tests/test_utils.py\n+++ b/tests/test_utils.py\n@@ -185,6 +185,12 @@ def test_get_ssl_cert_file():\n         ),\n         ({\"all_proxy\": \"http://127.0.0.1\"}, {\"all://\": \"http://127.0.0.1\"}),\n         ({\"TRAVIS_APT_PROXY\": \"http://127.0.0.1\"}, {}),\n+        ({\"no_proxy\": \"127.0.0.1\"}, {\"all://127.0.0.1\": None}),\n+        ({\"no_proxy\": \"192.168.0.0/16\"}, {\"all://192.168.0.0/16\": None}),\n+        ({\"no_proxy\": \"::1\"}, {\"all://[::1]\": None}),\n+        ({\"no_proxy\": \"localhost\"}, {\"all://localhost\": None}),\n+        ({\"no_proxy\": \"github.com\"}, {\"all://*github.com\": None}),\n+        ({\"no_proxy\": \".github.com\"}, {\"all://*.github.com\": None}),\n     ],\n )\n def test_get_environment_proxies(environment, proxies):\n",
+      "changedFiles": 2,
+      "addedLines": 33,
+      "deletedLines": 1,
+      "commits": 4,
+      "language": "Python",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0002",
+      "title": "Client construction succeeds when NO_PROXY names an IPv6 loopback address",
+      "preconditions": "The environment variable NO_PROXY (or no_proxy) is set to the single value '::1', the IPv6 loopback address. No other proxy-related environment variables are set.",
+      "steps": [
+        "Set the NO_PROXY environment variable to '::1'.",
+        "Create a new HTTP client instance that reads proxy configuration from the environment (the default behaviour).",
+        "Observe whether the client is created successfully.",
+        "If creation succeeds, send a request to a host other than the loopback address and confirm it still goes through normally."
+      ],
+      "expectedResult": "The client is created without raising any error, correctly recognizing '::1' as a host that should bypass proxying, and it can still be used to make requests normally."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2023-04-19T12:14:37.000Z",
+      "testType": "API",
+      "tags": [
+        "config-parsing",
+        "ipv6",
+        "environment-variables"
+      ],
+      "durationMs": null,
+      "feature": "proxy configuration from environment",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/encode/httpx/pull/2659",
+        "issueUrl": "https://github.com/encode/httpx/issues/2660",
+        "evidenceTestFile": "tests/test_utils.py",
+        "note": "The PR adds explicit IPv4/IPv6/localhost handling so an IPv6 NO_PROXY entry produces a well-formed bypass rule (bracketed host), verified by new cases in test_get_environment_proxies; client creation no longer errors."
+      }
+    }
+  },
+  {
+    "id": "py_0003",
+    "revision": "base",
+    "flipPairId": "py_flip_0002",
+    "pr": {
+      "repository": "pandas-dev/pandas",
+      "number": 66716,
+      "baseSha": "6029136003e9bf58b87f09cd6a5423192905009d",
+      "headSha": "7476729a077812e3fab3c010c7296a4e671cc997",
+      "title": "BUG: Series.str.match raised for regex flags other than re.IGNORECASE (GH#63108)",
+      "description": "Follow-up to GH-63108, which added validation of conflicting case/flags/compiled-pattern arguments to Series.str.match but in doing so broke every regex flag other than re.IGNORECASE. That change compiled the pattern with the full flag set, then reset flags and derived 'case' from IGNORECASE alone, so the reconstructed flag set failed a strict equality check against the compiled pattern's flags for anything other than IGNORECASE. This restores support for flags such as MULTILINE, DOTALL, VERBOSE and ASCII, both when passed via flags= and when carried by an already-compiled pattern object, across object, string, and Arrow-backed dtypes.",
+      "diff": "diff --git a/doc/source/whatsnew/v3.1.0.rst b/doc/source/whatsnew/v3.1.0.rst\nindex 521bf216d68ab..fa5082be7da7c 100644\n--- a/doc/source/whatsnew/v3.1.0.rst\n+++ b/doc/source/whatsnew/v3.1.0.rst\n@@ -524,6 +524,9 @@ Strings\n - Bug in :meth:`DataFrame.replace` with ``regex=True`` mutating the underlying :class:`StringArray` when the replacement value was not a string (:issue:`57733`)\n - Bug in :meth:`Series.memory_usage` with ``deep=True`` raising ``TypeError`` on PyPy for ``str`` dtype with Python storage (:issue:`46176`)\n - Bug in :meth:`Series.str.find` and :meth:`Index.str.find` with PyArrow-backed string dtypes raising ``ArrowInvalid`` when the values contained non-ASCII characters alongside a stretch of missing values, and returning a null dtype instead of an integer one when the values were all missing or the object was empty (:issue:`64123`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` raising ``AttributeError`` for :class:`ArrowDtype` when ``flags`` was passed or ``pat`` was a compiled ``re.Pattern`` (:issue:`63108`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` raising for regex flags other than ``re.IGNORECASE`` (e.g. ``re.MULTILINE``, ``re.DOTALL``, ``re.ASCII``), whether passed via ``flags`` or carried by a compiled ``re.Pattern`` (:issue:`63108`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` where passing ``flags=0`` was not equivalent to omitting ``flags``, raising for patterns using PyArrow-only regex syntax such as ``\\p{L}`` or an inline flag such as ``(?i)`` (:issue:`63108`)\n - Bug in :meth:`Series.str.partition` and :meth:`Series.str.split` with ``expand=True`` raising for :class:`ArrowDtype` when the :class:`Series` was empty or held only null values; an empty :class:`Series` now expands to no columns and an all-null one to a single all-NA column, matching object dtype (:issue:`63602`)\n - Bug in :meth:`Series.str.rsplit` and :meth:`Index.str.rsplit` silently accepting a compiled regex and returning incorrect results (:issue:`29633`)\n - Bug in :meth:`Series.str.split` with :class:`ArrowDtype` ``string`` not inferring regex for multi-character patterns when ``regex=None``, causing the pattern to be treated as a literal instead of a regular expression (:issue:`58321`)\ndiff --git a/pandas/core/arrays/_arrow_string_mixins.py b/pandas/core/arrays/_arrow_string_mixins.py\nindex e34f65e75d1da..50774fcb68117 100644\n--- a/pandas/core/arrays/_arrow_string_mixins.py\n+++ b/pandas/core/arrays/_arrow_string_mixins.py\n@@ -415,16 +415,29 @@ def _str_contains(\n \n     def _str_match(\n         self,\n-        pat: str,\n+        pat: str | re.Pattern,\n         case: bool = True,\n         flags: int = 0,\n         na: Scalar | lib.NoDefault = lib.no_default,\n     ):\n-        if pat.startswith(\"^\"):\n-            pat = pat[1:]\n-        pat = f\"^({pat})\"\n+        if isinstance(pat, re.Pattern):\n+            # GH#63108 the accessor pre-compiles `pat` whenever the user passes\n+            #  `flags`, so unwrap it here; pyarrow only supports IGNORECASE,\n+            #  which it spells as `case`. Confined to this branch so that\n+            #  _str_fullmatch, which reaches us with a plain str, is unaffected.\n+            flags |= pat.flags & ~re.UNICODE\n+            if flags & re.IGNORECASE:\n+                case = False\n+                flags &= ~re.IGNORECASE\n+            pattern = pat.pattern\n+        else:\n+            pattern = pat\n+\n+        if pattern.startswith(\"^\"):\n+            pattern = pattern[1:]\n+        pattern = f\"^({pattern})\"\n         return ArrowStringArrayMixin._str_contains(\n-            self, pat, case, flags, na, regex=True\n+            self, pattern, case, flags, na, regex=True\n         )\n \n     def _str_fullmatch(\ndiff --git a/pandas/core/strings/accessor.py b/pandas/core/strings/accessor.py\nindex 86b27f9b5b84d..10f15b6ac4026 100644\n--- a/pandas/core/strings/accessor.py\n+++ b/pandas/core/strings/accessor.py\n@@ -1601,27 +1601,15 @@ def match(\n         2   False\n         dtype: bool\n         \"\"\"\n-        if flags is not lib.no_default:\n-            # pat.flags will have re.U regardless, so we need to add it here\n-            # before checking for a match\n-            flags = flags | re.U\n-            if is_re(pat):\n-                if pat.flags != flags:\n-                    raise ValueError(\n-                        \"Cannot both specify 'flags' and pass a compiled regexp \"\n-                        \"object with conflicting flags\"\n-                    )\n-            else:\n-                pat = re.compile(pat, flags=flags)\n-            # set flags=0 to ensure that when we call\n-            #  re.compile(pat, flags=flags) the constructor does not raise.\n-            flags = 0\n-        else:\n-            flags = 0\n+        # Note: `case` must be resolved before we compile `pat` below, since\n+        #  compiling would make is_re(pat) True even for a user-passed string.\n+        case_specified = case is not lib.no_default\n \n-        if case is lib.no_default:\n+        if not case_specified:\n             if is_re(pat):\n                 case = not bool(pat.flags & re.IGNORECASE)\n+            elif flags is not lib.no_default:\n+                case = not bool(flags & re.IGNORECASE)\n             else:\n                 # Case-sensitive default\n                 case = True\n@@ -1634,6 +1622,35 @@ def match(\n                     \"object with conflicting case-sensitivity\"\n                 )\n \n+        if flags is not lib.no_default:\n+            if case_specified and case and not is_re(pat) and flags & re.IGNORECASE:\n+                raise ValueError(\n+                    \"Cannot both specify case=True and pass 'flags' containing \"\n+                    \"re.IGNORECASE\"\n+                )\n+            if not case:\n+                # Bake `case` into the flags so that it survives compilation.\n+                flags |= re.IGNORECASE\n+            if is_re(pat):\n+                # Round-trip the requested flags through re.compile so the\n+                #  comparison accounts for the fixups it applies: the implicit\n+                #  re.U, and any inline \"(?a)\"/\"(?i)\" in the pattern itself.\n+                if re.compile(pat.pattern, flags).flags != pat.flags:\n+                    raise ValueError(\n+                        \"Cannot both specify 'flags' and pass a compiled regexp \"\n+                        \"object with conflicting flags\"\n+                    )\n+            elif flags & ~(re.IGNORECASE | re.UNICODE):\n+                # Only pre-compile when `flags` carries something `case` cannot.\n+                #  Leaving `pat` a str otherwise keeps `flags=0` equivalent to\n+                #  omitting `flags`, so patterns using RE2 syntax that `re`\n+                #  rejects still reach the pyarrow kernels. GH#63108\n+                pat = re.compile(pat, flags=flags)\n+        # Any `flags` are now carried by `case` or baked into `pat`, so set\n+        #  flags=0 to ensure that when we call re.compile(pat, flags=flags)\n+        #  downstream the constructor does not raise.\n+        flags = 0\n+\n         result = self._data.array._str_match(pat, case=case, flags=flags, na=na)\n         return self._wrap_result(result, fill_value=na, returns_string=False)\n \ndiff --git a/pandas/core/strings/object_array.py b/pandas/core/strings/object_array.py\nindex 8d7c5a939d9a7..98056d6f0f8a5 100644\n--- a/pandas/core/strings/object_array.py\n+++ b/pandas/core/strings/object_array.py\n@@ -240,12 +240,17 @@ def _str_match(\n             flags |= re.IGNORECASE\n \n         if isinstance(pat, re.Pattern):\n-            # We need to check that flags matches pat.flags.\n-            # pat.flags will have re.U regardless, so we need to add it here\n-            # before checking for a match\n-            flags = flags | re.U\n-\n-            if flags != pat.flags:\n+            # pat already carries its own flags. IGNORECASE is the only one we\n+            #  can contribute (via `case`), so it is the only bit we compare,\n+            #  and only in the direction that would *add* it: a pat that is\n+            #  already case-insensitive, e.g. via an inline \"(?i)\", is honored\n+            #  as written. Comparing the full flag set would reject a pat\n+            #  compiled with e.g. re.MULTILINE (GH#63108).\n+            if flags & ~re.IGNORECASE:\n+                raise ValueError(\n+                    \"Cannot pass flags in addition to an already-compiled pat\"\n+                )\n+            if flags & re.IGNORECASE and not pat.flags & re.IGNORECASE:\n                 raise ValueError(\"Cannot pass flags that do not match pat.flags\")\n             regex = pat\n         else:\ndiff --git a/pandas/tests/strings/test_find_replace.py b/pandas/tests/strings/test_find_replace.py\nindex 5201c4d61ec02..15dd0a7317fad 100644\n--- a/pandas/tests/strings/test_find_replace.py\n+++ b/pandas/tests/strings/test_find_replace.py\n@@ -1228,6 +1228,130 @@ def test_match_compiled_regex(any_string_dtype):\n     values.str.match(re.compile(\"ab\", flags=re.IGNORECASE), flags=re.IGNORECASE)\n \n \n+@pytest.mark.parametrize(\"flag\", [re.MULTILINE, re.DOTALL, re.VERBOSE, re.ASCII])\n+def test_match_non_ignorecase_flags(any_string_dtype, flag):\n+    # GH#63108 flags other than IGNORECASE must not raise, whether passed via\n+    #  `flags` or already baked into a compiled pat\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"ab\", \"cd\"], dtype=any_string_dtype)\n+    expected = Series([True, False], dtype=expected_dtype)\n+\n+    result = values.str.match(\"^ab\", flags=flag)\n+    tm.assert_series_equal(result, expected)\n+\n+    result = values.str.match(re.compile(\"^ab\", flag))\n+    tm.assert_series_equal(result, expected)\n+\n+\n+def test_match_non_ignorecase_flags_applied(any_string_dtype):\n+    # GH#63108 the flag must actually take effect, not just avoid raising\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"a\\nc\", \"ac\"], dtype=any_string_dtype)\n+\n+    result = values.str.match(\"a.c\", flags=re.DOTALL)\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    # same via a compiled pat, which for arrow-backed dtypes takes the object\n+    #  fallback rather than the pyarrow kernel\n+    result = values.str.match(re.compile(\"a.c\", re.DOTALL))\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    result = values.str.match(\"a.c\")\n+    tm.assert_series_equal(result, Series([False, False], dtype=expected_dtype))\n+\n+\n+def test_match_non_ignorecase_flags_with_case(any_string_dtype):\n+    # GH#63108 a string pat combined with both `flags` and `case` must not be\n+    #  mistaken for a user-passed compiled regexp\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"AB\", \"cd\"], dtype=any_string_dtype)\n+\n+    result = values.str.match(\"^ab\", flags=re.MULTILINE, case=False)\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    result = values.str.match(\"^ab\", flags=re.MULTILINE, case=True)\n+    tm.assert_series_equal(result, Series([False, False], dtype=expected_dtype))\n+\n+    result = values.str.match(re.compile(\"^ab\", re.MULTILINE | re.IGNORECASE))\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    msg = \"Cannot both specify case=True and pass 'flags' containing re.IGNORECASE\"\n+    with pytest.raises(ValueError, match=re.escape(msg)):\n+        values.str.match(\"ab\", flags=re.IGNORECASE, case=True)\n+\n+\n+def test_match_inline_flags_survive(any_string_dtype):\n+    # GH#63108 an inline \"(?i)\" belongs to the pattern; passing `flags` must\n+    #  not make it look like a case-sensitivity conflict\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"AB\", \"cd\"], dtype=any_string_dtype)\n+    expected = Series([True, False], dtype=expected_dtype)\n+\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\"), expected)\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\", flags=0), expected)\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\", flags=re.MULTILINE), expected)\n+\n+\n+def test_match_inline_ascii_flag():\n+    # GH#63108 an inline \"(?a)\" must not collide with the implicit re.U\n+    values = Series([\"ab\", \"1b\"], dtype=object)\n+    expected = Series([True, True], dtype=np.bool_)\n+\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\"), expected)\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\", flags=0), expected)\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\", flags=re.MULTILINE), expected)\n+\n+\n+def test_match_re2_pattern_flags_zero():\n+    # GH#63108 flags=0 is the documented default, so it must not route the\n+    #  pattern through `re`, which rejects RE2 syntax pyarrow accepts\n+    pytest.importorskip(\"pyarrow\")\n+    values = Series([\"ab\", \"cd\"], dtype=\"string[pyarrow]\")\n+    expected = Series([True, False], dtype=\"boolean\")\n+\n+    tm.assert_series_equal(values.str.match(r\"\\p{L}b\"), expected)\n+    tm.assert_series_equal(values.str.match(r\"\\p{L}b\", flags=0), expected)\n+\n+\n+def test_match_arrow_dtype_flags():\n+    # GH#63108 the accessor pre-compiles pat whenever `flags` is passed, which\n+    #  ArrowDtype's _str_match must unwrap rather than choke on\n+    pa = pytest.importorskip(\"pyarrow\")\n+    values = Series([\"ab\", \"AB\", \"cd\"], dtype=pd.ArrowDtype(pa.string()))\n+\n+    result = values.str.match(\"ab\", flags=0)\n+    tm.assert_series_equal(result, Series([True, False, False], dtype=\"bool[pyarrow]\"))\n+\n+    result = values.str.match(re.compile(\"ab\"))\n+    tm.assert_series_equal(result, Series([True, False, False], dtype=\"bool[pyarrow]\"))\n+\n+    result = values.str.match(\"ab\", flags=re.IGNORECASE)\n+    tm.assert_series_equal(result, Series([True, True, False], dtype=\"bool[pyarrow]\"))\n+\n+    # IGNORECASE carried by the pat itself must be folded into `case`, which is\n+    #  the only form pyarrow understands\n+    result = values.str.match(re.compile(\"ab\", re.IGNORECASE))\n+    tm.assert_series_equal(result, Series([True, True, False], dtype=\"bool[pyarrow]\"))\n+\n+    # flags pyarrow cannot honor still raise NotImplementedError, as they did\n+    #  before GH#63108 and as ``contains`` does today\n+    with pytest.raises(NotImplementedError, match=\"flags\"):\n+        values.str.match(\"^ab\", flags=re.MULTILINE)\n+\n+    # fullmatch reaches the same helper with a plain str; unwrapping pat for\n+    #  match must not quietly start honoring flags here\n+    with pytest.raises(NotImplementedError, match=\"flags\"):\n+        values.str.fullmatch(\"ab\", flags=re.IGNORECASE)\n+\n+\n @pytest.mark.parametrize(\n     \"pat, case, exp\",\n     [\n",
+      "changedFiles": 5,
+      "addedLines": 191,
+      "deletedLines": 29,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "Bug",
+        "Regression",
+        "Strings",
+        "Arrow"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0003",
+      "title": "Matching a string column against a pattern with the 'dot matches newline' regex option enabled",
+      "preconditions": "A text column contains two values: one where a newline character sits between two other characters, and one where no newline is present.",
+      "steps": [
+        "Build a text column with the values 'a\\nc' and 'ac'.",
+        "Run a match against the pattern 'a.c', enabling the option that makes '.' also match newline characters.",
+        "Repeat the same match using an equivalent pre-built pattern object that already has that option enabled.",
+        "Compare the results returned for each row."
+      ],
+      "expectedResult": "The first value ('a\\nc') is reported as a match and the second ('ac') is not, for both ways of requesting the match; the newline-matching option is honoured rather than the call being rejected."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T15:46:01.000Z",
+      "testType": "API",
+      "tags": [
+        "regex",
+        "strings"
+      ],
+      "durationMs": null,
+      "feature": "string pattern matching",
+      "platform": "cpython",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/pandas-dev/pandas/pull/66716",
+        "issueUrl": "https://github.com/pandas-dev/pandas/issues/63108",
+        "evidenceTestFile": "pandas/tests/strings/test_find_replace.py",
+        "note": "At the base revision, passing any regex flag other than the case-insensitive one (including the 'dot matches newline' flag, via flags= or a precompiled pattern) raised a ValueError instead of matching, per the added test_match_non_ignorecase_flags_applied case."
+      }
+    }
+  },
+  {
+    "id": "py_0004",
+    "revision": "head",
+    "flipPairId": "py_flip_0002",
+    "pr": {
+      "repository": "pandas-dev/pandas",
+      "number": 66716,
+      "baseSha": "6029136003e9bf58b87f09cd6a5423192905009d",
+      "headSha": "7476729a077812e3fab3c010c7296a4e671cc997",
+      "title": "BUG: Series.str.match raised for regex flags other than re.IGNORECASE (GH#63108)",
+      "description": "Follow-up to GH-63108, which added validation of conflicting case/flags/compiled-pattern arguments to Series.str.match but in doing so broke every regex flag other than re.IGNORECASE. That change compiled the pattern with the full flag set, then reset flags and derived 'case' from IGNORECASE alone, so the reconstructed flag set failed a strict equality check against the compiled pattern's flags for anything other than IGNORECASE. This restores support for flags such as MULTILINE, DOTALL, VERBOSE and ASCII, both when passed via flags= and when carried by an already-compiled pattern object, across object, string, and Arrow-backed dtypes.",
+      "diff": "diff --git a/doc/source/whatsnew/v3.1.0.rst b/doc/source/whatsnew/v3.1.0.rst\nindex 521bf216d68ab..fa5082be7da7c 100644\n--- a/doc/source/whatsnew/v3.1.0.rst\n+++ b/doc/source/whatsnew/v3.1.0.rst\n@@ -524,6 +524,9 @@ Strings\n - Bug in :meth:`DataFrame.replace` with ``regex=True`` mutating the underlying :class:`StringArray` when the replacement value was not a string (:issue:`57733`)\n - Bug in :meth:`Series.memory_usage` with ``deep=True`` raising ``TypeError`` on PyPy for ``str`` dtype with Python storage (:issue:`46176`)\n - Bug in :meth:`Series.str.find` and :meth:`Index.str.find` with PyArrow-backed string dtypes raising ``ArrowInvalid`` when the values contained non-ASCII characters alongside a stretch of missing values, and returning a null dtype instead of an integer one when the values were all missing or the object was empty (:issue:`64123`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` raising ``AttributeError`` for :class:`ArrowDtype` when ``flags`` was passed or ``pat`` was a compiled ``re.Pattern`` (:issue:`63108`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` raising for regex flags other than ``re.IGNORECASE`` (e.g. ``re.MULTILINE``, ``re.DOTALL``, ``re.ASCII``), whether passed via ``flags`` or carried by a compiled ``re.Pattern`` (:issue:`63108`)\n+- Bug in :meth:`Series.str.match` and :meth:`Index.str.match` where passing ``flags=0`` was not equivalent to omitting ``flags``, raising for patterns using PyArrow-only regex syntax such as ``\\p{L}`` or an inline flag such as ``(?i)`` (:issue:`63108`)\n - Bug in :meth:`Series.str.partition` and :meth:`Series.str.split` with ``expand=True`` raising for :class:`ArrowDtype` when the :class:`Series` was empty or held only null values; an empty :class:`Series` now expands to no columns and an all-null one to a single all-NA column, matching object dtype (:issue:`63602`)\n - Bug in :meth:`Series.str.rsplit` and :meth:`Index.str.rsplit` silently accepting a compiled regex and returning incorrect results (:issue:`29633`)\n - Bug in :meth:`Series.str.split` with :class:`ArrowDtype` ``string`` not inferring regex for multi-character patterns when ``regex=None``, causing the pattern to be treated as a literal instead of a regular expression (:issue:`58321`)\ndiff --git a/pandas/core/arrays/_arrow_string_mixins.py b/pandas/core/arrays/_arrow_string_mixins.py\nindex e34f65e75d1da..50774fcb68117 100644\n--- a/pandas/core/arrays/_arrow_string_mixins.py\n+++ b/pandas/core/arrays/_arrow_string_mixins.py\n@@ -415,16 +415,29 @@ def _str_contains(\n \n     def _str_match(\n         self,\n-        pat: str,\n+        pat: str | re.Pattern,\n         case: bool = True,\n         flags: int = 0,\n         na: Scalar | lib.NoDefault = lib.no_default,\n     ):\n-        if pat.startswith(\"^\"):\n-            pat = pat[1:]\n-        pat = f\"^({pat})\"\n+        if isinstance(pat, re.Pattern):\n+            # GH#63108 the accessor pre-compiles `pat` whenever the user passes\n+            #  `flags`, so unwrap it here; pyarrow only supports IGNORECASE,\n+            #  which it spells as `case`. Confined to this branch so that\n+            #  _str_fullmatch, which reaches us with a plain str, is unaffected.\n+            flags |= pat.flags & ~re.UNICODE\n+            if flags & re.IGNORECASE:\n+                case = False\n+                flags &= ~re.IGNORECASE\n+            pattern = pat.pattern\n+        else:\n+            pattern = pat\n+\n+        if pattern.startswith(\"^\"):\n+            pattern = pattern[1:]\n+        pattern = f\"^({pattern})\"\n         return ArrowStringArrayMixin._str_contains(\n-            self, pat, case, flags, na, regex=True\n+            self, pattern, case, flags, na, regex=True\n         )\n \n     def _str_fullmatch(\ndiff --git a/pandas/core/strings/accessor.py b/pandas/core/strings/accessor.py\nindex 86b27f9b5b84d..10f15b6ac4026 100644\n--- a/pandas/core/strings/accessor.py\n+++ b/pandas/core/strings/accessor.py\n@@ -1601,27 +1601,15 @@ def match(\n         2   False\n         dtype: bool\n         \"\"\"\n-        if flags is not lib.no_default:\n-            # pat.flags will have re.U regardless, so we need to add it here\n-            # before checking for a match\n-            flags = flags | re.U\n-            if is_re(pat):\n-                if pat.flags != flags:\n-                    raise ValueError(\n-                        \"Cannot both specify 'flags' and pass a compiled regexp \"\n-                        \"object with conflicting flags\"\n-                    )\n-            else:\n-                pat = re.compile(pat, flags=flags)\n-            # set flags=0 to ensure that when we call\n-            #  re.compile(pat, flags=flags) the constructor does not raise.\n-            flags = 0\n-        else:\n-            flags = 0\n+        # Note: `case` must be resolved before we compile `pat` below, since\n+        #  compiling would make is_re(pat) True even for a user-passed string.\n+        case_specified = case is not lib.no_default\n \n-        if case is lib.no_default:\n+        if not case_specified:\n             if is_re(pat):\n                 case = not bool(pat.flags & re.IGNORECASE)\n+            elif flags is not lib.no_default:\n+                case = not bool(flags & re.IGNORECASE)\n             else:\n                 # Case-sensitive default\n                 case = True\n@@ -1634,6 +1622,35 @@ def match(\n                     \"object with conflicting case-sensitivity\"\n                 )\n \n+        if flags is not lib.no_default:\n+            if case_specified and case and not is_re(pat) and flags & re.IGNORECASE:\n+                raise ValueError(\n+                    \"Cannot both specify case=True and pass 'flags' containing \"\n+                    \"re.IGNORECASE\"\n+                )\n+            if not case:\n+                # Bake `case` into the flags so that it survives compilation.\n+                flags |= re.IGNORECASE\n+            if is_re(pat):\n+                # Round-trip the requested flags through re.compile so the\n+                #  comparison accounts for the fixups it applies: the implicit\n+                #  re.U, and any inline \"(?a)\"/\"(?i)\" in the pattern itself.\n+                if re.compile(pat.pattern, flags).flags != pat.flags:\n+                    raise ValueError(\n+                        \"Cannot both specify 'flags' and pass a compiled regexp \"\n+                        \"object with conflicting flags\"\n+                    )\n+            elif flags & ~(re.IGNORECASE | re.UNICODE):\n+                # Only pre-compile when `flags` carries something `case` cannot.\n+                #  Leaving `pat` a str otherwise keeps `flags=0` equivalent to\n+                #  omitting `flags`, so patterns using RE2 syntax that `re`\n+                #  rejects still reach the pyarrow kernels. GH#63108\n+                pat = re.compile(pat, flags=flags)\n+        # Any `flags` are now carried by `case` or baked into `pat`, so set\n+        #  flags=0 to ensure that when we call re.compile(pat, flags=flags)\n+        #  downstream the constructor does not raise.\n+        flags = 0\n+\n         result = self._data.array._str_match(pat, case=case, flags=flags, na=na)\n         return self._wrap_result(result, fill_value=na, returns_string=False)\n \ndiff --git a/pandas/core/strings/object_array.py b/pandas/core/strings/object_array.py\nindex 8d7c5a939d9a7..98056d6f0f8a5 100644\n--- a/pandas/core/strings/object_array.py\n+++ b/pandas/core/strings/object_array.py\n@@ -240,12 +240,17 @@ def _str_match(\n             flags |= re.IGNORECASE\n \n         if isinstance(pat, re.Pattern):\n-            # We need to check that flags matches pat.flags.\n-            # pat.flags will have re.U regardless, so we need to add it here\n-            # before checking for a match\n-            flags = flags | re.U\n-\n-            if flags != pat.flags:\n+            # pat already carries its own flags. IGNORECASE is the only one we\n+            #  can contribute (via `case`), so it is the only bit we compare,\n+            #  and only in the direction that would *add* it: a pat that is\n+            #  already case-insensitive, e.g. via an inline \"(?i)\", is honored\n+            #  as written. Comparing the full flag set would reject a pat\n+            #  compiled with e.g. re.MULTILINE (GH#63108).\n+            if flags & ~re.IGNORECASE:\n+                raise ValueError(\n+                    \"Cannot pass flags in addition to an already-compiled pat\"\n+                )\n+            if flags & re.IGNORECASE and not pat.flags & re.IGNORECASE:\n                 raise ValueError(\"Cannot pass flags that do not match pat.flags\")\n             regex = pat\n         else:\ndiff --git a/pandas/tests/strings/test_find_replace.py b/pandas/tests/strings/test_find_replace.py\nindex 5201c4d61ec02..15dd0a7317fad 100644\n--- a/pandas/tests/strings/test_find_replace.py\n+++ b/pandas/tests/strings/test_find_replace.py\n@@ -1228,6 +1228,130 @@ def test_match_compiled_regex(any_string_dtype):\n     values.str.match(re.compile(\"ab\", flags=re.IGNORECASE), flags=re.IGNORECASE)\n \n \n+@pytest.mark.parametrize(\"flag\", [re.MULTILINE, re.DOTALL, re.VERBOSE, re.ASCII])\n+def test_match_non_ignorecase_flags(any_string_dtype, flag):\n+    # GH#63108 flags other than IGNORECASE must not raise, whether passed via\n+    #  `flags` or already baked into a compiled pat\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"ab\", \"cd\"], dtype=any_string_dtype)\n+    expected = Series([True, False], dtype=expected_dtype)\n+\n+    result = values.str.match(\"^ab\", flags=flag)\n+    tm.assert_series_equal(result, expected)\n+\n+    result = values.str.match(re.compile(\"^ab\", flag))\n+    tm.assert_series_equal(result, expected)\n+\n+\n+def test_match_non_ignorecase_flags_applied(any_string_dtype):\n+    # GH#63108 the flag must actually take effect, not just avoid raising\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"a\\nc\", \"ac\"], dtype=any_string_dtype)\n+\n+    result = values.str.match(\"a.c\", flags=re.DOTALL)\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    # same via a compiled pat, which for arrow-backed dtypes takes the object\n+    #  fallback rather than the pyarrow kernel\n+    result = values.str.match(re.compile(\"a.c\", re.DOTALL))\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    result = values.str.match(\"a.c\")\n+    tm.assert_series_equal(result, Series([False, False], dtype=expected_dtype))\n+\n+\n+def test_match_non_ignorecase_flags_with_case(any_string_dtype):\n+    # GH#63108 a string pat combined with both `flags` and `case` must not be\n+    #  mistaken for a user-passed compiled regexp\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"AB\", \"cd\"], dtype=any_string_dtype)\n+\n+    result = values.str.match(\"^ab\", flags=re.MULTILINE, case=False)\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    result = values.str.match(\"^ab\", flags=re.MULTILINE, case=True)\n+    tm.assert_series_equal(result, Series([False, False], dtype=expected_dtype))\n+\n+    result = values.str.match(re.compile(\"^ab\", re.MULTILINE | re.IGNORECASE))\n+    tm.assert_series_equal(result, Series([True, False], dtype=expected_dtype))\n+\n+    msg = \"Cannot both specify case=True and pass 'flags' containing re.IGNORECASE\"\n+    with pytest.raises(ValueError, match=re.escape(msg)):\n+        values.str.match(\"ab\", flags=re.IGNORECASE, case=True)\n+\n+\n+def test_match_inline_flags_survive(any_string_dtype):\n+    # GH#63108 an inline \"(?i)\" belongs to the pattern; passing `flags` must\n+    #  not make it look like a case-sensitivity conflict\n+    expected_dtype = (\n+        np.bool_ if is_object_or_nan_string_dtype(any_string_dtype) else \"boolean\"\n+    )\n+    values = Series([\"AB\", \"cd\"], dtype=any_string_dtype)\n+    expected = Series([True, False], dtype=expected_dtype)\n+\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\"), expected)\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\", flags=0), expected)\n+    tm.assert_series_equal(values.str.match(\"(?i)ab\", flags=re.MULTILINE), expected)\n+\n+\n+def test_match_inline_ascii_flag():\n+    # GH#63108 an inline \"(?a)\" must not collide with the implicit re.U\n+    values = Series([\"ab\", \"1b\"], dtype=object)\n+    expected = Series([True, True], dtype=np.bool_)\n+\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\"), expected)\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\", flags=0), expected)\n+    tm.assert_series_equal(values.str.match(r\"(?a)\\wb\", flags=re.MULTILINE), expected)\n+\n+\n+def test_match_re2_pattern_flags_zero():\n+    # GH#63108 flags=0 is the documented default, so it must not route the\n+    #  pattern through `re`, which rejects RE2 syntax pyarrow accepts\n+    pytest.importorskip(\"pyarrow\")\n+    values = Series([\"ab\", \"cd\"], dtype=\"string[pyarrow]\")\n+    expected = Series([True, False], dtype=\"boolean\")\n+\n+    tm.assert_series_equal(values.str.match(r\"\\p{L}b\"), expected)\n+    tm.assert_series_equal(values.str.match(r\"\\p{L}b\", flags=0), expected)\n+\n+\n+def test_match_arrow_dtype_flags():\n+    # GH#63108 the accessor pre-compiles pat whenever `flags` is passed, which\n+    #  ArrowDtype's _str_match must unwrap rather than choke on\n+    pa = pytest.importorskip(\"pyarrow\")\n+    values = Series([\"ab\", \"AB\", \"cd\"], dtype=pd.ArrowDtype(pa.string()))\n+\n+    result = values.str.match(\"ab\", flags=0)\n+    tm.assert_series_equal(result, Series([True, False, False], dtype=\"bool[pyarrow]\"))\n+\n+    result = values.str.match(re.compile(\"ab\"))\n+    tm.assert_series_equal(result, Series([True, False, False], dtype=\"bool[pyarrow]\"))\n+\n+    result = values.str.match(\"ab\", flags=re.IGNORECASE)\n+    tm.assert_series_equal(result, Series([True, True, False], dtype=\"bool[pyarrow]\"))\n+\n+    # IGNORECASE carried by the pat itself must be folded into `case`, which is\n+    #  the only form pyarrow understands\n+    result = values.str.match(re.compile(\"ab\", re.IGNORECASE))\n+    tm.assert_series_equal(result, Series([True, True, False], dtype=\"bool[pyarrow]\"))\n+\n+    # flags pyarrow cannot honor still raise NotImplementedError, as they did\n+    #  before GH#63108 and as ``contains`` does today\n+    with pytest.raises(NotImplementedError, match=\"flags\"):\n+        values.str.match(\"^ab\", flags=re.MULTILINE)\n+\n+    # fullmatch reaches the same helper with a plain str; unwrapping pat for\n+    #  match must not quietly start honoring flags here\n+    with pytest.raises(NotImplementedError, match=\"flags\"):\n+        values.str.fullmatch(\"ab\", flags=re.IGNORECASE)\n+\n+\n @pytest.mark.parametrize(\n     \"pat, case, exp\",\n     [\n",
+      "changedFiles": 5,
+      "addedLines": 191,
+      "deletedLines": 29,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "Bug",
+        "Regression",
+        "Strings",
+        "Arrow"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0004",
+      "title": "Matching a string column against a pattern with the 'dot matches newline' regex option enabled",
+      "preconditions": "A text column contains two values: one where a newline character sits between two other characters, and one where no newline is present.",
+      "steps": [
+        "Build a text column with the values 'a\\nc' and 'ac'.",
+        "Run a match against the pattern 'a.c', enabling the option that makes '.' also match newline characters.",
+        "Repeat the same match using an equivalent pre-built pattern object that already has that option enabled.",
+        "Compare the results returned for each row."
+      ],
+      "expectedResult": "The first value ('a\\nc') is reported as a match and the second ('ac') is not, for both ways of requesting the match; the newline-matching option is honoured rather than the call being rejected."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T15:46:01.000Z",
+      "testType": "API",
+      "tags": [
+        "regex",
+        "strings"
+      ],
+      "durationMs": null,
+      "feature": "string pattern matching",
+      "platform": "cpython",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/pandas-dev/pandas/pull/66716",
+        "issueUrl": "https://github.com/pandas-dev/pandas/issues/63108",
+        "evidenceTestFile": "pandas/tests/strings/test_find_replace.py",
+        "note": "The PR resolves case-sensitivity before compiling the pattern and only compares the case-insensitive bit downstream, so other flags such as the newline-matching one are honoured; verified by test_match_non_ignorecase_flags_applied."
+      }
+    }
+  },
+  {
+    "id": "py_0005",
+    "revision": "base",
+    "flipPairId": "py_flip_0003",
+    "pr": {
+      "repository": "pallets/click",
+      "number": 3434,
+      "baseSha": "7c99ebe23b931f27562d926814423cce85fd9766",
+      "headSha": "0551bf53588ae87f462d336f24f853a156fefe3a",
+      "title": "Fix `HelpFormatter.write_usage` producing spurious characters",
+      "description": "This cleans up the way the usage line is produced in the help output by stripping spurious trailing spaces and normalizing separators. Closes #3360. Also covers a related, previously-fixed edge case in the new test suite.",
+      "diff": "diff --git a/CHANGES.rst b/CHANGES.rst\nindex 2c0dc4f00f..f8c2df43e7 100644\n--- a/CHANGES.rst\n+++ b/CHANGES.rst\n@@ -59,6 +59,11 @@ Unreleased\n -   :class:`~click.formatting.TextWrapper` and\n     :func:`~click.formatting.wrap_text` now measure line width in visible\n     characters, ignoring ANSI escape sequences. :pr:`3420`\n+-   Fix :meth:`HelpFormatter.write_usage` emitting only a blank line when\n+    called without ``args``. The usage prefix and program name are now\n+    written even when no arguments follow, and the trailing separator\n+    space is stripped so the line ends at the program name.\n+    :issue:`3360` :pr:`3434`\n -   Show custom error messages from types when :func:`prompt` with\n     ``hide_input=True`` fails validation, instead of always showing a\n     generic message. Built-in type messages mask the input value.\ndiff --git a/src/click/formatting.py b/src/click/formatting.py\nindex d9075ca1f0..bb179a4be3 100644\n--- a/src/click/formatting.py\n+++ b/src/click/formatting.py\n@@ -164,6 +164,14 @@ def write_usage(self, prog: str, args: str = \"\", prefix: str | None = None) -> N\n         usage_prefix = f\"{prefix:>{self.current_indent}}{prog} \"\n         text_width = self.width - self.current_indent\n \n+        if not args:\n+            # Without args, the prefix's trailing space and the wrap_text\n+            # call that would normally place args on the line are both\n+            # unnecessary. Emit just the prefix line.\n+            self.write(usage_prefix.rstrip(\" \"))\n+            self.write(\"\\n\")\n+            return\n+\n         if text_width >= (term_len(usage_prefix) + 20):\n             # The arguments will fit to the right of the prefix.\n             indent = \" \" * term_len(usage_prefix)\ndiff --git a/tests/test_formatting.py b/tests/test_formatting.py\nindex 3e85688560..a351cbefdf 100644\n--- a/tests/test_formatting.py\n+++ b/tests/test_formatting.py\n@@ -499,3 +499,118 @@ def test_write_usage_styled_prefix_keeps_options_on_one_line():\n \n     visible = strip_ansi(rendered)\n     assert visible == \"Usage: cli [OPTIONS]\\n\"\n+\n+\n+@pytest.mark.parametrize(\n+    (\"formatter_kwargs\", \"current_indent\", \"prog\", \"args\", \"prefix\", \"expected\"),\n+    [\n+        # Issue #3360: the default prefix used to emit only\n+        # a blank line because ``wrap_text(\"\", initial_indent=usage_prefix)``\n+        # returned ``\"\"`` and discarded the prefix.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"\",\n+            None,\n+            \"Usage: Program\\n\",\n+            id=\"empty-args-default-prefix\",\n+        ),\n+        # A caller-supplied prefix is preserved verbatim.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"\",\n+            \"Run: \",\n+            \"Run: Program\\n\",\n+            id=\"empty-args-custom-prefix\",\n+        ),\n+        # ``current_indent`` is preserved even with no args to render.\n+        pytest.param(\n+            {},\n+            4,\n+            \"Program\",\n+            \"\",\n+            None,\n+            \"Usage: Program\\n\",\n+            id=\"empty-args-indented\",\n+        ),\n+        # Prog too long to share a line with args: the wrap branch must not\n+        # emit a second line.\n+        pytest.param(\n+            {\"width\": 20},\n+            0,\n+            \"VeryLongProgramName\",\n+            \"\",\n+            None,\n+            \"Usage: VeryLongProgramName\\n\",\n+            id=\"empty-args-long-prog\",\n+        ),\n+        # With non-empty args, the separator space between prog and args is preserved.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"[OPTIONS]\",\n+            None,\n+            \"Usage: Program [OPTIONS]\\n\",\n+            id=\"with-args-default-prefix\",\n+        ),\n+    ],\n+)\n+def test_help_formatter_write_usage(\n+    formatter_kwargs, current_indent, prog, args, prefix, expected\n+):\n+    \"\"\"``HelpFormatter.write_usage`` renders a single usage line whose\n+    trailing separator tracks whether ``args`` is non-empty.\n+    \"\"\"\n+    f = click.HelpFormatter(**formatter_kwargs)\n+    f.current_indent = current_indent\n+    if prefix is None:\n+        f.write_usage(prog, args)\n+    else:\n+        f.write_usage(prog, args, prefix=prefix)\n+    assert f.getvalue() == expected\n+\n+\n+def test_help_formatter_write_usage_without_args_styled_prefix():\n+    \"\"\"A downstream-styled prefix is preserved when ``args`` is empty:\n+    the ANSI escape sequences survive, only the trailing separator is\n+    removed.\n+    \"\"\"\n+    styled_prefix = \"\\x1b[38;2;38;139;210m\\x1b[1mUsage:\\x1b[0m \"\n+    f = click.HelpFormatter()\n+    f.write_usage(\"cli\", prefix=styled_prefix)\n+    rendered = f.getvalue()\n+    assert strip_ansi(rendered) == \"Usage: cli\\n\"\n+    assert \"\\x1b[\" in rendered\n+\n+\n+@pytest.mark.parametrize(\n+    (\"command_kwargs\", \"expected_usage_line\"),\n+    [\n+        # End-to-end regression for #3360: an empty ``options_metavar`` with\n+        # no parameters used to render a blank usage line.\n+        pytest.param(\n+            {\"options_metavar\": \"\"},\n+            \"Usage: cli\",\n+            id=\"empty-options-metavar-no-params\",\n+        ),\n+        # End-to-end regression: ``options_metavar=None`` is the documented\n+        # way to suppress the ``[OPTIONS]`` slot entirely.\n+        pytest.param(\n+            {\"options_metavar\": None},\n+            \"Usage: cli\",\n+            id=\"none-options-metavar-no-params\",\n+        ),\n+    ],\n+)\n+def test_command_write_usage_no_args(runner, command_kwargs, expected_usage_line):\n+    \"\"\"End-to-end: a command with no parameters and an empty or absent\n+    ``options_metavar`` renders a usage line with just the program name,\n+    no trailing space.\n+    \"\"\"\n+    cli = click.Command(\"cli\", **command_kwargs)\n+    result = runner.invoke(cli, [\"--help\"])\n+    assert result.output.splitlines()[0] == expected_usage_line\n",
+      "changedFiles": 3,
+      "addedLines": 128,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "help output"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0005",
+      "title": "Help text shows the program name on the usage line for a command with no options or arguments",
+      "preconditions": "A command-line tool named 'cli' is defined with no options and no positional arguments, and does not customize its usage placeholder text.",
+      "steps": [
+        "Invoke the tool with --help.",
+        "Read the very first line printed to the console."
+      ],
+      "expectedResult": "The first line of output reads exactly 'Usage: cli'."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-05-16T15:53:40.000Z",
+      "testType": "UI",
+      "tags": [
+        "boundary",
+        "help-text",
+        "cli-output"
+      ],
+      "durationMs": null,
+      "feature": "help text rendering",
+      "platform": "cpython",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/pallets/click/pull/3434",
+        "issueUrl": "https://github.com/pallets/click/issues/3360",
+        "evidenceTestFile": "tests/test_formatting.py",
+        "note": "At the base revision, when the usage line has no trailing arguments text, the text-wrapping step used to render it collapses an empty string to nothing, discarding the 'Usage: cli' prefix along with it, so the first line printed is blank instead of showing the program name."
+      }
+    }
+  },
+  {
+    "id": "py_0006",
+    "revision": "head",
+    "flipPairId": "py_flip_0003",
+    "pr": {
+      "repository": "pallets/click",
+      "number": 3434,
+      "baseSha": "7c99ebe23b931f27562d926814423cce85fd9766",
+      "headSha": "0551bf53588ae87f462d336f24f853a156fefe3a",
+      "title": "Fix `HelpFormatter.write_usage` producing spurious characters",
+      "description": "This cleans up the way the usage line is produced in the help output by stripping spurious trailing spaces and normalizing separators. Closes #3360. Also covers a related, previously-fixed edge case in the new test suite.",
+      "diff": "diff --git a/CHANGES.rst b/CHANGES.rst\nindex 2c0dc4f00f..f8c2df43e7 100644\n--- a/CHANGES.rst\n+++ b/CHANGES.rst\n@@ -59,6 +59,11 @@ Unreleased\n -   :class:`~click.formatting.TextWrapper` and\n     :func:`~click.formatting.wrap_text` now measure line width in visible\n     characters, ignoring ANSI escape sequences. :pr:`3420`\n+-   Fix :meth:`HelpFormatter.write_usage` emitting only a blank line when\n+    called without ``args``. The usage prefix and program name are now\n+    written even when no arguments follow, and the trailing separator\n+    space is stripped so the line ends at the program name.\n+    :issue:`3360` :pr:`3434`\n -   Show custom error messages from types when :func:`prompt` with\n     ``hide_input=True`` fails validation, instead of always showing a\n     generic message. Built-in type messages mask the input value.\ndiff --git a/src/click/formatting.py b/src/click/formatting.py\nindex d9075ca1f0..bb179a4be3 100644\n--- a/src/click/formatting.py\n+++ b/src/click/formatting.py\n@@ -164,6 +164,14 @@ def write_usage(self, prog: str, args: str = \"\", prefix: str | None = None) -> N\n         usage_prefix = f\"{prefix:>{self.current_indent}}{prog} \"\n         text_width = self.width - self.current_indent\n \n+        if not args:\n+            # Without args, the prefix's trailing space and the wrap_text\n+            # call that would normally place args on the line are both\n+            # unnecessary. Emit just the prefix line.\n+            self.write(usage_prefix.rstrip(\" \"))\n+            self.write(\"\\n\")\n+            return\n+\n         if text_width >= (term_len(usage_prefix) + 20):\n             # The arguments will fit to the right of the prefix.\n             indent = \" \" * term_len(usage_prefix)\ndiff --git a/tests/test_formatting.py b/tests/test_formatting.py\nindex 3e85688560..a351cbefdf 100644\n--- a/tests/test_formatting.py\n+++ b/tests/test_formatting.py\n@@ -499,3 +499,118 @@ def test_write_usage_styled_prefix_keeps_options_on_one_line():\n \n     visible = strip_ansi(rendered)\n     assert visible == \"Usage: cli [OPTIONS]\\n\"\n+\n+\n+@pytest.mark.parametrize(\n+    (\"formatter_kwargs\", \"current_indent\", \"prog\", \"args\", \"prefix\", \"expected\"),\n+    [\n+        # Issue #3360: the default prefix used to emit only\n+        # a blank line because ``wrap_text(\"\", initial_indent=usage_prefix)``\n+        # returned ``\"\"`` and discarded the prefix.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"\",\n+            None,\n+            \"Usage: Program\\n\",\n+            id=\"empty-args-default-prefix\",\n+        ),\n+        # A caller-supplied prefix is preserved verbatim.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"\",\n+            \"Run: \",\n+            \"Run: Program\\n\",\n+            id=\"empty-args-custom-prefix\",\n+        ),\n+        # ``current_indent`` is preserved even with no args to render.\n+        pytest.param(\n+            {},\n+            4,\n+            \"Program\",\n+            \"\",\n+            None,\n+            \"Usage: Program\\n\",\n+            id=\"empty-args-indented\",\n+        ),\n+        # Prog too long to share a line with args: the wrap branch must not\n+        # emit a second line.\n+        pytest.param(\n+            {\"width\": 20},\n+            0,\n+            \"VeryLongProgramName\",\n+            \"\",\n+            None,\n+            \"Usage: VeryLongProgramName\\n\",\n+            id=\"empty-args-long-prog\",\n+        ),\n+        # With non-empty args, the separator space between prog and args is preserved.\n+        pytest.param(\n+            {},\n+            0,\n+            \"Program\",\n+            \"[OPTIONS]\",\n+            None,\n+            \"Usage: Program [OPTIONS]\\n\",\n+            id=\"with-args-default-prefix\",\n+        ),\n+    ],\n+)\n+def test_help_formatter_write_usage(\n+    formatter_kwargs, current_indent, prog, args, prefix, expected\n+):\n+    \"\"\"``HelpFormatter.write_usage`` renders a single usage line whose\n+    trailing separator tracks whether ``args`` is non-empty.\n+    \"\"\"\n+    f = click.HelpFormatter(**formatter_kwargs)\n+    f.current_indent = current_indent\n+    if prefix is None:\n+        f.write_usage(prog, args)\n+    else:\n+        f.write_usage(prog, args, prefix=prefix)\n+    assert f.getvalue() == expected\n+\n+\n+def test_help_formatter_write_usage_without_args_styled_prefix():\n+    \"\"\"A downstream-styled prefix is preserved when ``args`` is empty:\n+    the ANSI escape sequences survive, only the trailing separator is\n+    removed.\n+    \"\"\"\n+    styled_prefix = \"\\x1b[38;2;38;139;210m\\x1b[1mUsage:\\x1b[0m \"\n+    f = click.HelpFormatter()\n+    f.write_usage(\"cli\", prefix=styled_prefix)\n+    rendered = f.getvalue()\n+    assert strip_ansi(rendered) == \"Usage: cli\\n\"\n+    assert \"\\x1b[\" in rendered\n+\n+\n+@pytest.mark.parametrize(\n+    (\"command_kwargs\", \"expected_usage_line\"),\n+    [\n+        # End-to-end regression for #3360: an empty ``options_metavar`` with\n+        # no parameters used to render a blank usage line.\n+        pytest.param(\n+            {\"options_metavar\": \"\"},\n+            \"Usage: cli\",\n+            id=\"empty-options-metavar-no-params\",\n+        ),\n+        # End-to-end regression: ``options_metavar=None`` is the documented\n+        # way to suppress the ``[OPTIONS]`` slot entirely.\n+        pytest.param(\n+            {\"options_metavar\": None},\n+            \"Usage: cli\",\n+            id=\"none-options-metavar-no-params\",\n+        ),\n+    ],\n+)\n+def test_command_write_usage_no_args(runner, command_kwargs, expected_usage_line):\n+    \"\"\"End-to-end: a command with no parameters and an empty or absent\n+    ``options_metavar`` renders a usage line with just the program name,\n+    no trailing space.\n+    \"\"\"\n+    cli = click.Command(\"cli\", **command_kwargs)\n+    result = runner.invoke(cli, [\"--help\"])\n+    assert result.output.splitlines()[0] == expected_usage_line\n",
+      "changedFiles": 3,
+      "addedLines": 128,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "help output"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0006",
+      "title": "Help text shows the program name on the usage line for a command with no options or arguments",
+      "preconditions": "A command-line tool named 'cli' is defined with no options and no positional arguments, and does not customize its usage placeholder text.",
+      "steps": [
+        "Invoke the tool with --help.",
+        "Read the very first line printed to the console."
+      ],
+      "expectedResult": "The first line of output reads exactly 'Usage: cli'."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-16T15:53:40.000Z",
+      "testType": "UI",
+      "tags": [
+        "boundary",
+        "help-text",
+        "cli-output"
+      ],
+      "durationMs": null,
+      "feature": "help text rendering",
+      "platform": "cpython",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/pallets/click/pull/3434",
+        "issueUrl": "https://github.com/pallets/click/issues/3360",
+        "evidenceTestFile": "tests/test_formatting.py",
+        "note": "The PR special-cases the no-args branch to always emit the usage prefix, verified end-to-end by test_command_write_usage_no_args, so the program name now appears on the first help line."
+      }
+    }
+  },
+  {
+    "id": "py_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "pallets/flask",
+      "number": 6096,
+      "baseSha": "514fc6b3e8402e4c646d5284e97a4f0ab50a7c4b",
+      "headSha": "7203feabf723edae0286ae5dc64fec8ac4c91735",
+      "title": "Fix `.partition(\":\")` usage on potential IPv6 addresses",
+      "description": "Fix two usages of .partition(\":\") on potential IPv6 addresses in the development server's host/port resolution and in the test client's session-cookie helper. Replace them with alternatives that parse the host correctly. Fixes #6093.",
+      "diff": "diff --git a/src/flask/app.py b/src/flask/app.py\nindex 7585dda614..6203586958 100644\n--- a/src/flask/app.py\n+++ b/src/flask/app.py\n@@ -12,6 +12,7 @@\n from itertools import chain\n from types import TracebackType\n from urllib.parse import quote as _url_quote\n+from urllib.parse import urlsplit\n \n import click\n from werkzeug.datastructures import Headers\n@@ -721,7 +722,9 @@ def run(\n         sn_host = sn_port = None\n \n         if server_name:\n-            sn_host, _, sn_port = server_name.partition(\":\")\n+            server_url = urlsplit(f\"//{server_name}\")\n+            sn_host = server_url.hostname\n+            sn_port = server_url.port\n \n         if not host:\n             if sn_host:\n@@ -731,8 +734,8 @@ def run(\n \n         if port or port == 0:\n             port = int(port)\n-        elif sn_port:\n-            port = int(sn_port)\n+        elif sn_port is not None:\n+            port = sn_port\n         else:\n             port = 5000\n \n@@ -745,7 +748,7 @@ def run(\n         from werkzeug.serving import run_simple\n \n         try:\n-            run_simple(t.cast(str, host), port, self, **options)\n+            run_simple(host, port, self, **options)\n         finally:\n             # reset the first request information if the development server\n             # reset normally.  This makes it possible to restart the server\ndiff --git a/src/flask/testing.py b/src/flask/testing.py\nindex 68b1ab48c6..8d058ca00d 100644\n--- a/src/flask/testing.py\n+++ b/src/flask/testing.py\n@@ -177,7 +177,7 @@ def session_transaction(\n             app.session_interface.save_session(app, sess, resp)\n \n         self._update_cookies_from_response(\n-            ctx.request.host.partition(\":\")[0],\n+            urlsplit(ctx.request.host_url).hostname or \"localhost\",\n             ctx.request.path,\n             resp.headers.getlist(\"Set-Cookie\"),\n         )\ndiff --git a/tests/test_basic.py b/tests/test_basic.py\nindex 1d9d83f8cb..3d2f3baa66 100644\n--- a/tests/test_basic.py\n+++ b/tests/test_basic.py\n@@ -1910,6 +1910,7 @@ def run_simple_mock(hostname, port, application, *args, **kwargs):\n         (\"localhost\", 0, \"localhost:8080\", \"localhost\", 0),\n         (None, None, \"localhost:8080\", \"localhost\", 8080),\n         (None, None, \"localhost:0\", \"localhost\", 0),\n+        (None, None, \"[::1]:8080\", \"::1\", 8080),\n     ),\n )\n def test_run_from_config(\ndiff --git a/tests/test_testing.py b/tests/test_testing.py\nindex c172f14d68..4c014f2e7c 100644\n--- a/tests/test_testing.py\n+++ b/tests/test_testing.py\n@@ -171,6 +171,20 @@ def index():\n             assert sess[\"foo\"] == [42]\n \n \n+def test_session_transaction_ipv6(app):\n+    base_url = \"http://[::1]:8000/\"\n+    client = app.test_client()\n+\n+    @app.get(\"/\")\n+    def index():\n+        return str(flask.session.get(\"value\"))\n+\n+    with client.session_transaction(base_url=base_url) as sess:\n+        sess[\"value\"] = 42\n+\n+    assert client.get(\"/\", base_url=base_url).text == \"42\"\n+\n+\n def test_session_transactions_no_null_sessions():\n     app = flask.Flask(__name__)\n \n",
+      "changedFiles": 4,
+      "addedLines": 23,
+      "deletedLines": 5,
+      "commits": 2,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "py_tc_0007",
+      "title": "A view that returns a plain dictionary is delivered to the browser as JSON",
+      "preconditions": "A web application has a route whose handler function returns a Python dictionary directly, without wrapping it in any special response object.",
+      "steps": [
+        "Send a request to that route.",
+        "Inspect the response's Content-Type header.",
+        "Inspect the raw response body text."
+      ],
+      "expectedResult": "The Content-Type header is 'application/json', and the body is a compact JSON encoding of the dictionary with no extra whitespace between keys and values."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T19:48:41.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "json-response",
+        "serialization"
+      ],
+      "durationMs": null,
+      "feature": "automatic JSON response encoding",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/pallets/flask/pull/6096",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/test_basic.py",
+        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after."
+      }
+    }
+  },
+  {
+    "id": "py_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "pallets/flask",
+      "number": 6096,
+      "baseSha": "514fc6b3e8402e4c646d5284e97a4f0ab50a7c4b",
+      "headSha": "7203feabf723edae0286ae5dc64fec8ac4c91735",
+      "title": "Fix `.partition(\":\")` usage on potential IPv6 addresses",
+      "description": "Fix two usages of .partition(\":\") on potential IPv6 addresses in the development server's host/port resolution and in the test client's session-cookie helper. Replace them with alternatives that parse the host correctly. Fixes #6093.",
+      "diff": "diff --git a/src/flask/app.py b/src/flask/app.py\nindex 7585dda614..6203586958 100644\n--- a/src/flask/app.py\n+++ b/src/flask/app.py\n@@ -12,6 +12,7 @@\n from itertools import chain\n from types import TracebackType\n from urllib.parse import quote as _url_quote\n+from urllib.parse import urlsplit\n \n import click\n from werkzeug.datastructures import Headers\n@@ -721,7 +722,9 @@ def run(\n         sn_host = sn_port = None\n \n         if server_name:\n-            sn_host, _, sn_port = server_name.partition(\":\")\n+            server_url = urlsplit(f\"//{server_name}\")\n+            sn_host = server_url.hostname\n+            sn_port = server_url.port\n \n         if not host:\n             if sn_host:\n@@ -731,8 +734,8 @@ def run(\n \n         if port or port == 0:\n             port = int(port)\n-        elif sn_port:\n-            port = int(sn_port)\n+        elif sn_port is not None:\n+            port = sn_port\n         else:\n             port = 5000\n \n@@ -745,7 +748,7 @@ def run(\n         from werkzeug.serving import run_simple\n \n         try:\n-            run_simple(t.cast(str, host), port, self, **options)\n+            run_simple(host, port, self, **options)\n         finally:\n             # reset the first request information if the development server\n             # reset normally.  This makes it possible to restart the server\ndiff --git a/src/flask/testing.py b/src/flask/testing.py\nindex 68b1ab48c6..8d058ca00d 100644\n--- a/src/flask/testing.py\n+++ b/src/flask/testing.py\n@@ -177,7 +177,7 @@ def session_transaction(\n             app.session_interface.save_session(app, sess, resp)\n \n         self._update_cookies_from_response(\n-            ctx.request.host.partition(\":\")[0],\n+            urlsplit(ctx.request.host_url).hostname or \"localhost\",\n             ctx.request.path,\n             resp.headers.getlist(\"Set-Cookie\"),\n         )\ndiff --git a/tests/test_basic.py b/tests/test_basic.py\nindex 1d9d83f8cb..3d2f3baa66 100644\n--- a/tests/test_basic.py\n+++ b/tests/test_basic.py\n@@ -1910,6 +1910,7 @@ def run_simple_mock(hostname, port, application, *args, **kwargs):\n         (\"localhost\", 0, \"localhost:8080\", \"localhost\", 0),\n         (None, None, \"localhost:8080\", \"localhost\", 8080),\n         (None, None, \"localhost:0\", \"localhost\", 0),\n+        (None, None, \"[::1]:8080\", \"::1\", 8080),\n     ),\n )\n def test_run_from_config(\ndiff --git a/tests/test_testing.py b/tests/test_testing.py\nindex c172f14d68..4c014f2e7c 100644\n--- a/tests/test_testing.py\n+++ b/tests/test_testing.py\n@@ -171,6 +171,20 @@ def index():\n             assert sess[\"foo\"] == [42]\n \n \n+def test_session_transaction_ipv6(app):\n+    base_url = \"http://[::1]:8000/\"\n+    client = app.test_client()\n+\n+    @app.get(\"/\")\n+    def index():\n+        return str(flask.session.get(\"value\"))\n+\n+    with client.session_transaction(base_url=base_url) as sess:\n+        sess[\"value\"] = 42\n+\n+    assert client.get(\"/\", base_url=base_url).text == \"42\"\n+\n+\n def test_session_transactions_no_null_sessions():\n     app = flask.Flask(__name__)\n \n",
+      "changedFiles": 4,
+      "addedLines": 23,
+      "deletedLines": 5,
+      "commits": 2,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "py_tc_0008",
+      "title": "A view that returns a plain dictionary is delivered to the browser as JSON",
+      "preconditions": "A web application has a route whose handler function returns a Python dictionary directly, without wrapping it in any special response object.",
+      "steps": [
+        "Send a request to that route.",
+        "Inspect the response's Content-Type header.",
+        "Inspect the raw response body text."
+      ],
+      "expectedResult": "The Content-Type header is 'application/json', and the body is a compact JSON encoding of the dictionary with no extra whitespace between keys and values."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T19:48:41.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "json-response",
+        "serialization"
+      ],
+      "durationMs": null,
+      "feature": "automatic JSON response encoding",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/pallets/flask/pull/6096",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/test_basic.py",
+        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after."
+      }
+    }
+  },
+  {
+    "id": "py_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "pydantic/pydantic",
+      "number": 13648,
+      "baseSha": "69b337e96d62203d336d6e73edf5bdb43b7cb1e4",
+      "headSha": "2ba684f697094f92ecc3a1a62370b07cdf8f0804",
+      "title": "Do not error on unhashable generic aliases during core schema generation",
+      "description": "Fixes https://github.com/pydantic/pydantic/issues/13645.",
+      "diff": "diff --git a/pydantic/_internal/_generate_schema.py b/pydantic/_internal/_generate_schema.py\nindex 53971d2059..815766b376 100644\n--- a/pydantic/_internal/_generate_schema.py\n+++ b/pydantic/_internal/_generate_schema.py\n@@ -1124,7 +1124,7 @@ def match_type(self, obj: Any, origin: Any) -> core_schema.CoreSchema:  # noqa:\n             # early for model-like fields, which handles it already.\n             return core_schema.any_schema()\n \n-        if origin is not None and (aliased_obj := typing_objects.DEPRECATED_ALIASES.get(obj)):\n+        if origin is not None and (aliased_obj := typing_objects.DEPRECATED_ALIASES_IDS.get(id(obj))):\n             # See https://typing-inspection.pydantic.dev/dev/usage/#inspecting-the-type-expression:\n             obj = aliased_obj\n             origin = None\ndiff --git a/pyproject.toml b/pyproject.toml\nindex dcd9d14645..27f62269fe 100644\n--- a/pyproject.toml\n+++ b/pyproject.toml\n@@ -48,7 +48,7 @@ dependencies = [\n     'annotated-types>=0.6.0',\n     # Keep this in sync with the version in the `check_pydantic_core_version()` function:\n     'pydantic-core==2.48.0',\n-    'typing-inspection>=0.4.2',\n+    'typing-inspection>=0.4.4',\n ]\n dynamic = ['version', 'readme']\n \ndiff --git a/tests/test_edge_cases.py b/tests/test_edge_cases.py\nindex 3649fb3d7f..699a49da0b 100644\n--- a/tests/test_edge_cases.py\n+++ b/tests/test_edge_cases.py\n@@ -3198,3 +3198,14 @@ def test_interconnected_models_build_in_linear_time() -> None:\n     instance = last.model_validate({'value': 1, 'ref2': {'value': 2, 'ref2': {'value': 3}}})\n     assert instance.ref2.ref2.value == 3\n     assert instance.model_dump(exclude_none=True) == {'value': 1, 'ref2': {'value': 2, 'ref2': {'value': 3}}}\n+\n+\n+def test_unhasbable_generic_alias() -> None:\n+    \"\"\"https://github.com/pydantic/pydantic/issues/13645\"\"\"\n+\n+    class Meta:\n+        __hash__ = None\n+\n+    ta = TypeAdapter(list[Annotated[int, Meta()]])\n+\n+    assert ta.validate_python(['1']) == [1]\n",
+      "changedFiles": 3,
+      "addedLines": 12,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "relnotes-ignore"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0009",
+      "title": "Omitting a required field when constructing a model reports it as missing",
+      "preconditions": "A data model is defined with one field that has no default value and one field that has a default value.",
+      "steps": [
+        "Construct the model, supplying only the field that has a default and leaving out the field without a default.",
+        "Observe what happens."
+      ],
+      "expectedResult": "Construction fails with a validation error that identifies the omitted field and reports it as required/missing, rather than silently succeeding."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-12T13:03:53.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "input-validation",
+        "required-fields"
+      ],
+      "durationMs": null,
+      "feature": "required field validation",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/pydantic/pydantic/pull/13648",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/test_main.py",
+        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after."
+      }
+    }
+  },
+  {
+    "id": "py_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "pydantic/pydantic",
+      "number": 13648,
+      "baseSha": "69b337e96d62203d336d6e73edf5bdb43b7cb1e4",
+      "headSha": "2ba684f697094f92ecc3a1a62370b07cdf8f0804",
+      "title": "Do not error on unhashable generic aliases during core schema generation",
+      "description": "Fixes https://github.com/pydantic/pydantic/issues/13645.",
+      "diff": "diff --git a/pydantic/_internal/_generate_schema.py b/pydantic/_internal/_generate_schema.py\nindex 53971d2059..815766b376 100644\n--- a/pydantic/_internal/_generate_schema.py\n+++ b/pydantic/_internal/_generate_schema.py\n@@ -1124,7 +1124,7 @@ def match_type(self, obj: Any, origin: Any) -> core_schema.CoreSchema:  # noqa:\n             # early for model-like fields, which handles it already.\n             return core_schema.any_schema()\n \n-        if origin is not None and (aliased_obj := typing_objects.DEPRECATED_ALIASES.get(obj)):\n+        if origin is not None and (aliased_obj := typing_objects.DEPRECATED_ALIASES_IDS.get(id(obj))):\n             # See https://typing-inspection.pydantic.dev/dev/usage/#inspecting-the-type-expression:\n             obj = aliased_obj\n             origin = None\ndiff --git a/pyproject.toml b/pyproject.toml\nindex dcd9d14645..27f62269fe 100644\n--- a/pyproject.toml\n+++ b/pyproject.toml\n@@ -48,7 +48,7 @@ dependencies = [\n     'annotated-types>=0.6.0',\n     # Keep this in sync with the version in the `check_pydantic_core_version()` function:\n     'pydantic-core==2.48.0',\n-    'typing-inspection>=0.4.2',\n+    'typing-inspection>=0.4.4',\n ]\n dynamic = ['version', 'readme']\n \ndiff --git a/tests/test_edge_cases.py b/tests/test_edge_cases.py\nindex 3649fb3d7f..699a49da0b 100644\n--- a/tests/test_edge_cases.py\n+++ b/tests/test_edge_cases.py\n@@ -3198,3 +3198,14 @@ def test_interconnected_models_build_in_linear_time() -> None:\n     instance = last.model_validate({'value': 1, 'ref2': {'value': 2, 'ref2': {'value': 3}}})\n     assert instance.ref2.ref2.value == 3\n     assert instance.model_dump(exclude_none=True) == {'value': 1, 'ref2': {'value': 2, 'ref2': {'value': 3}}}\n+\n+\n+def test_unhasbable_generic_alias() -> None:\n+    \"\"\"https://github.com/pydantic/pydantic/issues/13645\"\"\"\n+\n+    class Meta:\n+        __hash__ = None\n+\n+    ta = TypeAdapter(list[Annotated[int, Meta()]])\n+\n+    assert ta.validate_python(['1']) == [1]\n",
+      "changedFiles": 3,
+      "addedLines": 12,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Python",
+      "labels": [
+        "relnotes-ignore"
+      ]
+    },
+    "testCase": {
+      "id": "py_tc_0010",
+      "title": "Omitting a required field when constructing a model reports it as missing",
+      "preconditions": "A data model is defined with one field that has no default value and one field that has a default value.",
+      "steps": [
+        "Construct the model, supplying only the field that has a default and leaving out the field without a default.",
+        "Observe what happens."
+      ],
+      "expectedResult": "Construction fails with a validation error that identifies the omitted field and reports it as required/missing, rather than silently succeeding."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-12T13:03:53.000Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "input-validation",
+        "required-fields"
+      ],
+      "durationMs": null,
+      "feature": "required field validation",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/pydantic/pydantic/pull/13648",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/test_main.py",
+        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after."
+      }
+    }
+  },
+  {
+    "id": "py_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "sqlalchemy/sqlalchemy",
+      "number": 13277,
+      "baseSha": "f353f623271087bfe47f4b7271b35578046c59b5",
+      "headSha": "7cd7791258c516a56fded329a31d3521de1a5fe1",
+      "title": "Replace logging.WARN by logging.WARNING",
+      "description": "Replaces uses of the deprecated-style logging.WARN constant with logging.WARNING throughout the engine logging setup, docs, and tests.",
+      "diff": "diff --git a/doc/build/core/engines.rst b/doc/build/core/engines.rst\nindex 1f0c8408afd..ad75c52ef54 100644\n--- a/doc/build/core/engines.rst\n+++ b/doc/build/core/engines.rst\n@@ -533,7 +533,7 @@ For example, to log SQL queries using Python logging instead of the\n     logging.basicConfig()\n     logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.INFO)\n \n-By default, the log level is set to ``logging.WARN`` within the entire\n+By default, the log level is set to ``logging.WARNING`` within the entire\n ``sqlalchemy`` namespace so that no log operations occur, even within an\n application that has logging enabled otherwise.\n \ndiff --git a/lib/sqlalchemy/log.py b/lib/sqlalchemy/log.py\nindex 7417dc80306..65919c982c8 100644\n--- a/lib/sqlalchemy/log.py\n+++ b/lib/sqlalchemy/log.py\n@@ -47,7 +47,7 @@\n # logging being enabled for 'sqlalchemy'.\n rootlogger = logging.getLogger(\"sqlalchemy\")\n if rootlogger.level == logging.NOTSET:\n-    rootlogger.setLevel(logging.WARN)\n+    rootlogger.setLevel(logging.WARNING)\n \n \n def _add_default_handler(logger: logging.Logger) -> None:\ndiff --git a/test/engine/test_logging.py b/test/engine/test_logging.py\nindex e47521d6c13..34e8dcc198d 100644\n--- a/test/engine/test_logging.py\n+++ b/test/engine/test_logging.py\n@@ -1060,7 +1060,7 @@ class EchoTest(fixtures.TestBase):\n \n     def setup_test(self):\n         self.level = logging.getLogger(\"sqlalchemy.engine\").level\n-        logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.WARN)\n+        logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.WARNING)\n         self.buf = logging.handlers.BufferingHandler(100)\n         logging.getLogger(\"sqlalchemy.engine\").addHandler(self.buf)\n \n@@ -1085,7 +1085,7 @@ def test_levels(self):\n         eq_(e1._should_log_info(), False)\n         eq_(e1._should_log_debug(), False)\n         eq_(e1.logger.isEnabledFor(logging.INFO), False)\n-        eq_(e1.logger.getEffectiveLevel(), logging.WARN)\n+        eq_(e1.logger.getEffectiveLevel(), logging.WARNING)\n \n         e1.echo = True\n         eq_(e1._should_log_info(), True)\n@@ -1103,7 +1103,7 @@ def test_levels(self):\n         eq_(e1._should_log_info(), False)\n         eq_(e1._should_log_debug(), False)\n         eq_(e1.logger.isEnabledFor(logging.INFO), False)\n-        eq_(e1.logger.getEffectiveLevel(), logging.WARN)\n+        eq_(e1.logger.getEffectiveLevel(), logging.WARNING)\n \n     def test_echo_flag_independence(self):\n         \"\"\"test the echo flag's independence to a specific engine.\"\"\"\n",
+      "changedFiles": 3,
+      "addedLines": 5,
+      "deletedLines": 5,
+      "commits": 1,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "py_tc_0011",
+      "title": "Default engine logging suppresses routine SQL echo output",
+      "preconditions": "A database engine is created with default logging configuration and its 'echo' flag left off, and the root logger for the engine has not been given an explicit level.",
+      "steps": [
+        "Attach a log-capturing handler to the engine's logger.",
+        "Execute a statement through the engine.",
+        "Turn the echo flag on and execute another statement.",
+        "Inspect what was captured at each step."
+      ],
+      "expectedResult": "With echo off, no informational SQL-statement log records are captured because the effective log level only lets warnings and above through. With echo on, the SQL statement is logged."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-05T19:01:21.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "logging",
+        "refactor"
+      ],
+      "durationMs": null,
+      "feature": "engine logging defaults",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/sqlalchemy/sqlalchemy/pull/13277",
+        "issueUrl": null,
+        "evidenceTestFile": "test/engine/test_logging.py",
+        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after."
+      }
+    }
+  },
+  {
+    "id": "py_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "sqlalchemy/sqlalchemy",
+      "number": 13277,
+      "baseSha": "f353f623271087bfe47f4b7271b35578046c59b5",
+      "headSha": "7cd7791258c516a56fded329a31d3521de1a5fe1",
+      "title": "Replace logging.WARN by logging.WARNING",
+      "description": "Replaces uses of the deprecated-style logging.WARN constant with logging.WARNING throughout the engine logging setup, docs, and tests.",
+      "diff": "diff --git a/doc/build/core/engines.rst b/doc/build/core/engines.rst\nindex 1f0c8408afd..ad75c52ef54 100644\n--- a/doc/build/core/engines.rst\n+++ b/doc/build/core/engines.rst\n@@ -533,7 +533,7 @@ For example, to log SQL queries using Python logging instead of the\n     logging.basicConfig()\n     logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.INFO)\n \n-By default, the log level is set to ``logging.WARN`` within the entire\n+By default, the log level is set to ``logging.WARNING`` within the entire\n ``sqlalchemy`` namespace so that no log operations occur, even within an\n application that has logging enabled otherwise.\n \ndiff --git a/lib/sqlalchemy/log.py b/lib/sqlalchemy/log.py\nindex 7417dc80306..65919c982c8 100644\n--- a/lib/sqlalchemy/log.py\n+++ b/lib/sqlalchemy/log.py\n@@ -47,7 +47,7 @@\n # logging being enabled for 'sqlalchemy'.\n rootlogger = logging.getLogger(\"sqlalchemy\")\n if rootlogger.level == logging.NOTSET:\n-    rootlogger.setLevel(logging.WARN)\n+    rootlogger.setLevel(logging.WARNING)\n \n \n def _add_default_handler(logger: logging.Logger) -> None:\ndiff --git a/test/engine/test_logging.py b/test/engine/test_logging.py\nindex e47521d6c13..34e8dcc198d 100644\n--- a/test/engine/test_logging.py\n+++ b/test/engine/test_logging.py\n@@ -1060,7 +1060,7 @@ class EchoTest(fixtures.TestBase):\n \n     def setup_test(self):\n         self.level = logging.getLogger(\"sqlalchemy.engine\").level\n-        logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.WARN)\n+        logging.getLogger(\"sqlalchemy.engine\").setLevel(logging.WARNING)\n         self.buf = logging.handlers.BufferingHandler(100)\n         logging.getLogger(\"sqlalchemy.engine\").addHandler(self.buf)\n \n@@ -1085,7 +1085,7 @@ def test_levels(self):\n         eq_(e1._should_log_info(), False)\n         eq_(e1._should_log_debug(), False)\n         eq_(e1.logger.isEnabledFor(logging.INFO), False)\n-        eq_(e1.logger.getEffectiveLevel(), logging.WARN)\n+        eq_(e1.logger.getEffectiveLevel(), logging.WARNING)\n \n         e1.echo = True\n         eq_(e1._should_log_info(), True)\n@@ -1103,7 +1103,7 @@ def test_levels(self):\n         eq_(e1._should_log_info(), False)\n         eq_(e1._should_log_debug(), False)\n         eq_(e1.logger.isEnabledFor(logging.INFO), False)\n-        eq_(e1.logger.getEffectiveLevel(), logging.WARN)\n+        eq_(e1.logger.getEffectiveLevel(), logging.WARNING)\n \n     def test_echo_flag_independence(self):\n         \"\"\"test the echo flag's independence to a specific engine.\"\"\"\n",
+      "changedFiles": 3,
+      "addedLines": 5,
+      "deletedLines": 5,
+      "commits": 1,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "py_tc_0012",
+      "title": "Default engine logging suppresses routine SQL echo output",
+      "preconditions": "A database engine is created with default logging configuration and its 'echo' flag left off, and the root logger for the engine has not been given an explicit level.",
+      "steps": [
+        "Attach a log-capturing handler to the engine's logger.",
+        "Execute a statement through the engine.",
+        "Turn the echo flag on and execute another statement.",
+        "Inspect what was captured at each step."
+      ],
+      "expectedResult": "With echo off, no informational SQL-statement log records are captured because the effective log level only lets warnings and above through. With echo on, the SQL statement is logged."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-05T19:01:21.000Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "logging",
+        "refactor"
+      ],
+      "durationMs": null,
+      "feature": "engine logging defaults",
+      "platform": "cpython",
+      "specificity": "MEDIUM",
+      "ambiguity": "MEDIUM",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/sqlalchemy/sqlalchemy/pull/13277",
+        "issueUrl": null,
+        "evidenceTestFile": "test/engine/test_logging.py",
+        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after."
+      }
+    }
+  }
+]

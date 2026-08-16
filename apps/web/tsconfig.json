@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "allowJs": true,
+    "incremental": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@tob/core": ["../../packages/core/src/index.ts"],
+      "@tob/core/*": ["../../packages/core/src/*"],
+      "@tob/db": ["../../packages/db/src/index.ts"],
+      "@tob/db/*": ["../../packages/db/src/*"],
+      "@tob/providers": ["../../packages/providers/src/index.ts"],
+      "@tob/providers/*": ["../../packages/providers/src/*"],
+      "@tob/runner": ["../../packages/runner/src/index.ts"],
+      "@tob/runner/*": ["../../packages/runner/src/*"]
+    },
+    "plugins": [{ "name": "next" }]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
