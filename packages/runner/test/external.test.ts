@@ -199,6 +199,46 @@ describe('importing a run', () => {
     expect(stored?.confidence).toBeNull();
   });
 
+  /**
+   * A harness that could browse the source repo is not the same experiment
+   * as one that could not, even if both answer the same exported cases —
+   * this is part of the condition, not incidental metadata.
+   */
+  it('records the harness conditions in the run snapshot when given', () => {
+    const { db, version, prompt, model } = setup();
+
+    const result = importRun(db, {
+      datasetVersionId: version.id,
+      modelConfigId: model.id,
+      promptId: prompt.id,
+      predictions: [{ caseId: 'c1', verdict: 'PASS' }],
+      harnessConditions: {
+        tool: 'OpenCode CLI via CAO',
+        toolPolicy: 'No gh, no web search, no repository browsing.',
+        instructions: 'Answer from the exported prompt only.',
+      },
+    });
+
+    expect(result.run.snapshot.harnessConditions).toEqual({
+      tool: 'OpenCode CLI via CAO',
+      toolPolicy: 'No gh, no web search, no repository browsing.',
+      instructions: 'Answer from the exported prompt only.',
+    });
+  });
+
+  it('leaves harness conditions null when none are given', () => {
+    const { db, version, prompt, model } = setup();
+
+    const result = importRun(db, {
+      datasetVersionId: version.id,
+      modelConfigId: model.id,
+      promptId: prompt.id,
+      predictions: [{ caseId: 'c1', verdict: 'PASS' }],
+    });
+
+    expect(result.run.snapshot.harnessConditions).toBeNull();
+  });
+
   it('infers the repetition count from the answers', () => {
     const { db, version, prompt, model } = setup();
 

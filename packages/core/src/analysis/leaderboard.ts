@@ -35,6 +35,7 @@ export const formalBenchmarkRuns = (summaries: readonly RunSummary[]): RunSummar
   summaries.filter((summary) => summary.provider !== 'mock');
 
 export const LEADERBOARD_METRICS = [
+  'headAccuracy',
   'accuracy',
   'strictAccuracy',
   'macroF1',
@@ -59,8 +60,21 @@ interface MetricDescriptor {
 }
 
 export const METRIC_DESCRIPTORS: Readonly<Record<LeaderboardMetric, MetricDescriptor>> = {
+  /**
+   * The primary track: given this test and this PR, does it pass or fail
+   * right now. Restricted to head-revision cases, so a run cannot climb this
+   * ranking on the strength of the (different, counterfactual) base-revision
+   * cases — see `accuracy` for that combined, secondary figure.
+   */
+  headAccuracy: {
+    label: 'Accuracy (head)',
+    direction: 'higher',
+    select: (metrics) => metrics.headAccuracy,
+    format: 'ratio',
+  },
+  /** Base+head combined — a secondary, counterfactual-reasoning track. */
   accuracy: {
-    label: 'Accuracy',
+    label: 'Accuracy (base+head)',
     direction: 'higher',
     select: (metrics) => metrics.accuracy,
     format: 'ratio',
@@ -312,7 +326,8 @@ const bestBy = (
 
 /** The dashboard cards from spec §15. */
 export const dashboardHighlights = (summaries: readonly RunSummary[]): Highlight[] => [
-  bestBy(summaries, 'accuracy', 'best-accuracy', 'Best accuracy'),
+  bestBy(summaries, 'headAccuracy', 'best-accuracy', 'Best accuracy (head)'),
+  bestBy(summaries, 'accuracy', 'best-combined-accuracy', 'Best accuracy (base+head)'),
   bestBy(summaries, 'latencyP95', 'fastest', 'Fastest configuration'),
   bestBy(summaries, 'costPerTest', 'cheapest', 'Cheapest configuration'),
   bestBy(summaries, 'failRecall', 'best-fail-recall', 'Best FAIL recall'),

@@ -51,7 +51,8 @@
         "prUrl": "https://github.com/elixir-lang/elixir/pull/15740",
         "issueUrl": null,
         "evidenceTestFile": "lib/elixir/test/elixir/calendar/date_test.exs",
-        "note": "The PR adds a test asserting Date.to_iso8601/2 preserves the requested :basic/:extended format for a date built with a non-ISO calendar; at the base commit the basic-format call incorrectly returns the extended-format string, so the assertion (and this equivalent behavior check) fails."
+        "note": "The PR adds a test asserting Date.to_iso8601/2 preserves the requested :basic/:extended format for a date built with a non-ISO calendar; at the base commit the basic-format call incorrectly returns the extended-format string, so the assertion (and this equivalent behavior check) fails.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -107,7 +108,8 @@
         "prUrl": "https://github.com/elixir-lang/elixir/pull/15740",
         "issueUrl": null,
         "evidenceTestFile": "lib/elixir/test/elixir/calendar/date_test.exs",
-        "note": "At the head commit the one-line fix threads the requested format through the ISO conversion, so the basic-format call returns the compact form and the check passes."
+        "note": "At the head commit the one-line fix threads the requested format through the ISO conversion, so the basic-format call returns the compact form and the check passes.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -161,7 +163,8 @@
         "prUrl": "https://github.com/briannesbitt/Carbon/pull/3333",
         "issueUrl": null,
         "evidenceTestFile": "tests/CarbonPeriod/GettersTest.php",
-        "note": "The PR adds testEndPropertySyncsAfterSetEndDate, asserting `->end` reflects the date passed to the end-date setter. At the base commit, on PHP 8.2+, the `end` property still reports the original construction-time value while `getEndDate()` reports the update, so the two disagree and the check fails."
+        "note": "The PR adds testEndPropertySyncsAfterSetEndDate, asserting `->end` reflects the date passed to the end-date setter. At the base commit, on PHP 8.2+, the `end` property still reports the original construction-time value while `getEndDate()` reports the update, so the two disagree and the check fails.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -215,7 +218,8 @@
         "prUrl": "https://github.com/briannesbitt/Carbon/pull/3333",
         "issueUrl": null,
         "evidenceTestFile": "tests/CarbonPeriod/GettersTest.php",
-        "note": "At the head commit the native property is re-synchronized whenever the end date changes, so both the `end` property and `getEndDate()` report the newly set date and the check passes."
+        "note": "At the head commit the native property is re-synchronized whenever the end date changes, so both the `end` property and `getEndDate()` report the newly set date and the check passes.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -269,7 +273,8 @@
         "prUrl": "https://github.com/httprb/http/pull/765",
         "issueUrl": null,
         "evidenceTestFile": "spec/lib/http_spec.rb",
-        "note": "The PR adds specs asserting an error is raised when a custom URI normalizer returns a path or host containing whitespace/newlines. At the base commit no such check exists, so the request proceeds and the malformed request line would be sent instead of raising."
+        "note": "The PR adds specs asserting an error is raised when a custom URI normalizer returns a path or host containing whitespace/newlines. At the base commit no such check exists, so the request proceeds and the malformed request line would be sent instead of raising.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -323,7 +328,8 @@
         "prUrl": "https://github.com/httprb/http/pull/765",
         "issueUrl": null,
         "evidenceTestFile": "spec/lib/http_spec.rb",
-        "note": "At the head commit the request-line and host-header builders raise before sending whenever whitespace is present, so the specs pass and the observed behavior matches the expected result."
+        "note": "At the head commit the request-line and host-header builders raise before sending whenever whitespace is present, so the specs pass and the observed behavior matches the expected result.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -380,7 +386,8 @@
         "prUrl": "https://github.com/Humanizr/Humanizer/pull/1870",
         "issueUrl": null,
         "evidenceTestFile": "tests/Humanizer.Tests/NumberToWordsTests.cs",
-        "note": "The PR only edits Albanian locale data (src/Humanizer/Locales/sq.yml) and Albanian-specific test fixtures; the default English number-to-words path exercised here, covered by NumberToWordsTests.cs, is untouched by the diff and behaves identically at base and head."
+        "note": "The PR only edits Albanian locale data (src/Humanizer/Locales/sq.yml) and Albanian-specific test fixtures; the default English number-to-words path exercised here, covered by NumberToWordsTests.cs, is untouched by the diff and behaves identically at base and head.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -437,7 +444,8 @@
         "prUrl": "https://github.com/Humanizr/Humanizer/pull/1870",
         "issueUrl": null,
         "evidenceTestFile": "tests/Humanizer.Tests/NumberToWordsTests.cs",
-        "note": "Same reasoning as the base revision: the change is scoped to Albanian locale data only, so English number-to-words output is unaffected at head as well."
+        "note": "Same reasoning as the base revision: the change is scoped to Albanian locale data only, so English number-to-words output is unaffected at head as well.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -492,7 +500,8 @@
         "prUrl": "https://github.com/InsertKoinIO/koin/pull/2446",
         "issueUrl": null,
         "evidenceTestFile": "projects/core/koin-core/src/commonTest/kotlin/org/koin/core/InstanceResolutionTest.kt",
-        "note": "The PR only touches the environment-properties loading path (PropertyRegistryExt.kt) used when importing a java.util.Properties object; core singleton resolution, covered separately by InstanceResolutionTest.kt, does not go through that code path and is unaffected at base or head."
+        "note": "The PR only touches the environment-properties loading path (PropertyRegistryExt.kt) used when importing a java.util.Properties object; core singleton resolution, covered separately by InstanceResolutionTest.kt, does not go through that code path and is unaffected at base or head.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -547,7 +556,8 @@
         "prUrl": "https://github.com/InsertKoinIO/koin/pull/2446",
         "issueUrl": null,
         "evidenceTestFile": "projects/core/koin-core/src/commonTest/kotlin/org/koin/core/InstanceResolutionTest.kt",
-        "note": "Same reasoning as the base revision: the change is scoped to non-String Properties handling, so ordinary singleton resolution is unaffected at head as well."
+        "note": "Same reasoning as the base revision: the change is scoped to non-String Properties handling, so ordinary singleton resolution is unaffected at head as well.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -602,7 +612,8 @@
         "prUrl": "https://github.com/apple/swift-collections/pull/688",
         "issueUrl": null,
         "evidenceTestFile": "Tests/OrderedCollectionsTests/OrderedDictionary/OrderedDictionary+Elements Tests.swift",
-        "note": "The change only consolidates the internal append/swap/remove mechanics that both OrderedSet and OrderedDictionary already used inline into one shared primitive; the PR states no public API or behavior changes, so the described replace-at-index and duplicate-key-trap behavior holds identically before the refactor."
+        "note": "The change only consolidates the internal append/swap/remove mechanics that both OrderedSet and OrderedDictionary already used inline into one shared primitive; the PR states no public API or behavior changes, so the described replace-at-index and duplicate-key-trap behavior holds identically before the refactor.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -657,7 +668,8 @@
         "prUrl": "https://github.com/apple/swift-collections/pull/688",
         "issueUrl": null,
         "evidenceTestFile": "Tests/OrderedCollectionsTests/OrderedDictionary/OrderedDictionary+Elements Tests.swift",
-        "note": "After the refactor the same behavior is preserved by construction: the shared primitive performs the identical append/swap/remove steps and the calling code keeps its own duplicate-key and bounds preconditions, so the described behavior still holds."
+        "note": "After the refactor the same behavior is preserved by construction: the shared primitive performs the identical append/swap/remove steps and the calling code keeps its own duplicate-key and bounds preconditions, so the described behavior still holds.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -711,7 +723,8 @@
         "prUrl": "https://github.com/spf13/viper/pull/2029",
         "issueUrl": null,
         "evidenceTestFile": "viper_test.go",
-        "note": "The change replaces a manual 'if size < 0 { size = 0 }' check with an equivalent call to Go's built-in max(size, 0); both forms clamp a negative parsed size to zero, so the size-in-bytes accessor returns 0 for an invalid negative size string both before and after the refactor."
+        "note": "The change replaces a manual 'if size < 0 { size = 0 }' check with an equivalent call to Go's built-in max(size, 0); both forms clamp a negative parsed size to zero, so the size-in-bytes accessor returns 0 for an invalid negative size string both before and after the refactor.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -765,7 +778,8 @@
         "prUrl": "https://github.com/spf13/viper/pull/2029",
         "issueUrl": null,
         "evidenceTestFile": "viper_test.go",
-        "note": "Same reasoning as the base revision: the refactor is mathematically equivalent (max(size, 0) versus the prior if-check), so the clamped-to-zero result is unchanged at head."
+        "note": "Same reasoning as the base revision: the refactor is mathematically equivalent (max(size, 0) versus the prior if-check), so the clamped-to-zero result is unchanged at head.",
+        "source": "REPRODUCED"
       }
     }
   }

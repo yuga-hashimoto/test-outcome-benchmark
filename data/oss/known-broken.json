@@ -50,7 +50,8 @@
         "prUrl": "https://github.com/Automattic/node-canvas/pull/2546",
         "issueUrl": "https://github.com/Automattic/node-canvas/issues/2126",
         "evidenceTestFile": null,
-        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions."
+        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -105,7 +106,8 @@
         "prUrl": "https://github.com/Automattic/node-canvas/pull/2546",
         "issueUrl": "https://github.com/Automattic/node-canvas/issues/2126",
         "evidenceTestFile": null,
-        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions."
+        "note": "Issue #2126 has been open since 2022-09-28, labelled Bug, and maintainer LinusU confirmed on 2022-10-12 that node-canvas should be decoding percent-escaped data URIs to match browser behaviour but currently does not; the thread remained open with further maintainer discussion into 2023 and is still open today. PR #2546 merged 2025-12-16 only adds a missing <cstdint> include to src/CharData.h (a font/text-metrics header) to fix a GCC 15 compilation error; it does not touch data URI parsing or image loading at all, so the described behaviour is broken at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -162,7 +164,8 @@
         "prUrl": "https://github.com/vapor/vapor/pull/3436",
         "issueUrl": "https://github.com/vapor/vapor/issues/3288",
         "evidenceTestFile": null,
-        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions."
+        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -219,7 +222,8 @@
         "prUrl": "https://github.com/vapor/vapor/pull/3436",
         "issueUrl": "https://github.com/vapor/vapor/issues/3288",
         "evidenceTestFile": null,
-        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions."
+        "note": "Issue #3288, open since 2025-01-23 and labelled bug, gives a precise reproduction (POST with an empty x-www-form-urlencoded body to a route decoding a type whose only property is optional) and points to the exact lines in Request.swift responsible, showing decode currently raises Unprocessable Entity instead of succeeding. PR #3436 merged 2026-02-24 only changes Sources/Vapor/HTTP/Headers/HTTPCookies.swift to parse directives from every Cookie header instead of just the first; it does not touch Request content decoding or bodyStorage handling, so the behaviour remains broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -274,7 +278,8 @@
         "prUrl": "https://github.com/spf13/afero/pull/523",
         "issueUrl": "https://github.com/spf13/afero/issues/232",
         "evidenceTestFile": null,
-        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions."
+        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -329,7 +334,8 @@
         "prUrl": "https://github.com/spf13/afero/pull/523",
         "issueUrl": "https://github.com/spf13/afero/issues/232",
         "evidenceTestFile": null,
-        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions."
+        "note": "Issue #232, open since 2020-02-05 and labelled bug and breaking-change, states plainly: given /dirname/file, Remove(\"/dirname\") is expected to error because the directory is non-empty, but it actually removes the directory and all contents without error. The repository is actively maintained (dependency bumps and small fixes merged through 2026) yet no PR since has addressed this. PR #523 merged 2025-09-08 only fixes two spelling typos in a test file (basepath_test.go) and a doc comment in lstater.go; it never touches the MemMapFs Remove implementation, so the behaviour is broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -386,7 +392,8 @@
         "prUrl": "https://github.com/doctrine/dbal/pull/7498",
         "issueUrl": "https://github.com/doctrine/dbal/issues/7323",
         "evidenceTestFile": null,
-        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions."
+        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -443,7 +450,8 @@
         "prUrl": "https://github.com/doctrine/dbal/pull/7498",
         "issueUrl": "https://github.com/doctrine/dbal/issues/7323",
         "evidenceTestFile": null,
-        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions."
+        "note": "Issue #7323, open since 2026-02-28 and labelled Bug, reports that Comparator::detectRenamedIndexes() throws 'Warning: Undefined array key 0' at Comparator.php line 399 when one removed index is a semantically equal match for multiple added indexes (e.g. an auto FK index plus an explicit duplicate index on the same column); a maintainer (greg0ire) engaged with the report and a reporter explained the exact real-world trigger, and the issue remains open. PR #7498 merged 2026-08-11 only fixes a one-line test in tests/Types/JsonTest.php (passing JSON flags where a depth argument was expected); it does not touch src/Schema/Comparator.php, so the crash still occurs at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -498,7 +506,8 @@
         "prUrl": "https://github.com/arrow-py/arrow/pull/1234",
         "issueUrl": "https://github.com/arrow-py/arrow/issues/1209",
         "evidenceTestFile": null,
-        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions."
+        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -553,7 +562,8 @@
         "prUrl": "https://github.com/arrow-py/arrow/pull/1234",
         "issueUrl": "https://github.com/arrow-py/arrow/issues/1209",
         "evidenceTestFile": null,
-        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions."
+        "note": "Issue #1209, open since 2025-03-11 and labelled bug, gives an exact reproduction: shifting 2025-03-08T18:30:00 US/Central by 10 hours should land at 2025-03-09T05:30:00-05:00 after the spring-forward transition but instead lands at 04:30:00-05:00 (an hour short); a second user reproduced the same class of failure around the same 4am DST boundary with several other shift amounts. PR #1234 merged 2025-12-16 only adds Afrikaans-locale week/weeks translation strings to arrow/locales.py and their tests; it never touches the shift()/DST-handling logic, so the behaviour is broken at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -612,7 +622,8 @@
         "prUrl": "https://github.com/resilience4j/resilience4j/pull/2488",
         "issueUrl": "https://github.com/resilience4j/resilience4j/issues/2489",
         "evidenceTestFile": null,
-        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions."
+        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -671,7 +682,8 @@
         "prUrl": "https://github.com/resilience4j/resilience4j/pull/2488",
         "issueUrl": "https://github.com/resilience4j/resilience4j/issues/2489",
         "evidenceTestFile": null,
-        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions."
+        "note": "Issue #2489, open since 2026-06-30 and labelled bug, shows that SemaphoreBasedRateLimiter.refreshLimit() computes permissionsToRelease = limitForPeriod - availablePermits() and calls semaphore.release() with it; after changeLimitForPeriod lowers the limit below the available permits this goes negative, semaphore.release() throws IllegalArgumentException, and because refreshLimit runs via scheduleAtFixedRate the JDK permanently suppresses all further executions of that scheduled task. The repo's own bot confirmed it as a valid bug and two independent community members reproduced and root-caused the same mechanism. PR #2488 merged 2026-07-08 only touches CircuitBreakerStateMachine.java (a different module, fixing a permit leak when a user predicate throws during onError/onResult handling); it never touches SemaphoreBasedRateLimiter or refreshLimit, so the rate limiter's refresh task remains permanently stoppable at both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   }

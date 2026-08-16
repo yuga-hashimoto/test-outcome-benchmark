@@ -54,7 +54,8 @@
         "prUrl": "https://github.com/encode/httpx/pull/2659",
         "issueUrl": "https://github.com/encode/httpx/issues/2660",
         "evidenceTestFile": "tests/test_utils.py",
-        "note": "Before the fix, every NO_PROXY entry (including IPv6 addresses) was prefixed with a domain wildcard when building the client's proxy-bypass rules, which are constructed eagerly at client-creation time; an IPv6 entry like '::1' produced a malformed rule that later URL parsing could not handle, so client creation raised an error at the base revision."
+        "note": "Before the fix, every NO_PROXY entry (including IPv6 addresses) was prefixed with a domain wildcard when building the client's proxy-bypass rules, which are constructed eagerly at client-creation time; an IPv6 entry like '::1' produced a malformed rule that later URL parsing could not handle, so client creation raised an error at the base revision.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -113,7 +114,8 @@
         "prUrl": "https://github.com/encode/httpx/pull/2659",
         "issueUrl": "https://github.com/encode/httpx/issues/2660",
         "evidenceTestFile": "tests/test_utils.py",
-        "note": "The PR adds explicit IPv4/IPv6/localhost handling so an IPv6 NO_PROXY entry produces a well-formed bypass rule (bracketed host), verified by new cases in test_get_environment_proxies; client creation no longer errors."
+        "note": "The PR adds explicit IPv4/IPv6/localhost handling so an IPv6 NO_PROXY entry produces a well-formed bypass rule (bracketed host), verified by new cases in test_get_environment_proxies; client creation no longer errors.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -174,7 +176,8 @@
         "prUrl": "https://github.com/pandas-dev/pandas/pull/66716",
         "issueUrl": "https://github.com/pandas-dev/pandas/issues/63108",
         "evidenceTestFile": "pandas/tests/strings/test_find_replace.py",
-        "note": "At the base revision, passing any regex flag other than the case-insensitive one (including the 'dot matches newline' flag, via flags= or a precompiled pattern) raised a ValueError instead of matching, per the added test_match_non_ignorecase_flags_applied case."
+        "note": "At the base revision, passing any regex flag other than the case-insensitive one (including the 'dot matches newline' flag, via flags= or a precompiled pattern) raised a ValueError instead of matching, per the added test_match_non_ignorecase_flags_applied case.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -235,7 +238,8 @@
         "prUrl": "https://github.com/pandas-dev/pandas/pull/66716",
         "issueUrl": "https://github.com/pandas-dev/pandas/issues/63108",
         "evidenceTestFile": "pandas/tests/strings/test_find_replace.py",
-        "note": "The PR resolves case-sensitivity before compiling the pattern and only compares the case-insensitive bit downstream, so other flags such as the newline-matching one are honoured; verified by test_match_non_ignorecase_flags_applied."
+        "note": "The PR resolves case-sensitivity before compiling the pattern and only compares the case-insensitive bit downstream, so other flags such as the newline-matching one are honoured; verified by test_match_non_ignorecase_flags_applied.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -292,7 +296,8 @@
         "prUrl": "https://github.com/pallets/click/pull/3434",
         "issueUrl": "https://github.com/pallets/click/issues/3360",
         "evidenceTestFile": "tests/test_formatting.py",
-        "note": "At the base revision, when the usage line has no trailing arguments text, the text-wrapping step used to render it collapses an empty string to nothing, discarding the 'Usage: cli' prefix along with it, so the first line printed is blank instead of showing the program name."
+        "note": "At the base revision, when the usage line has no trailing arguments text, the text-wrapping step used to render it collapses an empty string to nothing, discarding the 'Usage: cli' prefix along with it, so the first line printed is blank instead of showing the program name.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -349,7 +354,8 @@
         "prUrl": "https://github.com/pallets/click/pull/3434",
         "issueUrl": "https://github.com/pallets/click/issues/3360",
         "evidenceTestFile": "tests/test_formatting.py",
-        "note": "The PR special-cases the no-args branch to always emit the usage prefix, verified end-to-end by test_command_write_usage_no_args, so the program name now appears on the first help line."
+        "note": "The PR special-cases the no-args branch to always emit the usage prefix, verified end-to-end by test_command_write_usage_no_args, so the program name now appears on the first help line.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -404,7 +410,8 @@
         "prUrl": "https://github.com/pallets/flask/pull/6096",
         "issueUrl": null,
         "evidenceTestFile": "tests/test_basic.py",
-        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after."
+        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -459,7 +466,8 @@
         "prUrl": "https://github.com/pallets/flask/pull/6096",
         "issueUrl": null,
         "evidenceTestFile": "tests/test_basic.py",
-        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after."
+        "note": "This PR only touches development-server host/port parsing and a test-client session cookie helper for IPv6 addresses; automatic JSON response encoding for dict return values, covered by test_make_response_with_response_instance, is untouched by the diff and behaves identically before and after.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -515,7 +523,8 @@
         "prUrl": "https://github.com/pydantic/pydantic/pull/13648",
         "issueUrl": null,
         "evidenceTestFile": "tests/test_main.py",
-        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after."
+        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -571,7 +580,8 @@
         "prUrl": "https://github.com/pydantic/pydantic/pull/13648",
         "issueUrl": null,
         "evidenceTestFile": "tests/test_main.py",
-        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after."
+        "note": "This PR changes an internal lookup used when generating schemas for a narrow class of unhashable generic type aliases; core required-field validation, covered by the long-standing test_required test, is unaffected by the diff and behaves the same before and after.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -627,7 +637,8 @@
         "prUrl": "https://github.com/sqlalchemy/sqlalchemy/pull/13277",
         "issueUrl": null,
         "evidenceTestFile": "test/engine/test_logging.py",
-        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after."
+        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -683,7 +694,8 @@
         "prUrl": "https://github.com/sqlalchemy/sqlalchemy/pull/13277",
         "issueUrl": null,
         "evidenceTestFile": "test/engine/test_logging.py",
-        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after."
+        "note": "logging.WARN and logging.WARNING are the same integer constant in the Python standard library, so replacing one spelling with the other is a pure rename with no behavioural effect; the effective default logging threshold, exercised by test_levels, is identical before and after.",
+        "source": "REPRODUCED"
       }
     }
   }

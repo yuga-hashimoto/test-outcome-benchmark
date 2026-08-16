@@ -50,7 +50,8 @@
         "prUrl": "https://github.com/psf/requests/pull/3865",
         "issueUrl": "https://github.com/psf/requests/pull/4052",
         "evidenceTestFile": "tests/test_utils.py",
-        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature."
+        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -105,7 +106,8 @@
         "prUrl": "https://github.com/psf/requests/pull/3865",
         "issueUrl": "https://github.com/psf/requests/pull/4052",
         "evidenceTestFile": "tests/test_utils.py",
-        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature."
+        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -163,7 +165,8 @@
         "prUrl": "https://github.com/nushell/nushell/pull/17923",
         "issueUrl": "https://github.com/nushell/nushell/pull/18363",
         "evidenceTestFile": "tests/repl/test_parser.rs",
-        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'."
+        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -221,7 +224,8 @@
         "prUrl": "https://github.com/nushell/nushell/pull/17923",
         "issueUrl": "https://github.com/nushell/nushell/pull/18363",
         "evidenceTestFile": "tests/repl/test_parser.rs",
-        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'."
+        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -276,7 +280,8 @@
         "prUrl": "https://github.com/guzzle/guzzle/pull/2778",
         "issueUrl": "https://github.com/guzzle/guzzle/issues/2799",
         "evidenceTestFile": "tests/Handler/CurlFactoryTest.php",
-        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests."
+        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -331,7 +336,8 @@
         "prUrl": "https://github.com/guzzle/guzzle/pull/2778",
         "issueUrl": "https://github.com/guzzle/guzzle/issues/2799",
         "evidenceTestFile": "tests/Handler/CurlFactoryTest.php",
-        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests."
+        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -386,7 +392,8 @@
         "prUrl": "https://github.com/elixir-lang/elixir/pull/13954",
         "issueUrl": "https://github.com/elixir-lang/elixir/issues/14291",
         "evidenceTestFile": "lib/ex_unit/test/ex_unit/diff_test.exs",
-        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing."
+        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -441,7 +448,8 @@
         "prUrl": "https://github.com/elixir-lang/elixir/pull/13954",
         "issueUrl": "https://github.com/elixir-lang/elixir/issues/14291",
         "evidenceTestFile": "lib/ex_unit/test/ex_unit/diff_test.exs",
-        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing."
+        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing.",
+        "source": "REPRODUCED"
       }
     }
   }

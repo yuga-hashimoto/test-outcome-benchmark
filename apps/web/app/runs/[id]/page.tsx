@@ -58,9 +58,29 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         {run.config.predictionMode} · {run.config.repetitions}× · seed {run.config.seed}
       </p>
 
+      {run.snapshot.harnessConditions != null && (
+        <Note>
+          Answered by an external harness — {run.snapshot.harnessConditions.tool}
+          {run.snapshot.harnessConditions.toolPolicy.length > 0
+            ? `. Tool policy: ${run.snapshot.harnessConditions.toolPolicy}`
+            : ''}
+          {run.snapshot.harnessConditions.instructions.length > 0
+            ? `. Instructions: ${run.snapshot.harnessConditions.instructions}`
+            : ''}
+        </Note>
+      )}
+
       <div className="grid" style={{ marginTop: 18 }}>
         <Stat
-          label="Accuracy"
+          label="Accuracy (head)"
+          value={percent(metrics.headAccuracy)}
+          note={
+            intervalText(metrics.headAccuracyInterval.lower, metrics.headAccuracyInterval.upper) ??
+            `primary track, ${count(metrics.headCount)} head cases`
+          }
+        />
+        <Stat
+          label="Accuracy (base+head)"
           value={percent(metrics.accuracy)}
           note={
             intervalText(metrics.accuracyInterval.lower, metrics.accuracyInterval.upper) ??

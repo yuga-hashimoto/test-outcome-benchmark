@@ -52,7 +52,8 @@
         "prUrl": "https://github.com/google/gson/pull/3063",
         "issueUrl": "https://github.com/google/gson/issues/2994",
         "evidenceTestFile": "gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java",
-        "note": "Added test testNextIntRejectsNonAsciiDigits shows JsonTreeReader.nextInt() silently accepted full-width Unicode digits (returning 123) before the fix; at baseSha no MalformedJsonException is thrown so the test case FAILs."
+        "note": "Added test testNextIntRejectsNonAsciiDigits shows JsonTreeReader.nextInt() silently accepted full-width Unicode digits (returning 123) before the fix; at baseSha no MalformedJsonException is thrown so the test case FAILs.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -109,7 +110,8 @@
         "prUrl": "https://github.com/google/gson/pull/3063",
         "issueUrl": "https://github.com/google/gson/issues/2994",
         "evidenceTestFile": "gson/src/test/java/com/google/gson/internal/bind/JsonTreeReaderTest.java",
-        "note": "After the fix, JsonTreeReader.nextInt()/nextLong() call validateAscii() on the string token path and throw MalformedJsonException for non-ASCII digits, matching the streaming reader's behavior, so the test case PASSes at headSha."
+        "note": "After the fix, JsonTreeReader.nextInt()/nextLong() call validateAscii() on the string token path and throw MalformedJsonException for non-ASCII digits, matching the streaming reader's behavior, so the test case PASSes at headSha.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -165,7 +167,8 @@
         "prUrl": "https://github.com/sidekiq/sidekiq/pull/7017",
         "issueUrl": null,
         "evidenceTestFile": "test/api_test.rb",
-        "note": "Added test 'keeps the in-memory entry consistent with Redis after reschedule' fails at baseSha because reschedule() updated Redis but never updated the in-memory @score, so entry.score/entry.at kept returning the stale pre-reschedule value."
+        "note": "Added test 'keeps the in-memory entry consistent with Redis after reschedule' fails at baseSha because reschedule() updated Redis but never updated the in-memory @score, so entry.score/entry.at kept returning the stale pre-reschedule value.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -221,7 +224,8 @@
         "prUrl": "https://github.com/sidekiq/sidekiq/pull/7017",
         "issueUrl": null,
         "evidenceTestFile": "test/api_test.rb",
-        "note": "At headSha, reschedule() also assigns @score = at.to_f after writing to Redis, so the in-memory entry immediately reflects the new time and the added test passes."
+        "note": "At headSha, reschedule() also assigns @score = at.to_f after writing to Redis, so the in-memory entry immediately reflects the new time and the added test passes.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -276,7 +280,8 @@
         "prUrl": "https://github.com/laravel/framework/pull/41088",
         "issueUrl": "https://github.com/laravel/framework/issues/41062",
         "evidenceTestFile": "tests/Database/DatabaseConnectorTest.php",
-        "note": "Expanded testPostgresSearchPathIsSet data provider includes a 'special characters' case for a schema name with a hyphen/accents; at baseSha the alphanumeric-only regex used to split the search path string breaks such names into multiple schema segments, so the produced SQL does not match, and the case FAILs."
+        "note": "Expanded testPostgresSearchPathIsSet data provider includes a 'special characters' case for a schema name with a hyphen/accents; at baseSha the alphanumeric-only regex used to split the search path string breaks such names into multiple schema segments, so the produced SQL does not match, and the case FAILs.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -331,7 +336,8 @@
         "prUrl": "https://github.com/laravel/framework/pull/41088",
         "issueUrl": "https://github.com/laravel/framework/issues/41062",
         "evidenceTestFile": "tests/Database/DatabaseConnectorTest.php",
-        "note": "At headSha the search path string is split using a delimiter-based pattern (splitting only on whitespace/comma/quote characters) instead of an alphanumeric allowlist, so a schema name containing a hyphen or accented characters is kept intact and the test passes."
+        "note": "At headSha the search path string is split using a delimiter-based pattern (splitting only on whitespace/comma/quote characters) instead of an alphanumeric allowlist, so a schema name containing a hyphen or accented characters is kept intact and the test passes.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -386,7 +392,8 @@
         "prUrl": "https://github.com/ktorio/ktor/pull/5814",
         "issueUrl": null,
         "evidenceTestFile": "ktor-http/common/test/io/ktor/tests/http/ContentTypeTest.kt",
-        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions."
+        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -441,7 +448,8 @@
         "prUrl": "https://github.com/ktorio/ktor/pull/5814",
         "issueUrl": null,
         "evidenceTestFile": "ktor-http/common/test/io/ktor/tests/http/ContentTypeTest.kt",
-        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions."
+        "note": "The PR only touches Range header parsing in Ranges.kt/RangesTest.kt; Content-Type parsing in ContentTypeTest.kt is untouched by the diff and has been stable long before and after this PR, so it PASSes on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -496,7 +504,8 @@
         "prUrl": "https://github.com/bumptech/glide/pull/5708",
         "issueUrl": null,
         "evidenceTestFile": "library/test/src/test/java/com/bumptech/glide/request/RequestOptionsTest.java",
-        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions."
+        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -551,7 +560,8 @@
         "prUrl": "https://github.com/bumptech/glide/pull/5708",
         "issueUrl": null,
         "evidenceTestFile": "library/test/src/test/java/com/bumptech/glide/request/RequestOptionsTest.java",
-        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions."
+        "note": "This PR only touches ByteBufferUtil's stream-reading buffer cleanup on exception; the long-standing default-transformation-allowed behavior verified by testIsTransformationAllowed_byDefault_isTrue is in an untouched file and holds on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -606,7 +616,8 @@
         "prUrl": "https://github.com/realm/SwiftLint/pull/6850",
         "issueUrl": null,
         "evidenceTestFile": "Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift",
-        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions."
+        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -661,7 +672,8 @@
         "prUrl": "https://github.com/realm/SwiftLint/pull/6850",
         "issueUrl": null,
         "evidenceTestFile": "Source/SwiftLintBuiltInRules/Rules/RuleConfigurations/NameConfiguration.swift",
-        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions."
+        "note": "The PR only changes allowedSymbolsAndAlphanumerics from a computed property to a cached stored property refreshed on configuration changes; the PR description reports identical lint violation counts (parity checks) before and after on two real corpora, confirming the allowed-symbols behavior is unchanged on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   }

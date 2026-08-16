@@ -53,46 +53,84 @@ gold ラベルはリポジトリ自身の証拠に基づきます。ケースは
 
 各ケースの `metadata.provenance` にPR URL・Issue URL・根拠テストファイルが入っているので、ラベルは手で検証できます。
 
+### gold ラベルの根拠の強さ（provenance.source）
+
+このデータセットはOSSの公開PRから構築されており、**このベンチマーク自身がテストを実行して確認したケースは1件もありません**。`provenance.source` はラベルの根拠がどれだけ直接的かを4段階で明示します:
+
+| source | 意味 | このデータセットでの件数 |
+|---|---|---|
+| `CI_EXECUTED` | このベンチマークのパイプライン自身がCIで実行し観測した | 0（未着手のトラック向け） |
+| `HUMAN_EXECUTED` | 人間が実際に実行して観測した | 0（未着手のトラック向け） |
+| `REPRODUCED` | PRが追加・変更した具体的なテストファイルを根拠として引用できる | 100 |
+| `HISTORICAL_EVIDENCE` | Issue・後続PRの記述など、具体的なテストファイルなしに推論した | 48 |
+
+`CI_EXECUTED`/`HUMAN_EXECUTED` は現状0件です。これは意図的な区分であり、将来的にこのベンチマーク自身が実行して確認した「Real Execution Track」を追加する余地として予約してあります。今公開しているのは、その全体が「OSS Public Track」（PRの記録から再構築したラベル）だという意味です。
+
+## Primary track: head-only accuracy
+
+このベンチマークが実際に問うているのは「このテストとこのPRが与えられたとき、**今この瞬間**（PR適用後 = head）にPASSするかFAILするか」です。base revisionのケース（「このPRが適用される前はどうだったか」）は別の問いで、反実仮想（counterfactual）の推論力を測るものです。
+
+そのため **`headAccuracy` を主指標**とし、baseとheadを合算した従来の `accuracy` は**副次指標（反実仮想トラック）**として区別しています。リーダーボード・ダッシュボードの既定ソートは `headAccuracy` です。`flipPairAccuracy`（変更の両側を正しく当てられるか）も同じ反実仮想トラックに属します。
+
+```bash
+pnpm benchmark leaderboard                        # 既定で headAccuracy 順
+pnpm benchmark leaderboard --metric accuracy       # base+head 合算（副次トラック）を見る
+```
+
+## Implementation-only diff track
+
+PRのdiffには、そのケースが説明している assertion そのもの（追加・変更されたテストファイル）が含まれていることが多く、「予測する」ではなく「assertionを読む」だけで正解できてしまう抜け道になります。これに対応するため、diffからテストファイルらしきhunkを機械的に除去する `IMPLEMENTATION_ONLY_DIFF` コンテキスト戦略を追加しました（`packages/core/src/context/diff-filter.ts`）。テストファイルの判定はディレクトリ名・ファイル名のヒューリスティックで、この148ケースの実際の証拠ファイルパスに対して検証済みです（`packages/core/test/diff-filter.test.ts`）。
+
+```bash
+pnpm benchmark run --model my-model --prompt reasoning-v1 --strategy IMPLEMENTATION_ONLY_DIFF
+```
+
+**現状の位置づけ**: 仕組みとテストは実装・検証済みですが、下記の結果表はまだ `TEST_PLUS_TITLE_DESCRIPTION_DIFF`（通常のdiff）で取得したものです。このトラックでの再ベンチマークは今後の作業です。
+
 ## Results so far
 
-dev split（**26ケース / 13 PRクラスタ、gold 13 PASS / 13 FAIL**）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。21構成を試し、うち18構成が完走しました。
+dev split（**26ケース / 13 PRクラスタ、gold 13 PASS / 13 FAIL**）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。21構成を試し、うち18構成が完走しました。生の回答は [`data/raw-answers/`](./data/raw-answers/) にモデルごとにJSONLで残っており、誰でも同じ結果を再現できます。
 
-| # | 構成 | Accuracy | 95%区間 | MCC | FAIL recall | False PASS |
-|---|---|---|---|---|---|---|
-| 1 | **GLM-5.3**（Z.AI） | **84.6%** | 61.5–100.0% | 0.692 | 84.6% | 2 |
-| 2 | Claude Opus 5 | 76.9% | 46.2–100.0% | 0.566 | 61.5% | 5 |
-| 3 | GLM-5.2（Z.AI） | 73.1% | 46.2–92.3% | 0.500 | 53.8% | 6 |
-| 4 | Hy3 Free（OpenCode Zen） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | Hy3（OpenCode/go） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | MiniMax M3（OpenCode/go） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | DeepSeek V4 Pro（OpenCode/go） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | DeepSeek V4 Flash（OpenCode/go） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | GPT-5.6 Luna（OpenCode/go） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | Grok 4.6（xAI） | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 4 | Claude Sonnet 5 | 65.4% | 38.5–88.5% | 0.365 | 38.5% | 8 |
-| 12 | MiMo V2.5 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
-| 12 | Kimi K3（OpenCode/go） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
-| 12 | Big Pickle（OpenCode Zen, free） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
-| 12 | DeepSeek V4 Flash Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
-| 16 | Nemotron 3 Ultra Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 0.087 | 30.8% | 9 |
-| 17 | Nemotron 3.5 Lightning Free（OpenCode Zen） | 50.0% | 23.1–76.9% | 0.000 | 30.8% | 9 |
-| 17 | Claude Haiku 4.5 | 50.0% | 23.1–76.9% | 0.000 | 30.8% | 9 |
+主指標である **Accuracy (head)** で並べています。MCC・FAIL recall・False PASSは副次トラック（base+head合算）の値です。
+
+| # | 構成 | Accuracy (head) | 95%区間 (head) | Accuracy (base+head) | MCC* | FAIL recall* | False PASS* |
+|---|---|---|---|---|---|---|---|
+| 1 | **GLM-5.3**（Z.AI） | **84.6%** | 61.5–100.0% | 84.6% | 0.692 | 84.6% | 2 |
+| 2 | Claude Opus 5 | 76.9% | 46.2–92.3% | 76.9% | 0.566 | 61.5% | 5 |
+| 3 | GLM-5.2（Z.AI） | 69.2% | 38.5–92.3% | 73.1% | 0.500 | 53.8% | 6 |
+| 4 | Claude Sonnet 5 | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | Grok 4.6（xAI） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | GPT-5.6 Luna（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | DeepSeek V4 Flash（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | DeepSeek V4 Flash Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 4 | DeepSeek V4 Pro（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | Big Pickle（OpenCode Zen, free） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 4 | MiniMax M3（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | Hy3（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | Kimi K3（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 4 | Hy3 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 4 | MiMo V2.5 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 16 | Claude Haiku 4.5 | 53.8% | 23.1–76.9% | 50.0% | 0.000 | 30.8% | 9 |
+| 16 | Nemotron 3 Ultra Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 53.8% | 0.087 | 30.8% | 9 |
+| 16 | Nemotron 3.5 Lightning Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 50.0% | 0.000 | 30.8% | 9 |
+
+\* base+head 合算（副次トラック）で計算した値。head-onlyでの内訳はまだ計算していません（下記 Known limitations 参照）。
 
 **完走できなかったもの**: `go/qwen3.8-max` は3回試行してもエンドポイント障害（連続リトライ、バックオフ最終30分超）から回復せず除外。`Laguna S 2.1 Free` は1コマンド実行後20分以上応答なしで停止したため除外。`Fable 5`（Claude Code サブエージェント経由）は利用クレジット切れで実行できず。無理に埋めていません。
 
 ### 26ケースという分解能の限界
 
-n=26では正解数が整数（0〜26）しか取れないため、accuracyの取りうる値は約3.8ポイント刻みに量子化されます。**8モデルが 65.4%（17/26）にぴったり並び、4モデルが 61.5%（16/26）にぴったり並んでいる**のはこのためです——これらのモデルが同じ性能だからではなく、この標本数では区別できる細かさがそれしかないからです。同じスコアの並びを「横並びで実力伯仲」と読むのではなく、「この物差しの目盛りがそこにしかない」と読んでください。
+n=26では正解数が整数（0〜26）しか取れないため、accuracyの取りうる値は約3.8ポイント刻みに量子化されます。**Accuracy (head) では18構成中12構成が61.5%（16/26）にぴったり並んでいます**——これらのモデルが同じ性能だからではなく、この標本数では区別できる細かさがそれしかないからです。同じスコアの並びを「横並びで実力伯仲」と読むのではなく、「この物差しの目盛りがそこにしかない」と読んでください。
 
 ### 統計的に言えること・言えないこと
 
-ほとんどの差が **区別できません**。GLM-5.3とOpus 5の差 -7.7%は95%区間 -31.0%〜15.4%で、GLM-5.3とGLM-5.2の差 -11.5%も -38.5%〜7.7%で、どちらもゼロを含みます。65.4%に並ぶ8構成は accuracy・MCC・FAIL recall・False PASSまで完全に一致しており、この標本数ではもはや**同一の点としか言えません**。
+ほとんどの差が **区別できません**。GLM-5.3とOpus 5の差 -7.7%は95%区間 -31.0%〜15.4%で、GLM-5.3とGLM-5.2の差もゼロを含みます。61.5%に並ぶ12構成は accuracy がすべて一致しており、この標本数ではもはや**同一の点としか言えません**。
 
-唯一、区別できた差が1つあります。**GLM-5.3 と Claude Haiku 4.5** — 対応比較で -34.6%、95%区間 **-61.5%〜-11.5%（ゼロを含まない）**。これだけは「たまたま」では説明できません。
+唯一、区別できた差が1つあります（base+head合算トラックでの対応比較）。**GLM-5.3 と Claude Haiku 4.5** — 対応比較で -34.6%、95%区間 **-61.5%〜-11.5%（ゼロを含まない）**。これだけは「たまたま」では説明できません。
 
 ### 一貫して出ている所見
 
-**FAIL recallが上位2件を除いて軒並み低い**（30.8%〜53.8%）ことと、**False PASSが5〜9件に集中している**ことです。gold FAIL 13件のうち、中位クラスタは8〜9件を「通る」と誤判定しています。これは運用上いちばん高くつく誤りの方向で、モデルの選択やプロンプトを変えてもこの帯から抜け出せていません。GLM-5.3だけがFAIL recall 84.6%・False PASS 2件と、この帯から明確に外れています——ただし前述の通り、Opus 5との差自体は統計的に有意ではありません。
+**FAIL recallが上位2件を除いて軒並み低い**（30.8%〜53.8%）ことと、**False PASSが5〜9件に集中している**ことです（いずれもbase+head合算の値）。gold FAIL 13件のうち、中位クラスタは8〜9件を「通る」と誤判定しています。これは運用上いちばん高くつく誤りの方向で、モデルの選択やプロンプトを変えてもこの帯から抜け出せていません。GLM-5.3だけがFAIL recall 84.6%・False PASS 2件と、この帯から明確に外れています——ただし前述の通り、Opus 5との差自体は統計的に有意ではありません。
 
 有意な差を測りたければ、より大きな split で回してください（`--split test` で122ケース）。量子化を細かくするには repetitions を増やすか、より大きな split で解かせるのが直接的な対処です。
 
@@ -117,11 +155,19 @@ apps/web            Next.js ダッシュボード。CLIと同じサービス層�
 
 **障害の2分類を型で強制。** `InfrastructureError`（429/5xx/timeout → 指数バックオフでリトライ）と `OutputContractViolation`（不正JSON等 → リトライせず記録）は別の型です。混ぜるとAccuracyが静かに歪みます。400のような再試行しても同じ結果になるものは `retryable: false` になります。
 
-**Accuracyの分母を2つ併記。** `accuracy` は verdict を出せた予測が分母、`strictAccuracy` は全試行が分母（棄権・不正出力を不正解として数える）。片方だけだと、難しいケースで棄権や不正JSONを出す設定がリーダーボードで有利になってしまいます。
+**未回答のケースを分母から消さない。** 外部ハーネスの回答を取り込む `import-run` は、ハーネスが答えなかったケースも「未回答」という明示的な不正解として記録します。単に除外すると、難しいケースを飛ばしたハーネスが全問正解したハーネスに見えてしまいます。
+
+**Accuracyの分母はpredictionモードに応じて決まる。** FORCEDモードでは棄権・不正出力も不正解として数える`accuracy`（= `strictAccuracy`）だけを見ます。SELECTIVEモードでは棄権が正当な選択肢なので、解決できたケースだけを分母にした`accuracy`と、カバレッジ（`selective.coverage`）を別々に報告します。どちらのモードでも、難しいケースへの無回答でリーダーボードの順位を上げることはできません。
+
+**リーダーボードは同一スコープでのみ順位付け。** データセットのバージョンやsplitが異なるrunを同じ表に混ぜて注記だけで済ませるのではなく、最も多くのrunが使っているスコープ（dominant scope）だけで順位付けし、それ以外は除外・件数を明示します。24ケースのdev split runと122ケースのtest split runを同じ表で1位・2位と並べることはありません。
 
 **信頼区間はPR単位のクラスターブートストラップ。** 同一PR由来のケースは差分も失敗モードも共有するため、独立標本として扱うと区間が実際より狭く出ます。
 
-**再開可能性。** 予測は `(run_id, case_id, repetition)` 一意で1件ずつ即コミット。中断しても部分結果が残り、再開は残りだけ実行します。
+**再開可能性。** 予測は `(run_id, case_id, repetition)` 一意で1件ずつ即コミット。中断しても部分結果が残り、再開は残りだけ実行します。スループット（tests/min）はセッションをまたいで蓄積した実時間を分母にするため、再開のたびに見かけ上速くなることはありません。
+
+**データセットバージョンのcontentHashはケースの全内容から計算。** IDだけでなく本文・gold・provenanceすべてを含めてハッシュ化するため、同じIDのケースが中身だけ差し替わっても検出できます。
+
+**外部ハーネスの実行条件を構造化して記録。** `import-run` で取り込んだrunは、どのツールが・どんな制約のもとで回答したか（`harnessConditions`）をrun snapshotに保存します。「PRを検索して良いハーネス」と「禁じられたハーネス」は、同じ質問に答えていても別の実験条件です。
 
 ## CLI
 
@@ -139,8 +185,10 @@ pnpm benchmark run --model <name> --prompt <name> [--strategy S] [--repetitions 
 pnpm benchmark resume <runId>
 pnpm benchmark runs | show <runId>
 pnpm benchmark compare <baselineRunId> <candidateRunId>
-pnpm benchmark leaderboard [--metric accuracy|failRecall|flipPairAccuracy|costPerTest|...] [--include-mocks]
+pnpm benchmark leaderboard [--metric headAccuracy|accuracy|failRecall|flipPairAccuracy|costPerTest|...] [--include-mocks]
 ```
+
+`--metric` の既定値は `headAccuracy`（primary track）です。`accuracy` はbase+head合算（副次トラック）を指します。
 
 ### 行列を一発で回す
 
@@ -158,8 +206,12 @@ pnpm benchmark sweep --models model-a,model-b --prompts reasoning-v1,concise-v1 
 ```bash
 pnpm benchmark export-cases --prompt reasoning-v1 --split dev --out /tmp/cases.jsonl
 # 何らかのハーネスで回答し、{"caseId":"...","verdict":"PASS","confidence":0.8,"reason":"..."} をJSONLで用意
-pnpm benchmark import-run --model my-model --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl
+pnpm benchmark import-run --model my-model --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl \
+  --harness-tool "OpenCode CLI" --harness-policy "No gh, no web search, no repository browsing." \
+  --harness-instructions "Answer from the exported prompt only."
 ```
+
+`--harness-tool` を指定すると、そのハーネスの実行条件（ツール・制約・指示）がrun snapshotに構造化して残ります。省略した場合、run snapshotの `harnessConditions` は `null` になります。
 
 未回答のケースは黙って捨てず件数を報告します（難しいケースを飛ばしたハーネスが、全問正解したハーネスに見えないように）。
 
@@ -175,11 +227,12 @@ pnpm benchmark human sessions
 
 ## Metrics
 
-Accuracy（主指標、95%CI付き）/ strict accuracy / PASS・FAIL の precision・recall・F1 / Macro F1 /
-Balanced Accuracy / MCC / 混同行列 / ベースライン4種 / Brier score / ECE / キャリブレーション曲線 /
-閾値別 accuracy・coverage / Coverage・Selective Accuracy・Abstention（SELECTIVEモード）/
-latency p50・p90・p95・p99・TTFT / トークンとコスト（cost/test, cost/1000, correct per dollar）/
-Consistency・Flip rate・Majority@N・run間分散 / Flip Pair Accuracy / スライス分析 / SafeSkip分析。
+Accuracy (head)（主指標、95%CI付き）/ Accuracy (base+head)（副次・反実仮想トラック）/ strict accuracy /
+PASS・FAIL の precision・recall・F1 / Macro F1 / Balanced Accuracy / MCC / 混同行列 / ベースライン4種 /
+Brier score / ECE / キャリブレーション曲線 / 閾値別 accuracy・coverage /
+Coverage・Selective Accuracy・Abstention（SELECTIVEモード）/ latency p50・p90・p95・p99・TTFT /
+トークンとコスト（cost/test, cost/1000, correct per dollar）/ Consistency・Flip rate・Majority@N・run間分散 /
+Flip Pair Accuracy / スライス分析 / SafeSkip分析。
 
 ## Adding a real model
 
@@ -206,22 +259,22 @@ pnpm site:serve    # 出力をローカルで確認
 `out/` は完全に自己完結（サーバー不要、DB不要）なので、無料の静的ホストにそのまま置けます。
 
 - **GitHub Pages** — `.github/workflows/pages.yml` を同梱しています。リポジトリの Settings → Pages で Source を GitHub Actions にすれば、main への push で自動公開されます。プロジェクトサイトは `/<repo>` 配下に出るため、ワークフローが `TOB_BASE_PATH` を自動設定します。
-- **Netlify / Cloudflare Pages** — `netlify.toml` の通り。ビルドコマンド `pnpm install && pnpm seed && pnpm site`、公開ディレクトリ `apps/web/out`。
+- **Netlify / Cloudflare Pages** — `netlify.toml` の通り。ビルドコマンド `pnpm install && pnpm seed && pnpm site`、公開ディレクトリ `apps/web/out`。DBが同梱されていればそのまま使われ、なければ `pnpm seed` が公開データセットとプロンプトだけを投入します（mockは登録されません）。
 
-公開されるのは結果とデータセットです。データセットは公開PR由来で、各ケースが provenance（PR URL・Issue URL・根拠テストファイル）を持つので、第三者がラベルを検証できます。APIキーはDBにもrun snapshotにも保存されないため、書き出しに含まれることはありません。
+公開されるのは結果とデータセットです。データセットは公開PR由来で、各ケースが provenance（PR URL・Issue URL・根拠テストファイル・gold labelの根拠の強さ）を持つので、第三者がラベルを検証できます。APIキーはDBにもrun snapshotにも保存されないため、書き出しに含まれることはありません。
 
 サイトはビルド時点のDBのスナップショットです。新しいrunを反映するには再ビルドしてください。ローカルで `pnpm dev` を使う場合は常に最新のDBを読みます。
 
 ## Testing
 
 ```bash
-pnpm test          # 214 tests
+pnpm test          # 268 tests
 pnpm coverage
 pnpm typecheck
 pnpm build
 ```
 
-スコアリングは手計算できる値のゴールデンfixtureで検証しています（例: ECE = (0.6+0.3+0.8+0.1)/4 = 0.45）。ランナーは in-memory SQLite + mockアダプタでフル実行・再開・キャンセル・リトライ・goldリークを検証します。
+スコアリングは手計算できる値のゴールデンfixtureで検証しています（例: ECE = (0.6+0.3+0.8+0.1)/4 = 0.45）。ランナーは in-memory SQLite + mockアダプタでフル実行・再開・キャンセル・リトライ・goldリークを検証します。`import-run` の未回答ケース処理・headAccuracyの分母・IMPLEMENTATION_ONLY_DIFFのテストファイル除去は、それぞれ専用のゴールデンケースで検証しています。
 
 ## Measuring a model through an agent harness
 
@@ -233,7 +286,7 @@ pnpm benchmark export-cases --prompt reasoning-v1 --split dev --out /tmp/cases.j
 pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl
 ```
 
-**測定の妥当性のために必須の条件**: 解かせる側に「PRや結果を一切調べさせない」ことです。`gh`・Web検索・リポジトリの参照を許すと、実際の結果を見つけてしまい、予測ではなく検索を測ることになります。この違いは出力からは見分けがつかないので、指示で明示的に禁じる必要があります。
+**測定の妥当性のために必須の条件**: 解かせる側に「PRや結果を一切調べさせない」ことです。`gh`・Web検索・リポジトリの参照を許すと、実際の結果を見つけてしまい、予測ではなく検索を測ることになります。この違いは出力からは見分けがつかないので、指示で明示的に禁じる必要があります。今回の全18構成はすべてこの制約（`gh` 禁止・Web検索禁止・リポジトリ参照禁止・実行禁止）のもとで取得しており、その条件は各runの `harnessConditions` として構造化して保存し、[`data/raw-answers/README.md`](./data/raw-answers/README.md) にも明記しています。
 
 **この数字の読み方に関する注意**: これはエージェントハーネス経由で駆動したモデルであって、生のAPI呼び出しではありません。したがって latency と cost はこの経路では意味を持ちません（`import-run` で取り込んだrunにトークン計測がないため、コスト指標は空になります）。比較して意味があるのは Accuracy・FAIL recall・flip pair accuracy・較正といった予測の質に関する指標だけです。実運用の速度・コストを測りたい場合は、APIキーを設定して `anthropic` / `openai` アダプタで回してください。
 
@@ -243,5 +296,9 @@ pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split
 - **mockプロバイダのスループット表示は非現実的**です。mockはシミュレートしたレイテンシを報告する一方、実時間ではほとんどsleepしないため、`tests/minute` が数万になります。実プロバイダでは正しい値になります。
 - **データセットは148ケース / 71 PR クラスタ**です。スライスによっては n が小さく、区間が広くなります。UIは常に n と scope（データセット版・split）を併記します。
 - `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
+- **MCC・FAIL recall・False PASSはhead-onlyで再計算していません。** `headAccuracy` は主指標として追加しましたが、分類指標（MCC等）の内訳はまだbase+head合算のままです。head-onlyの分類指標が必要な場合は `pnpm benchmark show <runId>` の `slices` セクションの `revision` バケットを参照してください（そちらはhead単体の値を持っています）。
+- **gold provenanceは現状すべてOSSの記録から再構築したもの**です（`CI_EXECUTED`/`HUMAN_EXECUTED` は0件）。「このベンチマーク自身が実行して確認した」トラックはまだ存在しません。
+- **`IMPLEMENTATION_ONLY_DIFF` 戦略はまだ実運用のベンチマークで使われていません。** テストファイル除去のロジックは実装・検証済みですが、上記の結果表はすべて通常のdiff（`TEST_PLUS_TITLE_DESCRIPTION_DIFF`）で取得したものです。
+- **テストファイル判定はヒューリスティックです。** ディレクトリ名・ファイル名の命名規則に基づく推定であり、リポジトリ独自の変則的な命名規則（例: スナップショット形式のfixtureファイル）は捕捉できないことがあります。
 
 詳細仕様は [SPECIFICATION.md](./SPECIFICATION.md)、設計判断は [docs/superpowers/specs/](./docs/superpowers/specs/) を参照してください。

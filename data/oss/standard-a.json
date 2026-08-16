@@ -54,7 +54,8 @@
         "prUrl": "https://github.com/hashicorp/hcl/pull/335",
         "issueUrl": null,
         "evidenceTestFile": "gohcl/decode_test.go",
-        "note": "At base, decoding two blocks into a value-typed slice field that starts with fewer elements than blocks found indexes past the slice bounds; the PR's own added test case exercises exactly this scenario."
+        "note": "At base, decoding two blocks into a value-typed slice field that starts with fewer elements than blocks found indexes past the slice bounds; the PR's own added test case exercises exactly this scenario.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -113,7 +114,8 @@
         "prUrl": "https://github.com/hashicorp/hcl/pull/335",
         "issueUrl": null,
         "evidenceTestFile": "gohcl/decode_test.go",
-        "note": "At head, the destination slice is grown as needed while decoding blocks, so decoding two blocks into a shorter pre-populated slice succeeds and yields two correct entries."
+        "note": "At head, the destination slice is grown as needed while decoding blocks, so decoding two blocks into a shorter pre-populated slice succeeds and yields two correct entries.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -171,7 +173,8 @@
         "prUrl": "https://github.com/briannesbitt/Carbon/pull/3014",
         "issueUrl": null,
         "evidenceTestFile": "tests/Carbon/TestingAidsTest.php",
-        "note": "At base, querying the current time after mocking with an America/Los_Angeles moment returns the LA-timezone representation instead of falling back to the configured UTC default, as shown by the PR's added testTimezoneConsistency case."
+        "note": "At base, querying the current time after mocking with an America/Los_Angeles moment returns the LA-timezone representation instead of falling back to the configured UTC default, as shown by the PR's added testTimezoneConsistency case.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -229,7 +232,8 @@
         "prUrl": "https://github.com/briannesbitt/Carbon/pull/3014",
         "issueUrl": null,
         "evidenceTestFile": "tests/Carbon/TestingAidsTest.php",
-        "note": "At head, the mocked 'now' falls back to the application's default timezone when no explicit timezone override is requested, so the current time matches the UTC representation as expected."
+        "note": "At head, the mocked 'now' falls back to the application's default timezone when no explicit timezone override is requested, so the current time matches the UTC representation as expected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -286,7 +290,8 @@
         "prUrl": "https://github.com/unjs/ufo/pull/126",
         "issueUrl": null,
         "evidenceTestFile": "test/utilities.test.ts",
-        "note": "At base, the underlying pattern only matches exactly two leading slashes with no whitespace, so '///test.com', the tab-separated variant, and the mixed-slash variant are all misclassified as not protocol-relative; the PR adds exactly these cases to the test table."
+        "note": "At base, the underlying pattern only matches exactly two leading slashes with no whitespace, so '///test.com', the tab-separated variant, and the mixed-slash variant are all misclassified as not protocol-relative; the PR adds exactly these cases to the test table.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -343,7 +348,8 @@
         "prUrl": "https://github.com/unjs/ufo/pull/126",
         "issueUrl": null,
         "evidenceTestFile": "test/utilities.test.ts",
-        "note": "At head, the widened pattern accepts two or more leading slashes with optional whitespace between them, so all three inputs are correctly classified as protocol-relative."
+        "note": "At head, the widened pattern accepts two or more leading slashes with optional whitespace between them, so all three inputs are correctly classified as protocol-relative.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -398,7 +404,8 @@
         "prUrl": "https://github.com/elixir-ecto/ecto/pull/4779",
         "issueUrl": null,
         "evidenceTestFile": "test/ecto/changeset_test.exs",
-        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite."
+        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -453,7 +460,8 @@
         "prUrl": "https://github.com/elixir-ecto/ecto/pull/4779",
         "issueUrl": null,
         "evidenceTestFile": "test/ecto/changeset_test.exs",
-        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite."
+        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -507,7 +515,8 @@
         "prUrl": "https://github.com/google/guava/pull/8610",
         "issueUrl": null,
         "evidenceTestFile": "guava-tests/test/com/google/common/hash/HashingTest.java",
-        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected."
+        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -561,7 +570,8 @@
         "prUrl": "https://github.com/google/guava/pull/8610",
         "issueUrl": null,
         "evidenceTestFile": "guava-tests/test/com/google/common/hash/HashingTest.java",
-        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected."
+        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -616,7 +626,8 @@
         "prUrl": "https://github.com/reactiveui/refit/pull/1842",
         "issueUrl": null,
         "evidenceTestFile": "Refit.Tests/RequestBuilder.cs",
-        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected."
+        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -671,7 +682,8 @@
         "prUrl": "https://github.com/reactiveui/refit/pull/1842",
         "issueUrl": null,
         "evidenceTestFile": "Refit.Tests/RequestBuilder.cs",
-        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected."
+        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -726,7 +738,8 @@
         "prUrl": "https://github.com/hyperium/hyper/pull/4157",
         "issueUrl": null,
         "evidenceTestFile": "tests/client.rs",
-        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected."
+        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -781,7 +794,8 @@
         "prUrl": "https://github.com/hyperium/hyper/pull/4157",
         "issueUrl": null,
         "evidenceTestFile": "tests/client.rs",
-        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected."
+        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected.",
+        "source": "REPRODUCED"
       }
     }
   }

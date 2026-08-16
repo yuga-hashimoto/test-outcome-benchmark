@@ -99,7 +99,7 @@ export const registerSweepCommand = (program: Command, dbPath: () => string | un
             onCellFinish: (cell) => {
               process.stdout.write(
                 cell.error === null
-                  ? `  accuracy ${percent(cell.metrics?.accuracy ?? null)}\n`
+                  ? `  accuracy (head) ${percent(cell.metrics?.headAccuracy ?? null)}\n`
                   : `  failed: ${cell.error}\n`,
               );
             },
@@ -117,8 +117,8 @@ export const registerSweepCommand = (program: Command, dbPath: () => string | un
           process.stdout.write(heading('Sweep results'));
           process.stdout.write(
             `\n${table([
-              ['#', 'MODEL', 'PROMPT', 'STRATEGY', 'ACCURACY', '95% INTERVAL', 'FLIP PAIRS'],
-              ...rankRuns(summaries, 'accuracy').map((entry) => [
+              ['#', 'MODEL', 'PROMPT', 'STRATEGY', 'ACCURACY (HEAD)', '95% INTERVAL', 'FLIP PAIRS'],
+              ...rankRuns(summaries, 'headAccuracy').map((entry) => [
                 String(entry.rank),
                 entry.summary.modelName,
                 `${entry.summary.promptName} v${entry.summary.promptVersion}`,
@@ -126,8 +126,8 @@ export const registerSweepCommand = (program: Command, dbPath: () => string | un
                 percent(entry.value),
                 interval(
                   entry.value,
-                  entry.summary.metrics.accuracyInterval.lower,
-                  entry.summary.metrics.accuracyInterval.upper,
+                  entry.summary.metrics.headAccuracyInterval.lower,
+                  entry.summary.metrics.headAccuracyInterval.upper,
                 ),
                 percent(entry.summary.metrics.flipPairs.accuracy),
               ]),

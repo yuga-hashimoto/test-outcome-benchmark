@@ -9,6 +9,7 @@ export const CONTEXT_STRATEGIES = [
   'TEST_PLUS_PR_TITLE',
   'TEST_PLUS_DIFF',
   'TEST_PLUS_TITLE_DESCRIPTION_DIFF',
+  'IMPLEMENTATION_ONLY_DIFF',
   'PR_FULL',
   'PR_WITH_CONTEXT',
   'REPOSITORY_AGENT',
@@ -68,6 +69,15 @@ export const CONTEXT_STRATEGY_DESCRIPTORS: Readonly<
     id: 'TEST_PLUS_TITLE_DESCRIPTION_DIFF',
     label: 'Test + title + description + diff',
     description: 'The test case plus the full authored PR context.',
+    includesTest: true,
+    includesDiff: true,
+    allowsRepositoryReads: false,
+  },
+  IMPLEMENTATION_ONLY_DIFF: {
+    id: 'IMPLEMENTATION_ONLY_DIFF',
+    label: 'Test + title + description + implementation-only diff',
+    description:
+      'Same as test + title + description + diff, but with files that look like test files stripped from the diff. A PR diff often includes the very test assertion a case describes, which turns "predict the outcome" into "read the assertion" — this strategy measures the former by removing the latter.',
     includesTest: true,
     includesDiff: true,
     allowsRepositoryReads: false,

@@ -6,5 +6,7 @@ import { db } from '@/lib/db';
 export const dynamic = 'force-static';
 
 export default function LeaderboardIndexPage() {
-  return <LeaderboardView summaries={formalBenchmarkRuns(listRunSummaries(db()))} metric="accuracy" />;
+  return (
+    <LeaderboardView summaries={formalBenchmarkRuns(listRunSummaries(db()))} metric="headAccuracy" />
+  );
 }

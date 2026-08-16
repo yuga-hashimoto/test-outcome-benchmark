@@ -116,6 +116,9 @@ export const registerExternalCommands = (
     .option('--mode <mode>', 'FORCED or SELECTIVE', 'FORCED')
     .option('--split <split>', 'train | dev | test | hidden-test')
     .option('--name <name>', 'Run name')
+    .option('--harness-tool <tool>', 'What produced these answers, e.g. "OpenCode CLI"')
+    .option('--harness-policy <policy>', 'What the harness was and was not allowed to do', '')
+    .option('--harness-instructions <text>', 'Instruction given beyond the exported prompt', '')
     .action(
       async (options: {
         dataset: string;
@@ -126,6 +129,9 @@ export const registerExternalCommands = (
         mode: string;
         split?: string;
         name?: string;
+        harnessTool?: string;
+        harnessPolicy: string;
+        harnessInstructions: string;
       }) => {
         await withDatabase(dbPath(), ({ db }) => {
           const dataset = findDatasetByName(db, options.dataset);
@@ -156,6 +162,15 @@ export const registerExternalCommands = (
             predictionMode: options.mode as PredictionMode,
             ...(options.split !== undefined ? { split: options.split as Split } : {}),
             ...(options.name !== undefined ? { name: options.name } : {}),
+            ...(options.harnessTool !== undefined
+              ? {
+                  harnessConditions: {
+                    tool: options.harnessTool,
+                    toolPolicy: options.harnessPolicy,
+                    instructions: options.harnessInstructions,
+                  },
+                }
+              : {}),
           });
 
           process.stdout.write(renderRunReport(result.metrics, `${result.run.name}  [${result.run.id}]`));

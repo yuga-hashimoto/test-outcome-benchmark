@@ -46,12 +46,33 @@ export interface RunMetrics {
    * carries coverage as a separate, explicit number rather than folding it
    * into this one. Either way, a configuration cannot climb the leaderboard by
    * quietly failing to answer the cases it finds hard.
+   *
+   * This is computed over base and head cases together. What the benchmark
+   * is actually meant to measure — "given this test and this PR, does it
+   * PASS or FAIL right now" — is a question about the head revision only; a
+   * base-revision case asks the different, counterfactual question of what
+   * the test would have done before the change. `headAccuracy` answers the
+   * former and is the primary track; this combined figure and `flipPairs`
+   * (whether a model gets both sides of a change right) describe
+   * counterfactual reasoning as a secondary, explicitly separate track.
    */
   readonly accuracy: number | null;
   /** Correct ÷ attempted, counting abstentions and malformed output as wrong,
    * regardless of mode. In FORCED mode this equals `accuracy`. */
   readonly strictAccuracy: number | null;
   readonly accuracyInterval: ConfidenceInterval;
+  /**
+   * `accuracy`, restricted to head-revision cases — the primary track. Same
+   * mode-aware denominator rule as `accuracy`, applied to the subset of
+   * predictions whose case is at the head revision. Null when a run has no
+   * head-revision predictions at all (an unusual configuration, not a
+   * silently-hidden zero).
+   */
+  readonly headAccuracy: number | null;
+  readonly headStrictAccuracy: number | null;
+  readonly headAccuracyInterval: ConfidenceInterval;
+  /** How many head-revision predictions `headAccuracy` is computed over. */
+  readonly headCount: number;
   readonly confusionMatrix: ConfusionMatrix;
   readonly classification: ClassificationMetrics;
   readonly baselines: BaselineMetrics;
@@ -114,14 +135,26 @@ export const aggregateRunMetrics = (
   };
 
   const strictAccuracy = predictions.length === 0 ? null : correct / predictions.length;
+  const accuracy = isForced
+    ? strictAccuracy
+    : resolved.length === 0
+      ? null
+      : correct / resolved.length;
+
+  const headPredictions = predictions.filter((prediction) => prediction.revision === 'head');
+  const headMatrix = buildConfusionMatrix(headPredictions);
+  const headResolved = resolvedPredictions(headPredictions);
+  const headCorrect = correctCount(headMatrix);
+  const headStrictAccuracy = headPredictions.length === 0 ? null : headCorrect / headPredictions.length;
+  const headAccuracy = isForced
+    ? headStrictAccuracy
+    : headResolved.length === 0
+      ? null
+      : headCorrect / headResolved.length;
 
   return {
     counts,
-    accuracy: isForced
-      ? strictAccuracy
-      : resolved.length === 0
-        ? null
-        : correct / resolved.length,
+    accuracy,
     strictAccuracy,
     accuracyInterval: clusterBootstrapAccuracy(predictions, {
       seed: `${seed}:accuracy`,
@@ -130,6 +163,16 @@ export const aggregateRunMetrics = (
         ? { resamples: options.bootstrapResamples }
         : {}),
     }),
+    headAccuracy,
+    headStrictAccuracy,
+    headAccuracyInterval: clusterBootstrapAccuracy(headPredictions, {
+      seed: `${seed}:headAccuracy`,
+      strict: isForced,
+      ...(options.bootstrapResamples !== undefined
+        ? { resamples: options.bootstrapResamples }
+        : {}),
+    }),
+    headCount: headPredictions.length,
     confusionMatrix: matrix,
     classification: computeClassificationMetrics(matrix),
     baselines: computeBaselines(predictions, seed),

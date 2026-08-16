@@ -55,7 +55,8 @@
         "prUrl": "https://github.com/redis/redis/pull/15538",
         "issueUrl": "https://github.com/redis/redis/issues/13671",
         "evidenceTestFile": null,
-        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions."
+        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -115,7 +116,8 @@
         "prUrl": "https://github.com/redis/redis/pull/15538",
         "issueUrl": "https://github.com/redis/redis/issues/13671",
         "evidenceTestFile": null,
-        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions."
+        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -175,7 +177,8 @@
         "prUrl": "https://github.com/neovim/neovim/pull/41328",
         "issueUrl": "https://github.com/neovim/neovim/issues/3739",
         "evidenceTestFile": null,
-        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions."
+        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -235,7 +238,8 @@
         "prUrl": "https://github.com/neovim/neovim/pull/41328",
         "issueUrl": "https://github.com/neovim/neovim/issues/3739",
         "evidenceTestFile": null,
-        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions."
+        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -295,7 +299,8 @@
         "prUrl": "https://github.com/duckdb/duckdb/pull/24729",
         "issueUrl": "https://github.com/duckdb/duckdb/issues/14692",
         "evidenceTestFile": null,
-        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions."
+        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -354,7 +359,8 @@
         "prUrl": "https://github.com/duckdb/duckdb/pull/24729",
         "issueUrl": "https://github.com/duckdb/duckdb/issues/14692",
         "evidenceTestFile": null,
-        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions."
+        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -417,7 +423,8 @@
         "prUrl": "https://github.com/godotengine/godot/pull/122255",
         "issueUrl": "https://github.com/godotengine/godot/issues/6784",
         "evidenceTestFile": null,
-        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions."
+        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -480,7 +487,8 @@
         "prUrl": "https://github.com/godotengine/godot/pull/122255",
         "issueUrl": "https://github.com/godotengine/godot/issues/6784",
         "evidenceTestFile": null,
-        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions."
+        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -539,7 +547,8 @@
         "prUrl": "https://github.com/scikit-learn/scikit-learn/pull/34594",
         "issueUrl": "https://github.com/scikit-learn/scikit-learn/issues/11395",
         "evidenceTestFile": null,
-        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions."
+        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -598,7 +607,8 @@
         "prUrl": "https://github.com/scikit-learn/scikit-learn/pull/34594",
         "issueUrl": "https://github.com/scikit-learn/scikit-learn/issues/11395",
         "evidenceTestFile": null,
-        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions."
+        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -659,7 +669,8 @@
         "prUrl": "https://github.com/hashicorp/vault/pull/31502",
         "issueUrl": "https://github.com/hashicorp/vault/issues/9404",
         "evidenceTestFile": null,
-        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions."
+        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -720,7 +731,8 @@
         "prUrl": "https://github.com/hashicorp/vault/pull/31502",
         "issueUrl": "https://github.com/hashicorp/vault/issues/9404",
         "evidenceTestFile": null,
-        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions."
+        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -780,7 +792,8 @@
         "prUrl": "https://github.com/cockroachdb/cockroach/pull/171337",
         "issueUrl": "https://github.com/cockroachdb/cockroach/issues/24495",
         "evidenceTestFile": null,
-        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions."
+        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -840,7 +853,8 @@
         "prUrl": "https://github.com/cockroachdb/cockroach/pull/171337",
         "issueUrl": "https://github.com/cockroachdb/cockroach/issues/24495",
         "evidenceTestFile": null,
-        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions."
+        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   }

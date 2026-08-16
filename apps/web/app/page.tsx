@@ -43,7 +43,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { scope, ranked: accuracyRanked, excluded } = rankRunsInScope(summaries, 'accuracy');
+  const { scope, ranked: accuracyRanked, excluded } = rankRunsInScope(summaries, 'headAccuracy');
   const best = accuracyRanked[0];
   const highlights = dashboardHighlights(summaries);
 
@@ -57,14 +57,14 @@ export default function DashboardPage() {
 
       <div className="grid" style={{ marginTop: 20 }}>
         <Stat
-          label="Best accuracy"
+          label="Best accuracy (head)"
           value={percent(best?.value ?? null)}
           note={
             best === undefined
               ? undefined
               : (intervalText(
-                  best.summary.metrics.accuracyInterval.lower,
-                  best.summary.metrics.accuracyInterval.upper,
+                  best.summary.metrics.headAccuracyInterval.lower,
+                  best.summary.metrics.headAccuracyInterval.upper,
                 ) ?? best.summary.modelName)
           }
         />
@@ -100,6 +100,12 @@ export default function DashboardPage() {
       )}
 
       <h2>Leaderboard</h2>
+      <p className="lede">
+        Primary track: does the model get the right verdict at the head revision — the PR as it
+        actually stands. See the{' '}
+        <Link href="/leaderboard/accuracy">base+head combined leaderboard</Link> for the secondary,
+        counterfactual-reasoning track (does the model also get the pre-change state right).
+      </p>
       <div className="table-scroll">
         <table>
           <thead>
@@ -107,7 +113,7 @@ export default function DashboardPage() {
               <th>#</th>
               <th className="wrap">Configuration</th>
               <th className="num">n</th>
-              <th className="num">Accuracy</th>
+              <th className="num">Accuracy (head)</th>
               <th className="num">95% interval</th>
               <th className="num">FAIL recall</th>
               <th className="num">Flip pairs</th>
@@ -125,14 +131,14 @@ export default function DashboardPage() {
                     {entry.summary.contextStrategy}
                   </span>
                 </td>
-                <td className="num muted">{entry.summary.resolved}</td>
+                <td className="num muted">{entry.summary.metrics.headCount}</td>
                 <td className="num">
                   {percent(entry.value)} <Bar value={entry.value} />
                 </td>
                 <td className="num muted">
                   {intervalText(
-                    entry.summary.metrics.accuracyInterval.lower,
-                    entry.summary.metrics.accuracyInterval.upper,
+                    entry.summary.metrics.headAccuracyInterval.lower,
+                    entry.summary.metrics.headAccuracyInterval.upper,
                   ) ?? '—'}
                 </td>
                 <td className="num">{percent(entry.summary.metrics.classification.fail.recall)}</td>
@@ -147,21 +153,21 @@ export default function DashboardPage() {
       <h2>Trade-offs</h2>
       <div className="split">
         <div className="card">
-          <h3>Accuracy vs cost</h3>
+          <h3>Accuracy (head) vs cost</h3>
           <ScatterChart
-            points={paretoPoints(summaries, 'costPerTest', 'accuracy')}
+            points={paretoPoints(summaries, 'costPerTest', 'headAccuracy')}
             xLabel="cost per test"
-            yLabel="accuracy"
+            yLabel="accuracy (head)"
             formatX={(value) => money(value)}
             formatY={(value) => percent(value, 0)}
           />
         </div>
         <div className="card">
-          <h3>Accuracy vs latency</h3>
+          <h3>Accuracy (head) vs latency</h3>
           <ScatterChart
-            points={paretoPoints(summaries, 'latencyP95', 'accuracy')}
+            points={paretoPoints(summaries, 'latencyP95', 'headAccuracy')}
             xLabel="p95 latency"
-            yLabel="accuracy"
+            yLabel="accuracy (head)"
             formatX={(value) => `${Math.round(value)} ms`}
             formatY={(value) => percent(value, 0)}
           />
@@ -177,23 +183,23 @@ export default function DashboardPage() {
           />
         </div>
         <div className="card">
-          <h3>Accuracy vs coverage</h3>
+          <h3>Accuracy (head) vs coverage</h3>
           <ScatterChart
             points={summaries
               .filter(
                 (summary) =>
                   summary.metrics.selective.coverage !== null &&
-                  summary.metrics.accuracy !== null,
+                  summary.metrics.headAccuracy !== null,
               )
               .map((summary) => ({
                 id: summary.runId,
                 label: `${summary.modelName} · ${summary.promptName} v${summary.promptVersion}`,
                 x: summary.metrics.selective.coverage as number,
-                y: summary.metrics.accuracy as number,
+                y: summary.metrics.headAccuracy as number,
                 onFront: false,
               }))}
             xLabel="coverage"
-            yLabel="accuracy"
+            yLabel="accuracy (head)"
             formatX={(value) => percent(value, 0)}
             formatY={(value) => percent(value, 0)}
           />

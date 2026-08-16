@@ -236,7 +236,7 @@ describe('dashboard highlights', () => {
 
   it('returns empty highlights rather than failing on no runs', () => {
     const highlights = dashboardHighlights([]);
-    expect(highlights).toHaveLength(6);
+    expect(highlights).toHaveLength(7);
     expect(highlights.every((item) => item.summary === null)).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import { stripTestFileHunks } from './diff-filter';
 import type { ContextStrategy } from '../domain/context';
 import type { ModelFacingCase } from '../domain/case';
 
@@ -46,6 +47,23 @@ const descriptionSection = (input: ModelFacingCase): string =>
 const diffSection = (input: ModelFacingCase): string =>
   section('Diff', `\`\`\`diff\n${input.pr.diff.trim()}\n\`\`\``);
 
+/**
+ * Same as `diffSection`, but with files that look like test files removed —
+ * see IMPLEMENTATION_ONLY_DIFF's description for why. Says explicitly that
+ * files were removed, rather than silently shrinking the diff, so a harness
+ * comparing this to the full-diff strategy is not confused by a mismatched
+ * file count.
+ */
+const implementationOnlyDiffSection = (input: ModelFacingCase): string => {
+  const { diff, removedFiles } = stripTestFileHunks(input.pr.diff);
+  const note =
+    removedFiles.length === 0
+      ? '(no files in this diff looked like test files)'
+      : `(${removedFiles.length} file(s) that looked like test files were removed from this diff)`;
+  const body = diff.length === 0 ? '(no non-test files changed)' : diff;
+  return section('Diff (implementation only)', `${note}\n\n\`\`\`diff\n${body}\n\`\`\``);
+};
+
 const prMetadataSection = (input: ModelFacingCase): string =>
   section(
     'Pull request metadata',
@@ -91,6 +109,13 @@ const STRATEGY_SECTIONS: Readonly<Record<ContextStrategy, readonly SectionBuilde
     titleSection,
     descriptionSection,
     diffSection,
+  ],
+  IMPLEMENTATION_ONLY_DIFF: [
+    testSection,
+    revisionSection,
+    titleSection,
+    descriptionSection,
+    implementationOnlyDiffSection,
   ],
   PR_FULL: [
     testSection,

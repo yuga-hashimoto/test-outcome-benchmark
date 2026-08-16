@@ -52,7 +52,8 @@
         "prUrl": "https://github.com/iamkun/dayjs/pull/3016",
         "issueUrl": "https://github.com/iamkun/dayjs/issues/3015",
         "evidenceTestFile": "test/display.test.js",
-        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head."
+        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -109,7 +110,8 @@
         "prUrl": "https://github.com/iamkun/dayjs/pull/3016",
         "issueUrl": "https://github.com/iamkun/dayjs/issues/3015",
         "evidenceTestFile": "test/display.test.js",
-        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head."
+        "note": "The added assertions in test/display.test.js and test/plugin/duration.test.js show format('Y') and format('YYY') resolving through the timezone-offset fallback on base, and formatting literally on head.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -166,7 +168,8 @@
         "prUrl": "https://github.com/colinhacks/zod/pull/6407",
         "issueUrl": null,
         "evidenceTestFile": "packages/zod/src/v4/classic/tests/optional.test.ts",
-        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead."
+        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -223,7 +226,8 @@
         "prUrl": "https://github.com/colinhacks/zod/pull/6407",
         "issueUrl": null,
         "evidenceTestFile": "packages/zod/src/v4/classic/tests/optional.test.ts",
-        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead."
+        "note": "The added test 'swallowed issue on an absent optional key drops its value' asserts safeParse({}) succeeds with 'a' absent from result.data on the default code path; on base the value written by the swallowed failing check leaks into the output instead.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -279,7 +283,8 @@
         "prUrl": "https://github.com/markedjs/marked/pull/4007",
         "issueUrl": null,
         "evidenceTestFile": "test/specs/new/blank_line_with_tabs.md",
-        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph."
+        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -335,7 +340,8 @@
         "prUrl": "https://github.com/markedjs/marked/pull/4007",
         "issueUrl": null,
         "evidenceTestFile": "test/specs/new/blank_line_with_tabs.md",
-        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph."
+        "note": "The new spec fixture pairs a markdown input containing a tab-only separator line with expected HTML that has one <p> per line of text; on base the paragraph continuation rule only recognized spaces-only lines as blank, so the tab-only line merged the surrounding text into a single paragraph.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -392,7 +398,8 @@
         "prUrl": "https://github.com/axios/axios/pull/11109",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions."
+        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -449,7 +456,8 @@
         "prUrl": "https://github.com/axios/axios/pull/11109",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions."
+        "note": "This PR only touches the catch-block stack-decoration logic inside Axios.prototype.request when an adapter rejects; default JSON response parsing (transformResponse) is a separate, long-standing documented behavior untouched by the diff, so it is unaffected on both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -505,7 +513,8 @@
         "prUrl": "https://github.com/tj/commander.js/pull/2544",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change."
+        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -561,7 +570,8 @@
         "prUrl": "https://github.com/tj/commander.js/pull/2544",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change."
+        "note": "This PR's diff is scoped to the negativeNumberArg regex used only to recognize negative numeric arguments; ordinary boolean flag parsing is a separate, long-standing code path untouched by the change.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -616,7 +626,8 @@
         "prUrl": "https://github.com/honojs/hono/pull/5158",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions."
+        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   },
@@ -671,7 +682,8 @@
         "prUrl": "https://github.com/honojs/hono/pull/5158",
         "issueUrl": null,
         "evidenceTestFile": null,
-        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions."
+        "note": "This PR extracts an existing percent-decode-if-a-% check into a shared tryDecodeURIComponent utility reused by route parameter and cookie decoding; the decode-only-when-needed semantics are preserved unchanged, so parameter decoding behavior is identical on both revisions.",
+        "source": "HISTORICAL_EVIDENCE"
       }
     }
   }

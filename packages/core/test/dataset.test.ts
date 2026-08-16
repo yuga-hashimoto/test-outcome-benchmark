@@ -32,7 +32,7 @@ describe('case schema', () => {
           executedAt: '2026-01-01T00:00:00.000Z',
           testType: 'API',
           casePattern: 'BUG_FIX',
-          provenance: { prUrl: 'https://github.com/owner/repo/pull/5' },
+          provenance: { prUrl: 'https://github.com/owner/repo/pull/5', source: 'HISTORICAL_EVIDENCE' },
         },
       },
     ]);
@@ -63,7 +63,7 @@ describe('case schema', () => {
             executedAt: '2026-01-01T00:00:00.000Z',
             testType: 'API',
             casePattern: 'BUG_FIX',
-            provenance: { prUrl: 'https://github.com/owner/repo/pull/5' },
+            provenance: { prUrl: 'https://github.com/owner/repo/pull/5', source: 'HISTORICAL_EVIDENCE' },
           },
         },
       ]),

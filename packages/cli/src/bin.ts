@@ -447,7 +447,7 @@ program
 program
   .command('leaderboard')
   .description('Rank completed formal benchmark runs')
-  .option('--metric <metric>', `One of: ${LEADERBOARD_METRICS.join(', ')}`, 'accuracy')
+  .option('--metric <metric>', `One of: ${LEADERBOARD_METRICS.join(', ')}`, 'headAccuracy')
   .option('--include-mocks', 'Include development-only mock runs', false)
   .action(async (options: { metric: string; includeMocks: boolean }) => {
     if (!(LEADERBOARD_METRICS as readonly string[]).includes(options.metric)) {
@@ -483,7 +483,7 @@ program
             'STRATEGY',
             'N',
             descriptor.label.toUpperCase(),
-            ...(showsAccuracySeparately ? ['ACCURACY'] : []),
+            ...(showsAccuracySeparately ? ['ACCURACY (BASE+HEAD)'] : []),
           ],
           ...ranked.map((entry) => [
             String(entry.rank),

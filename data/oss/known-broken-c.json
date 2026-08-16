@@ -51,7 +51,8 @@
         "prUrl": "https://github.com/eslint/eslint/pull/21207",
         "issueUrl": "https://github.com/eslint/eslint/issues/21193",
         "evidenceTestFile": null,
-        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207."
+        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "linting",
@@ -112,7 +113,8 @@
         "prUrl": "https://github.com/eslint/eslint/pull/21207",
         "issueUrl": "https://github.com/eslint/eslint/issues/21193",
         "evidenceTestFile": null,
-        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207."
+        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "linting",
@@ -168,7 +170,8 @@
         "prUrl": "https://github.com/scrapy/scrapy/pull/7936",
         "issueUrl": "https://github.com/scrapy/scrapy/issues/4479",
         "evidenceTestFile": null,
-        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936."
+        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "crawling",
@@ -224,7 +227,8 @@
         "prUrl": "https://github.com/scrapy/scrapy/pull/7936",
         "issueUrl": "https://github.com/scrapy/scrapy/issues/4479",
         "evidenceTestFile": null,
-        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936."
+        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "crawling",
@@ -281,7 +285,8 @@
         "prUrl": "https://github.com/sharkdp/bat/pull/3862",
         "issueUrl": "https://github.com/sharkdp/bat/issues/3844",
         "evidenceTestFile": null,
-        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862."
+        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "cli",
@@ -339,7 +344,8 @@
         "prUrl": "https://github.com/sharkdp/bat/pull/3862",
         "issueUrl": "https://github.com/sharkdp/bat/issues/3844",
         "evidenceTestFile": null,
-        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862."
+        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "cli",
@@ -395,7 +401,8 @@
         "prUrl": "https://github.com/composer/composer/pull/13006",
         "issueUrl": "https://github.com/composer/composer/issues/11342",
         "evidenceTestFile": null,
-        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006."
+        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "packaging",
@@ -450,7 +457,8 @@
         "prUrl": "https://github.com/composer/composer/pull/13006",
         "issueUrl": "https://github.com/composer/composer/issues/11342",
         "evidenceTestFile": null,
-        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006."
+        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "packaging",
@@ -507,7 +515,8 @@
         "prUrl": "https://github.com/dotnet/runtime/pull/130636",
         "issueUrl": "https://github.com/dotnet/runtime/issues/110450",
         "evidenceTestFile": null,
-        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636."
+        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "serialization",
@@ -564,7 +573,8 @@
         "prUrl": "https://github.com/dotnet/runtime/pull/130636",
         "issueUrl": "https://github.com/dotnet/runtime/issues/110450",
         "evidenceTestFile": null,
-        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636."
+        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "serialization",
@@ -623,7 +633,8 @@
         "prUrl": "https://github.com/fluent/fluentd/pull/5437",
         "issueUrl": "https://github.com/fluent/fluentd/issues/5099",
         "evidenceTestFile": null,
-        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437."
+        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "logging",
@@ -682,7 +693,8 @@
         "prUrl": "https://github.com/fluent/fluentd/pull/5437",
         "issueUrl": "https://github.com/fluent/fluentd/issues/5099",
         "evidenceTestFile": null,
-        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437."
+        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "logging",
@@ -738,7 +750,8 @@
         "prUrl": "https://github.com/brettwooldridge/HikariCP/pull/2402",
         "issueUrl": "https://github.com/brettwooldridge/HikariCP/issues/2104",
         "evidenceTestFile": null,
-        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402."
+        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "concurrency",
@@ -794,7 +807,8 @@
         "prUrl": "https://github.com/brettwooldridge/HikariCP/pull/2402",
         "issueUrl": "https://github.com/brettwooldridge/HikariCP/issues/2104",
         "evidenceTestFile": null,
-        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402."
+        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402.",
+        "source": "HISTORICAL_EVIDENCE"
       },
       "tags": [
         "concurrency",

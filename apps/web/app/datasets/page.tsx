@@ -99,11 +99,9 @@ export default function DatasetsPage() {
                   ['Case pattern', tally(cases, (item) => item.metadata.casePattern)],
                   ['Test type', tally(cases, (item) => item.metadata.testType)],
                   ['Language', tally(cases, (item) => item.pr.language ?? 'unknown')],
-                  ['Split', tally(cases, () => 'test')],
+                  ['Gold source', tally(cases, (item) => item.metadata.provenance.source)],
                 ] as const
-              )
-                .slice(0, 3)
-                .map(([title, rows]) => (
+              ).map(([title, rows]) => (
                   <div key={title} className="card">
                     <h3>{title}</h3>
                     <div className="table-scroll" style={{ border: 'none' }}>

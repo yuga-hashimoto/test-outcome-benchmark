@@ -59,6 +59,7 @@ export const makeCase = (
       issueUrl: null,
       evidenceTestFile: null,
       note: '',
+      source: 'HISTORICAL_EVIDENCE',
     },
   },
   ...overrides,
@@ -148,6 +149,7 @@ export const createHarness = (options: HarnessOptions = {}): Harness => {
       promptHash: prompt.contentHash,
       promptContent: prompt.content,
       benchmarkGitSha: null,
+      harnessConditions: null,
     },
     totalPredictions: cases.length * config.repetitions,
   });

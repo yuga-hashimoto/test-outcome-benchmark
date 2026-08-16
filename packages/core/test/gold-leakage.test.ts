@@ -67,6 +67,49 @@ describe('context strategies', () => {
     expect(rendered).toContain('Empty range reports zero length');
   });
 
+  /**
+   * The shortcut IMPLEMENTATION_ONLY_DIFF exists to close: a PR diff often
+   * contains the exact assertion a test case describes, which turns
+   * "predict the outcome" into "read the assertion". The implementation
+   * change must still be visible — only the test file goes.
+   */
+  it('keeps the implementation change but drops test file hunks under IMPLEMENTATION_ONLY_DIFF', () => {
+    const withTestFile = benchmarkCase({
+      pr: {
+        ...benchmarkCase().pr,
+        diff: [
+          'diff --git a/src/range.ts b/src/range.ts',
+          '--- a/src/range.ts',
+          '+++ b/src/range.ts',
+          '@@',
+          '-  return end - start;',
+          '+  return Math.max(0, end - start);',
+          'diff --git a/test/range.test.ts b/test/range.test.ts',
+          '--- a/test/range.test.ts',
+          '+++ b/test/range.test.ts',
+          '@@',
+          "-expect(rangeLength(5, 1)).toBe(4);",
+          "+expect(rangeLength(5, 1)).toBe(0);",
+        ].join('\n'),
+      },
+    });
+
+    const rendered = buildContext(toModelFacingCase(withTestFile), 'IMPLEMENTATION_ONLY_DIFF');
+
+    expect(rendered).toContain('Math.max');
+    expect(rendered).not.toContain('rangeLength');
+    expect(rendered).toContain('1 file(s) that looked like test files were removed');
+  });
+
+  it('renders identically to TEST_PLUS_TITLE_DESCRIPTION_DIFF when no file looks like a test', () => {
+    const rendered = buildContext(
+      toModelFacingCase(benchmarkCase()),
+      'IMPLEMENTATION_ONLY_DIFF',
+    );
+
+    expect(rendered).toContain('no files in this diff looked like test files');
+  });
+
   it('appends the output contract to the user prompt rather than replacing it', () => {
     const rendered = renderPrompt(toModelFacingCase(benchmarkCase()), {
       promptContent: 'MY CUSTOM REASONING INSTRUCTIONS',

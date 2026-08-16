@@ -66,6 +66,7 @@ const makeCase = (
       issueUrl: null,
       evidenceTestFile: null,
       note: '',
+      source: 'HISTORICAL_EVIDENCE',
     },
   },
   ...overrides,

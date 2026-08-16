@@ -122,6 +122,77 @@ describe('accuracy denominators', () => {
   });
 });
 
+/**
+ * headAccuracy exists because the benchmark's actual question — given this
+ * test and this PR, does it pass or fail right now — is a question about
+ * the head revision. A base-revision case asks the different, counterfactual
+ * question of what the test would have done before the change, so it must
+ * not be able to move the primary number.
+ */
+describe('head-only accuracy', () => {
+  const mixedRevisionPredictions = () => [
+    prediction({ revision: 'head', goldVerdict: 'PASS', predictedVerdict: 'PASS' }),
+    prediction({ revision: 'head', goldVerdict: 'PASS', predictedVerdict: 'PASS' }),
+    prediction({ revision: 'head', goldVerdict: 'FAIL', predictedVerdict: 'PASS' }),
+    prediction({ revision: 'base', goldVerdict: 'FAIL', predictedVerdict: 'FAIL' }),
+    prediction({ revision: 'base', goldVerdict: 'FAIL', predictedVerdict: 'FAIL' }),
+    prediction({ revision: 'base', goldVerdict: 'FAIL', predictedVerdict: 'FAIL' }),
+    prediction({ revision: 'base', goldVerdict: 'FAIL', predictedVerdict: 'FAIL' }),
+  ];
+
+  it('scores only head-revision predictions, independent of how base-revision cases went', () => {
+    const metrics = aggregateRunMetrics(mixedRevisionPredictions(), {
+      predictionMode: 'FORCED',
+      bootstrapResamples: 50,
+    });
+
+    expect(metrics.headCount).toBe(3);
+    expect(metrics.headAccuracy).toBeCloseTo(2 / 3, 12);
+    expect(metrics.headStrictAccuracy).toBe(metrics.headAccuracy);
+    /** The combined figure is different from the head-only one — a model
+     * that is perfect on the (easier) base-revision cases here would
+     * otherwise mask a mediocre head-revision result. */
+    expect(metrics.accuracy).toBeCloseTo(6 / 7, 12);
+    expect(metrics.accuracy).not.toBeCloseTo(metrics.headAccuracy!, 6);
+  });
+
+  it('is null with a zero count rather than a hidden zero when a run has no head-revision predictions', () => {
+    const allBase = [
+      prediction({ revision: 'base', goldVerdict: 'PASS', predictedVerdict: 'PASS' }),
+      prediction({ revision: 'base', goldVerdict: 'FAIL', predictedVerdict: 'FAIL' }),
+    ];
+    const metrics = aggregateRunMetrics(allBase, { predictionMode: 'FORCED', bootstrapResamples: 50 });
+
+    expect(metrics.headCount).toBe(0);
+    expect(metrics.headAccuracy).toBeNull();
+    expect(metrics.headAccuracyInterval.estimate).toBeNull();
+  });
+
+  it('follows the same FORCED/SELECTIVE denominator rule as the combined accuracy', () => {
+    const withAbstention = [
+      ...mixedRevisionPredictions(),
+      prediction({
+        revision: 'head',
+        goldVerdict: 'PASS',
+        predictedVerdict: null,
+        confidence: null,
+        errorKind: 'OUTPUT_CONTRACT',
+      }),
+    ];
+
+    const forced = aggregateRunMetrics(withAbstention, { predictionMode: 'FORCED', bootstrapResamples: 50 });
+    expect(forced.headCount).toBe(4);
+    expect(forced.headAccuracy).toBeCloseTo(2 / 4, 12);
+
+    const selective = aggregateRunMetrics(withAbstention, {
+      predictionMode: 'SELECTIVE',
+      bootstrapResamples: 50,
+    });
+    expect(selective.headAccuracy).toBeCloseTo(2 / 3, 12);
+    expect(selective.headStrictAccuracy).toBeCloseTo(2 / 4, 12);
+  });
+});
+
 describe('selective metrics', () => {
   it('measures coverage, abstention and accuracy on the covered subset', () => {
     const metrics = computeSelectiveMetrics([

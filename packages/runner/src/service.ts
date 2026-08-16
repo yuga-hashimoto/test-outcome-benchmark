@@ -115,6 +115,7 @@ export const startRun = async (db: Db, input: StartRunInput): Promise<StartRunOu
     promptHash: prompt.contentHash,
     promptContent: prompt.content,
     benchmarkGitSha: currentGitSha(),
+    harnessConditions: null,
   };
 
   const run = createRun(db, {

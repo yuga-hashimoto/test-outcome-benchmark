@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CASE_PATTERNS, QUALITATIVE_LEVELS, REVISIONS, TEST_TYPES } from '../domain/case';
+import { CASE_PATTERNS, GOLD_SOURCES, QUALITATIVE_LEVELS, REVISIONS, TEST_TYPES } from '../domain/case';
 import { VERDICTS } from '../domain/verdict';
 import type { BenchmarkCase } from '../domain/case';
 
@@ -34,6 +34,7 @@ export const caseProvenanceSchema = z.object({
   issueUrl: z.string().url().nullable().default(null),
   evidenceTestFile: z.string().nullable().default(null),
   note: z.string().default(''),
+  source: z.enum(GOLD_SOURCES),
 });
 
 export const caseMetadataSchema = z.object({

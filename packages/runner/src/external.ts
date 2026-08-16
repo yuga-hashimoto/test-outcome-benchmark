@@ -28,6 +28,7 @@ import type {
   BenchmarkRun,
   ContextStrategy,
   Evidence,
+  HarnessConditions,
   ModelFacingCase,
   PredictionMode,
   RunMetrics,
@@ -120,6 +121,7 @@ export interface ImportRunInput {
   readonly split?: Split | null;
   readonly seed?: number;
   readonly wallClockMs?: number | null;
+  readonly harnessConditions?: HarnessConditions | null;
 }
 
 export interface ImportRunResult {
@@ -216,6 +218,7 @@ export const importRun = (db: Db, input: ImportRunInput): ImportRunResult => {
     promptHash: prompt.contentHash,
     promptContent: prompt.content,
     benchmarkGitSha: null,
+    harnessConditions: input.harnessConditions ?? null,
   };
 
   const run = createRun(db, {

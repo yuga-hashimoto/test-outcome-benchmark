@@ -16,6 +16,7 @@ export * from './prompt/hash';
 export * from './prompt/render';
 
 export * from './context/build';
+export * from './context/diff-filter';
 
 export * from './parse/extract-json';
 export * from './parse/prediction-output';

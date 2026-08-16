@@ -23,6 +23,23 @@ export interface RunConfiguration {
 }
 
 /**
+ * What produced the answers for a run this benchmark did not execute itself
+ * — an agent CLI, a subagent, a person — and under what constraints. This is
+ * part of the experimental condition: two harnesses given the same exported
+ * cases are not the same experiment if one could browse the source repo and
+ * the other could not. Null for a run this benchmark's own adapters executed,
+ * where the model/provider/settings fields already say everything relevant.
+ */
+export interface HarnessConditions {
+  /** e.g. "Claude Code subagent", "OpenCode CLI (opencode_developer profile)". */
+  readonly tool: string;
+  /** What the harness was and was not permitted to do while answering. */
+  readonly toolPolicy: string;
+  /** The literal instruction given beyond the exported prompt itself, if any. */
+  readonly instructions: string;
+}
+
+/**
  * Everything needed to interpret a run's numbers after the fact, copied at
  * start time. Editing a prompt or repricing a model later cannot retroactively
  * change what a completed run means.
@@ -42,6 +59,7 @@ export interface RunSnapshot {
   readonly promptHash: string;
   readonly promptContent: string;
   readonly benchmarkGitSha: string | null;
+  readonly harnessConditions: HarnessConditions | null;
 }
 
 export interface BenchmarkRun {

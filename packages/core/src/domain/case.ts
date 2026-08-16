@@ -57,12 +57,32 @@ export interface CaseGold {
   readonly result: Verdict;
 }
 
+/**
+ * How directly the gold label is grounded in an observed outcome, strongest
+ * first. This dataset is built from OSS pull requests, not from this
+ * benchmark executing anything itself, so every current case is REPRODUCED
+ * (grounded in a specific test file the PR itself added or modified) or
+ * HISTORICAL_EVIDENCE (inferred from issue/PR narrative with no such file to
+ * cite). CI_EXECUTED and HUMAN_EXECUTED describe a stronger tier this dataset
+ * does not yet contain — a case this benchmark's own pipeline, or a person,
+ * actually ran and observed — reserved for a future execution-backed track
+ * rather than left unused by accident.
+ */
+export const GOLD_SOURCES = [
+  'CI_EXECUTED',
+  'HUMAN_EXECUTED',
+  'REPRODUCED',
+  'HISTORICAL_EVIDENCE',
+] as const;
+export type GoldSource = (typeof GOLD_SOURCES)[number];
+
 /** Where the gold label came from, so any label can be re-checked by hand. */
 export interface CaseProvenance {
   readonly prUrl: string;
   readonly issueUrl: string | null;
   readonly evidenceTestFile: string | null;
   readonly note: string;
+  readonly source: GoldSource;
 }
 
 export interface CaseMetadata {

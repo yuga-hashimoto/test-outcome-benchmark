@@ -95,6 +95,7 @@ export const benchmarkCase = (overrides: Partial<BenchmarkCase> = {}): Benchmark
       issueUrl: null,
       evidenceTestFile: 'test/range.test.ts',
       note: 'Added regression test fails before the change.',
+      source: 'REPRODUCED',
     },
   },
   ...overrides,

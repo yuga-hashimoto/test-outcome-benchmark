@@ -69,10 +69,11 @@ describe('cli end to end', () => {
       '--quiet',
     );
 
-    expect(output).toContain('Accuracy');
+    expect(output).toContain('Accuracy (head)');
+    expect(output).toContain('Accuracy (base+head)');
     expect(output).toContain('Strict accuracy');
     expect(output).toContain('Confusion matrix');
-    expect(output).toMatch(/Accuracy\s+\d+\.\d%/);
+    expect(output).toMatch(/Accuracy \(head\)\s+\d+\.\d%/);
   });
 
   it('lists the run and shows its scorecard', () => {

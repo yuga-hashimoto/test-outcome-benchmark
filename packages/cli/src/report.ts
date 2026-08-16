@@ -28,13 +28,22 @@ export const renderRunReport = (metrics: RunMetrics, title: string): string => {
   lines.push(
     table([
       [
-        'Accuracy',
+        'Accuracy (head)',
+        interval(
+          metrics.headAccuracy,
+          metrics.headAccuracyInterval.lower,
+          metrics.headAccuracyInterval.upper,
+        ),
+        `primary track, ${count(metrics.headCount)} head-revision cases`,
+      ],
+      [
+        'Accuracy (base+head)',
         interval(
           metrics.accuracy,
           metrics.accuracyInterval.lower,
           metrics.accuracyInterval.upper,
         ),
-        `${count(metrics.counts.correct)}/${count(metrics.counts.resolved)} resolved`,
+        `counterfactual-reasoning track, ${count(metrics.counts.correct)}/${count(metrics.counts.resolved)} resolved`,
       ],
       [
         'Strict accuracy',

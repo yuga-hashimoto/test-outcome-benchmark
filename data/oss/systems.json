@@ -55,7 +55,8 @@
         "prUrl": "https://github.com/gin-gonic/gin/pull/4535",
         "issueUrl": "https://github.com/gin-gonic/gin/issues/2959",
         "evidenceTestFile": "tree_test.go",
-        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback)."
+        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback).",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -115,7 +116,8 @@
         "prUrl": "https://github.com/gin-gonic/gin/pull/4535",
         "issueUrl": "https://github.com/gin-gonic/gin/issues/2959",
         "evidenceTestFile": "tree_test.go",
-        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback)."
+        "note": "Added tests TestTreeFindCaseInsensitivePathWithMultipleChildrenAndWildcard and TestTreeFindCaseInsensitivePathWildcardParamAndStaticChild panic on base (children[0] picks a static node instead of the wildcard child) and pass on head (children[len(children)-1] correctly used for the wildcard fallback).",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -171,7 +173,8 @@
         "prUrl": "https://github.com/jackc/pgx/pull/2602",
         "issueUrl": null,
         "evidenceTestFile": "pgtype/numeric_test.go",
-        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt."
+        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -227,7 +230,8 @@
         "prUrl": "https://github.com/jackc/pgx/pull/2602",
         "issueUrl": null,
         "evidenceTestFile": "pgtype/numeric_test.go",
-        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt."
+        "note": "TestNumericInt64Valuer's pgtype.Numeric{Valid: true} case panics on base (toBigInt dereferences a nil Int) and returns Int8{Int64: 0, Valid: true} on head after the nil guard was added to toBigInt.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -283,7 +287,8 @@
         "prUrl": "https://github.com/charmbracelet/bubbletea/pull/1677",
         "issueUrl": "https://github.com/charmbracelet/bubbletea/issues/1614",
         "evidenceTestFile": "tea_test.go",
-        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions."
+        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -339,7 +344,8 @@
         "prUrl": "https://github.com/charmbracelet/bubbletea/pull/1677",
         "issueUrl": "https://github.com/charmbracelet/bubbletea/issues/1614",
         "evidenceTestFile": "tea_test.go",
-        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions."
+        "note": "TestTeaQuit in tea_test.go (untouched by this PR) already exercises Program.Quit causing Run to return promptly; PR #1677 only changes hard-tab handling inside cursed_renderer.go's rendering/flush path, an unrelated code path, so this lifecycle behavior is expected to hold unchanged on both revisions.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -399,7 +405,8 @@
         "prUrl": "https://github.com/tokio-rs/tokio/pull/7462",
         "issueUrl": null,
         "evidenceTestFile": "tokio-util/tests/sync_cancellation_token.rs",
-        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future."
+        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -459,7 +466,8 @@
         "prUrl": "https://github.com/tokio-rs/tokio/pull/7462",
         "issueUrl": null,
         "evidenceTestFile": "tokio-util/tests/sync_cancellation_token.rs",
-        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future."
+        "note": "The added block in run_until_cancelled_test wraps a future that panics if polled and cancels the token beforehand; it panics on base because the future was polled before checking cancellation, and passes on head because is_cancelled() is now checked up front, short-circuiting to None without polling the future.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -514,7 +522,8 @@
         "prUrl": "https://github.com/BurntSushi/ripgrep/pull/3496",
         "issueUrl": "https://github.com/BurntSushi/ripgrep/issues/2565",
         "evidenceTestFile": "tests/misc.rs",
-        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides."
+        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -569,7 +578,8 @@
         "prUrl": "https://github.com/BurntSushi/ripgrep/pull/3496",
         "issueUrl": "https://github.com/BurntSushi/ripgrep/issues/2565",
         "evidenceTestFile": "tests/misc.rs",
-        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides."
+        "note": "The existing case_insensitive test in tests/misc.rs (untouched by this PR) already covers -i matching against mixed-case text. PR #3496 only changes when the ignore crate loads .gitignore/.ignore files during directory traversal (crates/ignore/src/walk.rs) and does not touch the regex/case-folding logic, so this behavior is unaffected on both sides.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -624,7 +634,8 @@
         "prUrl": "https://github.com/serde-rs/serde/pull/3001",
         "issueUrl": null,
         "evidenceTestFile": "test_suite/tests/test_annotations.rs",
-        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides."
+        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -679,7 +690,8 @@
         "prUrl": "https://github.com/serde-rs/serde/pull/3001",
         "issueUrl": null,
         "evidenceTestFile": "test_suite/tests/test_annotations.rs",
-        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides."
+        "note": "test_default_struct in test_suite/tests/test_annotations.rs (untouched by this PR) deserializes DefaultStruct's field a4, which is annotated only with #[serde(skip_deserializing)] and no explicit default, and asserts it becomes 0 when absent from input. PR #3001 rewrites a nested if-let/if pair into a single boolean && condition in serde_derive's attribute-collection code; both forms require container_default to be unset and skip_deserializing to be present before defaulting the field, so the generated behavior is unchanged on both sides.",
+        "source": "REPRODUCED"
       }
     }
   }

@@ -16,7 +16,10 @@
       "deletedLines": 0,
       "commits": 2,
       "language": "Python",
-      "labels": ["Component: Canvas", "PR Type: Bugfix"]
+      "labels": [
+        "Component: Canvas",
+        "PR Type: Bugfix"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0001",
@@ -30,11 +33,16 @@
       ],
       "expectedResult": "The reconstructed result tree still contains a separate child result for every task in both groups (four child results total across the two groups), matching the structure of the original, unserialized result."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2024-03-10T16:09:29.000Z",
       "testType": "BUSINESS_LOGIC",
-      "tags": ["API contract", "task-composition"],
+      "tags": [
+        "API contract",
+        "task-composition"
+      ],
       "durationMs": null,
       "feature": "canvas workflow result serialization",
       "platform": "linux",
@@ -46,7 +54,8 @@
         "prUrl": "https://github.com/celery/celery/pull/8903",
         "issueUrl": "https://github.com/celery/celery/pull/10408",
         "evidenceTestFile": "t/unit/tasks/test_canvas.py",
-        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing."
+        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -67,7 +76,10 @@
       "deletedLines": 0,
       "commits": 2,
       "language": "Python",
-      "labels": ["Component: Canvas", "PR Type: Bugfix"]
+      "labels": [
+        "Component: Canvas",
+        "PR Type: Bugfix"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0002",
@@ -81,11 +93,16 @@
       ],
       "expectedResult": "The reconstructed result tree still contains a separate child result for every task in both groups (four child results total across the two groups), matching the structure of the original, unserialized result."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2024-03-10T16:09:29.000Z",
       "testType": "BUSINESS_LOGIC",
-      "tags": ["API contract", "task-composition"],
+      "tags": [
+        "API contract",
+        "task-composition"
+      ],
       "durationMs": null,
       "feature": "canvas workflow result serialization",
       "platform": "linux",
@@ -97,7 +114,8 @@
         "prUrl": "https://github.com/celery/celery/pull/8903",
         "issueUrl": "https://github.com/celery/celery/pull/10408",
         "evidenceTestFile": "t/unit/tasks/test_canvas.py",
-        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing."
+        "note": "PR #8903 merged 2024-03-10 added a reset of prev_task/prev_res immediately after the chord-upgrade pop in prepare_steps() to fix freezing a chain with a single group in the middle (issue #8890). PR #10408 merged 2026-07-13 states in its description: 'Fixes a regression from #8903 where chain(...).apply_async().as_tuple() could lose GroupResult children for chains with two consecutive groups and other tasks before/after them,' and removes exactly the prev_task/prev_res reset added by #8903, adding test_consecutive_groups_in_chain_preserve_group_results_in_as_tuple while keeping #8903's own test_group_in_center_of_chain passing.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -118,7 +136,9 @@
       "deletedLines": 17,
       "commits": 1,
       "language": "Ruby",
-      "labels": ["activerecord"]
+      "labels": [
+        "activerecord"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0003",
@@ -132,11 +152,16 @@
       ],
       "expectedResult": "The ratio of computed-attribute access time to real-column access time stays under roughly 20x, showing that reading the computed alias attribute remains inexpensive rather than incurring a large per-call overhead."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2024-12-10T11:11:55.000Z",
       "testType": "BUSINESS_LOGIC",
-      "tags": ["performance cliff", "attribute-access"],
+      "tags": [
+        "performance cliff",
+        "attribute-access"
+      ],
       "durationMs": null,
       "feature": "ActiveRecord attribute method dispatch",
       "platform": "linux",
@@ -148,7 +173,8 @@
         "prUrl": "https://github.com/rails/rails/pull/53890",
         "issueUrl": "https://github.com/rails/rails/issues/57183",
         "evidenceTestFile": "activerecord/test/cases/attribute_methods_test.rb",
-        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x."
+        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -169,7 +195,9 @@
       "deletedLines": 17,
       "commits": 1,
       "language": "Ruby",
-      "labels": ["activerecord"]
+      "labels": [
+        "activerecord"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0004",
@@ -183,11 +211,16 @@
       ],
       "expectedResult": "The ratio of computed-attribute access time to real-column access time stays under roughly 20x, showing that reading the computed alias attribute remains inexpensive rather than incurring a large per-call overhead."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2024-12-10T11:11:55.000Z",
       "testType": "BUSINESS_LOGIC",
-      "tags": ["performance cliff", "attribute-access"],
+      "tags": [
+        "performance cliff",
+        "attribute-access"
+      ],
       "durationMs": null,
       "feature": "ActiveRecord attribute method dispatch",
       "platform": "linux",
@@ -199,7 +232,8 @@
         "prUrl": "https://github.com/rails/rails/pull/53890",
         "issueUrl": "https://github.com/rails/rails/issues/57183",
         "evidenceTestFile": "activerecord/test/cases/attribute_methods_test.rb",
-        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x."
+        "note": "PR #53890 merged 2024-12-10 (shipped in Rails 7.2.3) changed method_missing in ActiveRecord::AttributeMethods to always call self.class.public_instance_method(name), rescuing a raised NameError for attributes not backed by a real column (e.g. virtual SELECT alias attributes). Issue #57183 filed 2026-08 reports a ~3x measured slowdown for virtual attribute access specifically traced to this NameError raise/rescue path, citing #53890 by name. PR #57226 merged 2026-08-13 guards the lookup with public_method_defined? (a zero-allocation check) instead, restoring prior performance while preserving #53890's thread-safety fix, and includes a benchmark showing the ratio drop from ~42x back to ~8x.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -234,11 +268,16 @@
       ],
       "expectedResult": "The first positional contains only the values given before the --, namely value1 and value2. The second positional contains everything given after the --, namely --check, and the command parses successfully without reporting --check as an unexpected argument."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2026-01-27T20:18:05.000Z",
       "testType": "API",
-      "tags": ["boundary", "argument-parsing"],
+      "tags": [
+        "boundary",
+        "argument-parsing"
+      ],
       "durationMs": null,
       "feature": "positional argument value_terminator and last interaction",
       "platform": "linux",
@@ -250,7 +289,8 @@
         "prUrl": "https://github.com/clap-rs/clap/pull/6212",
         "issueUrl": "https://github.com/clap-rs/clap/issues/5040",
         "evidenceTestFile": "tests/builder/multiple_values.rs",
-        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it."
+        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -285,11 +325,16 @@
       ],
       "expectedResult": "The first positional contains only the values given before the --, namely value1 and value2. The second positional contains everything given after the --, namely --check, and the command parses successfully without reporting --check as an unexpected argument."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2026-01-27T20:18:05.000Z",
       "testType": "API",
-      "tags": ["boundary", "argument-parsing"],
+      "tags": [
+        "boundary",
+        "argument-parsing"
+      ],
       "durationMs": null,
       "feature": "positional argument value_terminator and last interaction",
       "platform": "linux",
@@ -301,7 +346,8 @@
         "prUrl": "https://github.com/clap-rs/clap/pull/6212",
         "issueUrl": "https://github.com/clap-rs/clap/issues/5040",
         "evidenceTestFile": "tests/builder/multiple_values.rs",
-        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it."
+        "note": "PR #6212 merged 2026-01-27 (shipped as clap 4.5.55) added an early-return branch so a positional's own value_terminator is recognized before falling into the generic trailing-values/escape handling. On 2026-01-28, user davvid commented on issue #5040 that this landed in 4.5.55 and 'has caused a visible change in behavior' breaking a positional combining value_terminator with a second last=true positional (their real command `garden fmt -- --check` started failing with 'unexpected argument --check found'), calling it 'arguably a bug / regression'. On 2026-02-02 maintainer epage confirmed: 'before this change value_terminator with last was consistent one way and this changed it to a different approach... #6243 takes a crack at that so both use cases work.' PR #6243 merged 2026-02-03 reworks the branch added by #6212 so the terminator also still starts trailing-values mode (incrementing pos_counter) instead of short-circuiting it.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -322,7 +368,11 @@
       "deletedLines": 14,
       "commits": 1,
       "language": "PHP",
-      "labels": ["Bug", "EventDispatcher", "Status: Needs Review"]
+      "labels": [
+        "Bug",
+        "EventDispatcher",
+        "Status: Needs Review"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0007",
@@ -336,11 +386,17 @@
       ],
       "expectedResult": "The list contains one entry for every time the listener was actually invoked, so after dispatching the event twice with one listener registered, the count is two, reflecting the true invocation count rather than only the number of distinct listeners."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2026-03-30T11:22:03.000Z",
       "testType": "INTEGRATION",
-      "tags": ["numeric precision", "event-dispatch", "observability"],
+      "tags": [
+        "numeric precision",
+        "event-dispatch",
+        "observability"
+      ],
       "durationMs": null,
       "feature": "traceable event dispatcher call tracking",
       "platform": "linux",
@@ -352,7 +408,8 @@
         "prUrl": "https://github.com/symfony/symfony/pull/63723",
         "issueUrl": "https://github.com/symfony/symfony/issues/64653",
         "evidenceTestFile": "src/Symfony/Component/EventDispatcher/Tests/Debug/TraceableEventDispatcherTest.php",
-        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix."
+        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -373,7 +430,11 @@
       "deletedLines": 14,
       "commits": 1,
       "language": "PHP",
-      "labels": ["Bug", "EventDispatcher", "Status: Needs Review"]
+      "labels": [
+        "Bug",
+        "EventDispatcher",
+        "Status: Needs Review"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0008",
@@ -387,11 +448,17 @@
       ],
       "expectedResult": "The list contains one entry for every time the listener was actually invoked, so after dispatching the event twice with one listener registered, the count is two, reflecting the true invocation count rather than only the number of distinct listeners."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2026-03-30T11:22:03.000Z",
       "testType": "INTEGRATION",
-      "tags": ["numeric precision", "event-dispatch", "observability"],
+      "tags": [
+        "numeric precision",
+        "event-dispatch",
+        "observability"
+      ],
       "durationMs": null,
       "feature": "traceable event dispatcher call tracking",
       "platform": "linux",
@@ -403,7 +470,8 @@
         "prUrl": "https://github.com/symfony/symfony/pull/63723",
         "issueUrl": "https://github.com/symfony/symfony/issues/64653",
         "evidenceTestFile": "src/Symfony/Component/EventDispatcher/Tests/Debug/TraceableEventDispatcherTest.php",
-        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix."
+        "note": "PR #63723 merged 2026-03-30 (Symfony 7.4.8) fixed a real memory leak in TraceableEventDispatcher by replacing per-invocation WrappedListener accumulation with a deduplicated aggregate keyed by listener identity, so postProcess() only records a listener once per event via an in_array() de-dup check. Issue #64653 filed afterwards states: 'I believe I've identified a regression in TraceableEventDispatcher introduced in Symfony 7.4.8 that affects how called listeners are recorded... When the same listener is invoked multiple times for the same event name across separate dispatch() calls, only the first invocation is recorded by getCalledListeners().' PR #64655 merged 2026-07-21 (fixing #64653) replaces the in_array() de-dup with a per-listener invocation counter, and changes the assertion in testCallStackIsNotLeakingOnRepeatedDispatch from assertCount(1, ...) (5 dispatches collapsed to 1) to assertCount(5, ...), directly reverting the counting behavior introduced by #63723 while keeping its leak fix.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -438,11 +506,16 @@
       ],
       "expectedResult": "Each subcommand's custom completion hook returns suggestions scoped to that specific subcommand: the first Tab press offers only values relevant to subcommand-a, and the second offers only values relevant to subcommand-b, because each hook correctly identifies which subcommand is currently being completed."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2019-07-11T18:18:48.000Z",
       "testType": "INTEGRATION",
-      "tags": ["API contract", "shell-completion"],
+      "tags": [
+        "API contract",
+        "shell-completion"
+      ],
       "durationMs": null,
       "feature": "bash completion custom function hook",
       "platform": "linux",
@@ -454,7 +527,8 @@
         "prUrl": "https://github.com/spf13/cobra/pull/889",
         "issueUrl": "https://github.com/spf13/cobra/pull/1001",
         "evidenceTestFile": "bash_completions.go",
-        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered."
+        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -489,11 +563,16 @@
       ],
       "expectedResult": "Each subcommand's custom completion hook returns suggestions scoped to that specific subcommand: the first Tab press offers only values relevant to subcommand-a, and the second offers only values relevant to subcommand-b, because each hook correctly identifies which subcommand is currently being completed."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2019-07-11T18:18:48.000Z",
       "testType": "INTEGRATION",
-      "tags": ["API contract", "shell-completion"],
+      "tags": [
+        "API contract",
+        "shell-completion"
+      ],
       "durationMs": null,
       "feature": "bash completion custom function hook",
       "platform": "linux",
@@ -505,7 +584,8 @@
         "prUrl": "https://github.com/spf13/cobra/pull/889",
         "issueUrl": "https://github.com/spf13/cobra/pull/1001",
         "evidenceTestFile": "bash_completions.go",
-        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered."
+        "note": "PR #889 merged 2019-07-11 rewrote several COMPREPLY=( $(compgen ...) ) one-liners as `while IFS='' read -r c; do COMPREPLY+=(\"$c\"); done < <(compgen ...)` loops to satisfy shellcheck SC2207, reusing the loop variable name `c`. PR #1001 merged 2019-12-26 states in its description: 'PR #889 introduced a small regression where the global variable $c is no longer set when *custom_func is called. This is because $c is re-used by mistake in the new read loop,' and reports that a companion helm/helm PR relying on $c inside __helm_custom_func started failing against cobra's master branch after #889 and started passing again once #1001's variable rename (c -> comp) was applied. PR #1001 renames the loop variable so the pre-existing global $c (the current-command word index used elsewhere in the generated script, including by custom completion function hooks) is no longer clobbered.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -526,7 +606,9 @@
       "deletedLines": 1,
       "commits": 1,
       "language": "JavaScript",
-      "labels": ["4.x"]
+      "labels": [
+        "4.x"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0011",
@@ -540,11 +622,16 @@
       ],
       "expectedResult": "The parsed 'ids' value is an array containing all 25 string values in their original order (['1', '2', ..., '25']), not a plain object keyed by numeric index."
     },
-    "gold": { "result": "PASS" },
+    "gold": {
+      "result": "PASS"
+    },
     "metadata": {
       "executedAt": "2025-11-21T14:22:59.000Z",
       "testType": "API",
-      "tags": ["boundary", "query-string-parsing"],
+      "tags": [
+        "boundary",
+        "query-string-parsing"
+      ],
       "durationMs": null,
       "feature": "extended query string parsing",
       "platform": "node",
@@ -556,7 +643,8 @@
         "prUrl": "https://github.com/expressjs/express/pull/6909",
         "issueUrl": "https://github.com/expressjs/express/issues/7147",
         "evidenceTestFile": "test/req.query.js",
-        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString."
+        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString.",
+        "source": "REPRODUCED"
       }
     }
   },
@@ -577,7 +665,9 @@
       "deletedLines": 1,
       "commits": 1,
       "language": "JavaScript",
-      "labels": ["4.x"]
+      "labels": [
+        "4.x"
+      ]
     },
     "testCase": {
       "id": "rg_tc_0012",
@@ -591,11 +681,16 @@
       ],
       "expectedResult": "The parsed 'ids' value is an array containing all 25 string values in their original order (['1', '2', ..., '25']), not a plain object keyed by numeric index."
     },
-    "gold": { "result": "FAIL" },
+    "gold": {
+      "result": "FAIL"
+    },
     "metadata": {
       "executedAt": "2025-11-21T14:22:59.000Z",
       "testType": "API",
-      "tags": ["boundary", "query-string-parsing"],
+      "tags": [
+        "boundary",
+        "query-string-parsing"
+      ],
       "durationMs": null,
       "feature": "extended query string parsing",
       "platform": "node",
@@ -607,7 +702,8 @@
         "prUrl": "https://github.com/expressjs/express/pull/6909",
         "issueUrl": "https://github.com/expressjs/express/issues/7147",
         "evidenceTestFile": "test/req.query.js",
-        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString."
+        "note": "PR #6909 merged 2025-11-21 bumped the qs dependency from 6.13.0 to 6.14.0 on the 4.x branch (shipped in Express 4.22.0, per History.md). Issue #7147 ('req.query will produce object instead of array when it contains more than 20 values in v4.22.X') was filed reporting the break. PR #7181 merged 2026-05-08, which closes #7147, states in its description: 'The bump to qs@~6.14.1 in 4.22.0 (#6972) pulled in qs's new default arrayLimit of 20, which causes the extended query parser to silently collapse repeated-key query strings with more than 20 values into an object... instead of producing an array... matching Express <= 4.21.x' and its own test plan confirms: 'Verified the test fails on 4.x without the fix and passes with it.' PR #7181 restores array output by passing an explicit arrayLimit to qs.parse in parseExtendedQueryString.",
+        "source": "REPRODUCED"
       }
     }
   }
