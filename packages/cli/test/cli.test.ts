@@ -184,12 +184,23 @@ describe('run report', () => {
     expect(report).toContain('Safe skip analysis');
   });
 
+  /** Timing present but no first-token time: the response simply was not streamed. */
   it('says so when nothing was streamed rather than showing a blank latency', () => {
+    const metrics = aggregateRunMetrics([basePrediction()], { bootstrapResamples: 10 });
+
+    expect(renderRunReport(metrics, 'demo')).toContain('no response was streamed');
+  });
+
+  /** No timing at all is a different situation, and saying "not streamed" would
+   * misattribute it — an imported run has no per-request timing to begin with. */
+  it('distinguishes a run with no timing at all from a non-streamed one', () => {
     const metrics = aggregateRunMetrics([{ ...basePrediction(), latency: null }], {
       bootstrapResamples: 10,
     });
 
-    expect(renderRunReport(metrics, 'demo')).toContain('no response was streamed');
+    const report = renderRunReport(metrics, 'demo');
+    expect(report).toContain('No timing was recorded for this run');
+    expect(report).not.toContain('no response was streamed');
   });
 });
 

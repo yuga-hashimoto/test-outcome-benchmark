@@ -232,6 +232,14 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         </table>
       </div>
 
+      {metrics.latency.endToEnd.count === 0 && (
+        <Note>
+          This run carries no per-request timing or token usage — it was imported from an external
+          harness rather than executed here. Its prediction quality is comparable to other runs;
+          its speed and cost are not measured at all.
+        </Note>
+      )}
+
       <h2>Speed and cost</h2>
       <div className="grid">
         <Stat
@@ -243,9 +251,11 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
           label="Time to first token"
           value={millis(metrics.latency.timeToFirstToken.p50)}
           note={
-            metrics.latency.timeToFirstToken.count === 0
-              ? 'not observable: nothing was streamed'
-              : `measured on ${count(metrics.latency.timeToFirstToken.count)} responses`
+            metrics.latency.endToEnd.count === 0
+              ? 'no timing recorded for this run'
+              : metrics.latency.timeToFirstToken.count === 0
+                ? 'not observable: nothing was streamed'
+                : `measured on ${count(metrics.latency.timeToFirstToken.count)} responses`
           }
         />
         <Stat

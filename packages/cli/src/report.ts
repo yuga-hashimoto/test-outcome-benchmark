@@ -122,7 +122,11 @@ export const renderRunReport = (metrics: RunMetrics, title: string): string => {
     ]),
   );
 
-  if (metrics.latency.timeToFirstToken.count === 0) {
+  if (metrics.latency.endToEnd.count === 0) {
+    lines.push(
+      '\nNo timing was recorded for this run. Imported runs carry no per-request timing, so speed cannot be compared against runs this benchmark executed.',
+    );
+  } else if (metrics.latency.timeToFirstToken.count === 0) {
     lines.push('\nTime to first token was not observable: no response was streamed.');
   }
 

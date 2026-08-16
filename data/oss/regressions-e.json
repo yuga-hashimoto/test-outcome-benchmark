@@ -1,0 +1,448 @@
+[
+  {
+    "id": "rge_0001",
+    "revision": "base",
+    "flipPairId": "rge_flip_0001",
+    "pr": {
+      "repository": "psf/requests",
+      "number": 3865,
+      "baseSha": "ad65b0cb19124b5ae4dd01bf19d82c16ffb2485d",
+      "headSha": "85400d8d6751071ef78f042d1efa72bdcf76cc0e",
+      "title": "Allow use of 'no_proxy' in the proxies argument",
+      "description": "Add the ability to add 'no_proxy' and a value to the 'proxies' dictionary argument.\n\nhttps://github.com/kennethreitz/requests/issues/2817\n\nCloses gh-2817",
+      "diff": "diff --git a/requests/sessions.py b/requests/sessions.py\nindex 7983282a6d..51bad2caeb 100644\n--- a/requests/sessions.py\n+++ b/requests/sessions.py\n@@ -231,13 +231,16 @@ def rebuild_proxies(self, prepared_request, proxies):\n \n         :rtype: dict\n         \"\"\"\n+        proxies = proxies if proxies is not None else {}\n         headers = prepared_request.headers\n         url = prepared_request.url\n         scheme = urlparse(url).scheme\n-        new_proxies = proxies.copy() if proxies is not None else {}\n+        new_proxies = proxies.copy()\n+        no_proxy = proxies.get('no_proxy')\n \n-        if self.trust_env and not should_bypass_proxies(url):\n-            environ_proxies = get_environ_proxies(url)\n+        bypass_proxy = should_bypass_proxies(url, no_proxy=no_proxy)\n+        if self.trust_env and not bypass_proxy:\n+            environ_proxies = get_environ_proxies(url, no_proxy=no_proxy)\n \n             proxy = environ_proxies.get(scheme, environ_proxies.get('all'))\n \n@@ -651,7 +654,8 @@ def merge_environment_settings(self, url, proxies, stream, verify, cert):\n         # Gather clues from the surrounding environment.\n         if self.trust_env:\n             # Set environment's proxies.\n-            env_proxies = get_environ_proxies(url) or {}\n+            no_proxy = proxies.get('no_proxy') if proxies is not None else None\n+            env_proxies = get_environ_proxies(url, no_proxy=no_proxy)\n             for (k, v) in env_proxies.items():\n                 proxies.setdefault(k, v)\n \ndiff --git a/requests/utils.py b/requests/utils.py\nindex 47325090ce..e5ecd350e9 100644\n--- a/requests/utils.py\n+++ b/requests/utils.py\n@@ -11,6 +11,7 @@\n import cgi\n import codecs\n import collections\n+import contextlib\n import io\n import os\n import re\n@@ -554,7 +555,29 @@ def is_valid_cidr(string_network):\n     return True\n \n \n-def should_bypass_proxies(url):\n+@contextlib.contextmanager\n+def set_environ(env_name, value):\n+    \"\"\"Set the environment variable 'env_name' to 'value'\n+\n+    Save previous value, yield, and then restore the previous value stored in\n+    the environment variable 'env_name'.\n+\n+    If 'value' is None, do nothing\"\"\"\n+    if value is not None:\n+        old_value = os.environ.get(env_name)\n+        os.environ[env_name] = value\n+    try:\n+        yield\n+    finally:\n+        if value is None:\n+            return\n+        if old_value is None:\n+            del os.environ[env_name]\n+        else:\n+            os.environ[env_name] = old_value\n+\n+\n+def should_bypass_proxies(url, no_proxy):\n     \"\"\"\n     Returns whether we should bypass proxies or not.\n \n@@ -564,7 +587,9 @@ def should_bypass_proxies(url):\n \n     # First check whether no_proxy is defined. If it is, check that the URL\n     # we're getting isn't in the no_proxy list.\n-    no_proxy = get_proxy('no_proxy')\n+    no_proxy_arg = no_proxy\n+    if no_proxy is None:\n+        no_proxy = get_proxy('no_proxy')\n     netloc = urlparse(url).netloc\n \n     if no_proxy:\n@@ -597,10 +622,11 @@ def should_bypass_proxies(url):\n     # of Python 2.6, so allow this call to fail. Only catch the specific\n     # exceptions we've seen, though: this call failing in other ways can reveal\n     # legitimate problems.\n-    try:\n-        bypass = proxy_bypass(netloc)\n-    except (TypeError, socket.gaierror):\n-        bypass = False\n+    with set_environ('no_proxy', no_proxy_arg):\n+        try:\n+            bypass = proxy_bypass(netloc)\n+        except (TypeError, socket.gaierror):\n+            bypass = False\n \n     if bypass:\n         return True\n@@ -608,13 +634,13 @@ def should_bypass_proxies(url):\n     return False\n \n \n-def get_environ_proxies(url):\n+def get_environ_proxies(url, no_proxy):\n     \"\"\"\n     Return a dict of environment proxies.\n \n     :rtype: dict\n     \"\"\"\n-    if should_bypass_proxies(url):\n+    if should_bypass_proxies(url, no_proxy=no_proxy):\n         return {}\n     else:\n         return getproxies()\ndiff --git a/tests/test_utils.py b/tests/test_utils.py\nindex 1edf6218c4..11ebf61726 100644\n--- a/tests/test_utils.py\n+++ b/tests/test_utils.py\n@@ -161,7 +161,7 @@ def no_proxy(self, request, monkeypatch):\n             'http://localhost.localdomain:5000/v1.0/',\n         ))\n     def test_bypass(self, url):\n-        assert get_environ_proxies(url) == {}\n+        assert get_environ_proxies(url, no_proxy=None) == {}\n \n     @pytest.mark.parametrize(\n         'url', (\n@@ -170,7 +170,32 @@ def test_bypass(self, url):\n             'http://www.requests.com/',\n         ))\n     def test_not_bypass(self, url):\n-        assert get_environ_proxies(url) != {}\n+        assert get_environ_proxies(url, no_proxy=None) != {}\n+\n+    @pytest.mark.parametrize(\n+        'url', (\n+            'http://192.168.1.1:5000/',\n+            'http://192.168.1.1/',\n+            'http://www.requests.com/',\n+        ))\n+    def test_bypass_no_proxy_keyword(self, url):\n+        no_proxy = '192.168.1.1,requests.com'\n+        assert get_environ_proxies(url, no_proxy=no_proxy) == {}\n+\n+    @pytest.mark.parametrize(\n+        'url', (\n+            'http://192.168.0.1:5000/',\n+            'http://192.168.0.1/',\n+            'http://172.16.1.1/',\n+            'http://172.16.1.1:5000/',\n+            'http://localhost.localdomain:5000/v1.0/',\n+        ))\n+    def test_not_bypass_no_proxy_keyword(self, url, monkeypatch):\n+        # This is testing that the 'no_proxy' argument overrides the\n+        # environment variable 'no_proxy'\n+        monkeypatch.setenv('http_proxy', 'http://proxy.example.com:3128/')\n+        no_proxy = '192.168.1.1,requests.com'\n+        assert get_environ_proxies(url, no_proxy=no_proxy) != {}\n \n \n class TestIsIPv4Address:\n@@ -525,7 +550,7 @@ def test_should_bypass_proxies(url, expected, monkeypatch):\n     \"\"\"\n     monkeypatch.setenv('no_proxy', '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1')\n     monkeypatch.setenv('NO_PROXY', '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1')\n-    assert should_bypass_proxies(url) == expected\n+    assert should_bypass_proxies(url, no_proxy=None) == expected\n \n \n @pytest.mark.parametrize(\n@@ -553,3 +578,24 @@ def test_add_dict_to_cookiejar(cookiejar):\n )\n def test_unicode_is_ascii(value, expected):\n     assert unicode_is_ascii(value) is expected\n+\n+\n+@pytest.mark.parametrize(\n+    'url, expected', (\n+            ('http://192.168.0.1:5000/', True),\n+            ('http://192.168.0.1/', True),\n+            ('http://172.16.1.1/', True),\n+            ('http://172.16.1.1:5000/', True),\n+            ('http://localhost.localdomain:5000/v1.0/', True),\n+            ('http://172.16.1.12/', False),\n+            ('http://172.16.1.12:5000/', False),\n+            ('http://google.com:5000/v1.0/', False),\n+    ))\n+def test_should_bypass_proxies_no_proxy(\n+        url, expected, monkeypatch):\n+    \"\"\"Tests for function should_bypass_proxies to check if proxy\n+    can be bypassed or not using the 'no_proxy' argument\n+    \"\"\"\n+    no_proxy = '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1'\n+    # Test 'no_proxy' argument\n+    assert should_bypass_proxies(url, no_proxy=no_proxy) == expected",
+      "changedFiles": 3,
+      "addedLines": 91,
+      "deletedLines": 15,
+      "commits": 1,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0001",
+      "title": "requests.utils.get_environ_proxies works when called with only a URL argument",
+      "preconditions": "The requests library is installed and its internal utils module is imported directly, as some third-party integrations (e.g. request-building helper packages) do.",
+      "steps": [
+        "Import get_environ_proxies from requests.utils",
+        "Call get_environ_proxies('http://example.com') passing only the URL and no other argument"
+      ],
+      "expectedResult": "The call succeeds and returns a dictionary of proxy settings (an empty dictionary if no proxies apply), without raising any error."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2017-02-10T21:50:11Z",
+      "testType": "API",
+      "tags": [
+        "proxies",
+        "http",
+        "backward-compatibility"
+      ],
+      "durationMs": null,
+      "feature": "HTTP proxy resolution utility",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/psf/requests/pull/3865",
+        "issueUrl": "https://github.com/psf/requests/pull/4052",
+        "evidenceTestFile": "tests/test_utils.py",
+        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature."
+      }
+    }
+  },
+  {
+    "id": "rge_0002",
+    "revision": "head",
+    "flipPairId": "rge_flip_0001",
+    "pr": {
+      "repository": "psf/requests",
+      "number": 3865,
+      "baseSha": "ad65b0cb19124b5ae4dd01bf19d82c16ffb2485d",
+      "headSha": "85400d8d6751071ef78f042d1efa72bdcf76cc0e",
+      "title": "Allow use of 'no_proxy' in the proxies argument",
+      "description": "Add the ability to add 'no_proxy' and a value to the 'proxies' dictionary argument.\n\nhttps://github.com/kennethreitz/requests/issues/2817\n\nCloses gh-2817",
+      "diff": "diff --git a/requests/sessions.py b/requests/sessions.py\nindex 7983282a6d..51bad2caeb 100644\n--- a/requests/sessions.py\n+++ b/requests/sessions.py\n@@ -231,13 +231,16 @@ def rebuild_proxies(self, prepared_request, proxies):\n \n         :rtype: dict\n         \"\"\"\n+        proxies = proxies if proxies is not None else {}\n         headers = prepared_request.headers\n         url = prepared_request.url\n         scheme = urlparse(url).scheme\n-        new_proxies = proxies.copy() if proxies is not None else {}\n+        new_proxies = proxies.copy()\n+        no_proxy = proxies.get('no_proxy')\n \n-        if self.trust_env and not should_bypass_proxies(url):\n-            environ_proxies = get_environ_proxies(url)\n+        bypass_proxy = should_bypass_proxies(url, no_proxy=no_proxy)\n+        if self.trust_env and not bypass_proxy:\n+            environ_proxies = get_environ_proxies(url, no_proxy=no_proxy)\n \n             proxy = environ_proxies.get(scheme, environ_proxies.get('all'))\n \n@@ -651,7 +654,8 @@ def merge_environment_settings(self, url, proxies, stream, verify, cert):\n         # Gather clues from the surrounding environment.\n         if self.trust_env:\n             # Set environment's proxies.\n-            env_proxies = get_environ_proxies(url) or {}\n+            no_proxy = proxies.get('no_proxy') if proxies is not None else None\n+            env_proxies = get_environ_proxies(url, no_proxy=no_proxy)\n             for (k, v) in env_proxies.items():\n                 proxies.setdefault(k, v)\n \ndiff --git a/requests/utils.py b/requests/utils.py\nindex 47325090ce..e5ecd350e9 100644\n--- a/requests/utils.py\n+++ b/requests/utils.py\n@@ -11,6 +11,7 @@\n import cgi\n import codecs\n import collections\n+import contextlib\n import io\n import os\n import re\n@@ -554,7 +555,29 @@ def is_valid_cidr(string_network):\n     return True\n \n \n-def should_bypass_proxies(url):\n+@contextlib.contextmanager\n+def set_environ(env_name, value):\n+    \"\"\"Set the environment variable 'env_name' to 'value'\n+\n+    Save previous value, yield, and then restore the previous value stored in\n+    the environment variable 'env_name'.\n+\n+    If 'value' is None, do nothing\"\"\"\n+    if value is not None:\n+        old_value = os.environ.get(env_name)\n+        os.environ[env_name] = value\n+    try:\n+        yield\n+    finally:\n+        if value is None:\n+            return\n+        if old_value is None:\n+            del os.environ[env_name]\n+        else:\n+            os.environ[env_name] = old_value\n+\n+\n+def should_bypass_proxies(url, no_proxy):\n     \"\"\"\n     Returns whether we should bypass proxies or not.\n \n@@ -564,7 +587,9 @@ def should_bypass_proxies(url):\n \n     # First check whether no_proxy is defined. If it is, check that the URL\n     # we're getting isn't in the no_proxy list.\n-    no_proxy = get_proxy('no_proxy')\n+    no_proxy_arg = no_proxy\n+    if no_proxy is None:\n+        no_proxy = get_proxy('no_proxy')\n     netloc = urlparse(url).netloc\n \n     if no_proxy:\n@@ -597,10 +622,11 @@ def should_bypass_proxies(url):\n     # of Python 2.6, so allow this call to fail. Only catch the specific\n     # exceptions we've seen, though: this call failing in other ways can reveal\n     # legitimate problems.\n-    try:\n-        bypass = proxy_bypass(netloc)\n-    except (TypeError, socket.gaierror):\n-        bypass = False\n+    with set_environ('no_proxy', no_proxy_arg):\n+        try:\n+            bypass = proxy_bypass(netloc)\n+        except (TypeError, socket.gaierror):\n+            bypass = False\n \n     if bypass:\n         return True\n@@ -608,13 +634,13 @@ def should_bypass_proxies(url):\n     return False\n \n \n-def get_environ_proxies(url):\n+def get_environ_proxies(url, no_proxy):\n     \"\"\"\n     Return a dict of environment proxies.\n \n     :rtype: dict\n     \"\"\"\n-    if should_bypass_proxies(url):\n+    if should_bypass_proxies(url, no_proxy=no_proxy):\n         return {}\n     else:\n         return getproxies()\ndiff --git a/tests/test_utils.py b/tests/test_utils.py\nindex 1edf6218c4..11ebf61726 100644\n--- a/tests/test_utils.py\n+++ b/tests/test_utils.py\n@@ -161,7 +161,7 @@ def no_proxy(self, request, monkeypatch):\n             'http://localhost.localdomain:5000/v1.0/',\n         ))\n     def test_bypass(self, url):\n-        assert get_environ_proxies(url) == {}\n+        assert get_environ_proxies(url, no_proxy=None) == {}\n \n     @pytest.mark.parametrize(\n         'url', (\n@@ -170,7 +170,32 @@ def test_bypass(self, url):\n             'http://www.requests.com/',\n         ))\n     def test_not_bypass(self, url):\n-        assert get_environ_proxies(url) != {}\n+        assert get_environ_proxies(url, no_proxy=None) != {}\n+\n+    @pytest.mark.parametrize(\n+        'url', (\n+            'http://192.168.1.1:5000/',\n+            'http://192.168.1.1/',\n+            'http://www.requests.com/',\n+        ))\n+    def test_bypass_no_proxy_keyword(self, url):\n+        no_proxy = '192.168.1.1,requests.com'\n+        assert get_environ_proxies(url, no_proxy=no_proxy) == {}\n+\n+    @pytest.mark.parametrize(\n+        'url', (\n+            'http://192.168.0.1:5000/',\n+            'http://192.168.0.1/',\n+            'http://172.16.1.1/',\n+            'http://172.16.1.1:5000/',\n+            'http://localhost.localdomain:5000/v1.0/',\n+        ))\n+    def test_not_bypass_no_proxy_keyword(self, url, monkeypatch):\n+        # This is testing that the 'no_proxy' argument overrides the\n+        # environment variable 'no_proxy'\n+        monkeypatch.setenv('http_proxy', 'http://proxy.example.com:3128/')\n+        no_proxy = '192.168.1.1,requests.com'\n+        assert get_environ_proxies(url, no_proxy=no_proxy) != {}\n \n \n class TestIsIPv4Address:\n@@ -525,7 +550,7 @@ def test_should_bypass_proxies(url, expected, monkeypatch):\n     \"\"\"\n     monkeypatch.setenv('no_proxy', '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1')\n     monkeypatch.setenv('NO_PROXY', '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1')\n-    assert should_bypass_proxies(url) == expected\n+    assert should_bypass_proxies(url, no_proxy=None) == expected\n \n \n @pytest.mark.parametrize(\n@@ -553,3 +578,24 @@ def test_add_dict_to_cookiejar(cookiejar):\n )\n def test_unicode_is_ascii(value, expected):\n     assert unicode_is_ascii(value) is expected\n+\n+\n+@pytest.mark.parametrize(\n+    'url, expected', (\n+            ('http://192.168.0.1:5000/', True),\n+            ('http://192.168.0.1/', True),\n+            ('http://172.16.1.1/', True),\n+            ('http://172.16.1.1:5000/', True),\n+            ('http://localhost.localdomain:5000/v1.0/', True),\n+            ('http://172.16.1.12/', False),\n+            ('http://172.16.1.12:5000/', False),\n+            ('http://google.com:5000/v1.0/', False),\n+    ))\n+def test_should_bypass_proxies_no_proxy(\n+        url, expected, monkeypatch):\n+    \"\"\"Tests for function should_bypass_proxies to check if proxy\n+    can be bypassed or not using the 'no_proxy' argument\n+    \"\"\"\n+    no_proxy = '192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1'\n+    # Test 'no_proxy' argument\n+    assert should_bypass_proxies(url, no_proxy=no_proxy) == expected",
+      "changedFiles": 3,
+      "addedLines": 91,
+      "deletedLines": 15,
+      "commits": 1,
+      "language": "Python",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0001",
+      "title": "requests.utils.get_environ_proxies works when called with only a URL argument",
+      "preconditions": "The requests library is installed and its internal utils module is imported directly, as some third-party integrations (e.g. request-building helper packages) do.",
+      "steps": [
+        "Import get_environ_proxies from requests.utils",
+        "Call get_environ_proxies('http://example.com') passing only the URL and no other argument"
+      ],
+      "expectedResult": "The call succeeds and returns a dictionary of proxy settings (an empty dictionary if no proxies apply), without raising any error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2017-02-10T21:50:11Z",
+      "testType": "API",
+      "tags": [
+        "proxies",
+        "http",
+        "backward-compatibility"
+      ],
+      "durationMs": null,
+      "feature": "HTTP proxy resolution utility",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/psf/requests/pull/3865",
+        "issueUrl": "https://github.com/psf/requests/pull/4052",
+        "evidenceTestFile": "tests/test_utils.py",
+        "note": "PR #3865 merged 2017-02-10 changed requests/utils.py's get_environ_proxies(url) to get_environ_proxies(url, no_proxy) with no default value, requiring every caller to pass a second positional argument. This broke any code (including downstream packages) that called get_environ_proxies(url) with a single argument, raising a TypeError for a missing required positional argument. PR #4052 ('Fix regression in API caused by commit 85400d8d6751071ef78f042d1efa72bdcf76cc0e', i.e. PR #3865's merge commit) merged 2017-05-27 added a default value (no_proxy=None) to restore the original one-argument call signature."
+      }
+    }
+  },
+  {
+    "id": "rge_0003",
+    "revision": "base",
+    "flipPairId": "rge_flip_0002",
+    "pr": {
+      "repository": "nushell/nushell",
+      "number": 17923,
+      "baseSha": "f5980f37bd073b60ce3bf1f4714cb292d45148e9",
+      "headSha": "6acb951dd34d313eb4ce66565d89c8321899523d",
+      "title": "fix(parser): an edge case of parse_unit_value",
+      "description": "Fixes the 1st issue of #17913\n\nThe other issue requires more changes. Maybe I don't know some background stories, but current `parse_unit_value` looks really weirdly complicated in my eyes. I may overhaul it in the future if I get more motivated.\n\nFixed a bug of duration/filesize parsing with numbers started by `.`, e.g. `.5sec`",
+      "diff": "diff --git a/crates/nu-parser/src/parser.rs b/crates/nu-parser/src/parser.rs\nindex 3d285f88f3a73..3602a4d3d9742 100644\n--- a/crates/nu-parser/src/parser.rs\n+++ b/crates/nu-parser/src/parser.rs\n@@ -2969,7 +2969,9 @@ pub fn parse_unit_value<'res>(\n     transform: fn(String) -> String,\n ) -> Option<ParseUnitResult<'res>> {\n     if bytes.len() < 2\n-        || !(bytes[0].is_ascii_digit() || (bytes[0] == b'-' && bytes[1].is_ascii_digit()))\n+        || !(bytes[0].is_ascii_digit()\n+            || bytes[0] == b'.'\n+            || (bytes[0] == b'-' && bytes[1].is_ascii_digit()))\n     {\n         return None;\n     }\ndiff --git a/tests/repl/test_parser.rs b/tests/repl/test_parser.rs\nindex 9350061b093eb..fae4ff23ea006 100644\n--- a/tests/repl/test_parser.rs\n+++ b/tests/repl/test_parser.rs\n@@ -811,6 +811,11 @@ fn extern_errors_with_no_space_between_params_and_name_2() -> TestResult {\n     fail_test(\"extern cmd(--flag)\", \"expected space\")\n }\n \n+#[test]\n+fn duration_with_float_number() -> TestResult {\n+    run_test(\".6min\", \"36sec\")\n+}\n+\n #[test]\n fn duration_with_underscores_1() -> TestResult {\n     run_test(\"420_min\", \"7hr\")",
+      "changedFiles": 2,
+      "addedLines": 8,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Rust",
+      "labels": [
+        "A:parser",
+        "notes:fixes",
+        "notes:ready"
+      ]
+    },
+    "testCase": {
+      "id": "rge_tc_0003",
+      "title": "A list literal containing a bare word that starts with a period parses as a string",
+      "preconditions": "Nushell is installed and a REPL or script can be run.",
+      "steps": [
+        "Run the command: [.foons] | get 0"
+      ],
+      "expectedResult": "The command returns the string '.foons' with no parser error."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-03-29T12:23:42Z",
+      "testType": "OTHER",
+      "tags": [
+        "parser",
+        "cli",
+        "list-literal"
+      ],
+      "durationMs": null,
+      "feature": "Nushell list/string literal parsing",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/nushell/nushell/pull/17923",
+        "issueUrl": "https://github.com/nushell/nushell/pull/18363",
+        "evidenceTestFile": "tests/repl/test_parser.rs",
+        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'."
+      }
+    }
+  },
+  {
+    "id": "rge_0004",
+    "revision": "head",
+    "flipPairId": "rge_flip_0002",
+    "pr": {
+      "repository": "nushell/nushell",
+      "number": 17923,
+      "baseSha": "f5980f37bd073b60ce3bf1f4714cb292d45148e9",
+      "headSha": "6acb951dd34d313eb4ce66565d89c8321899523d",
+      "title": "fix(parser): an edge case of parse_unit_value",
+      "description": "Fixes the 1st issue of #17913\n\nThe other issue requires more changes. Maybe I don't know some background stories, but current `parse_unit_value` looks really weirdly complicated in my eyes. I may overhaul it in the future if I get more motivated.\n\nFixed a bug of duration/filesize parsing with numbers started by `.`, e.g. `.5sec`",
+      "diff": "diff --git a/crates/nu-parser/src/parser.rs b/crates/nu-parser/src/parser.rs\nindex 3d285f88f3a73..3602a4d3d9742 100644\n--- a/crates/nu-parser/src/parser.rs\n+++ b/crates/nu-parser/src/parser.rs\n@@ -2969,7 +2969,9 @@ pub fn parse_unit_value<'res>(\n     transform: fn(String) -> String,\n ) -> Option<ParseUnitResult<'res>> {\n     if bytes.len() < 2\n-        || !(bytes[0].is_ascii_digit() || (bytes[0] == b'-' && bytes[1].is_ascii_digit()))\n+        || !(bytes[0].is_ascii_digit()\n+            || bytes[0] == b'.'\n+            || (bytes[0] == b'-' && bytes[1].is_ascii_digit()))\n     {\n         return None;\n     }\ndiff --git a/tests/repl/test_parser.rs b/tests/repl/test_parser.rs\nindex 9350061b093eb..fae4ff23ea006 100644\n--- a/tests/repl/test_parser.rs\n+++ b/tests/repl/test_parser.rs\n@@ -811,6 +811,11 @@ fn extern_errors_with_no_space_between_params_and_name_2() -> TestResult {\n     fail_test(\"extern cmd(--flag)\", \"expected space\")\n }\n \n+#[test]\n+fn duration_with_float_number() -> TestResult {\n+    run_test(\".6min\", \"36sec\")\n+}\n+\n #[test]\n fn duration_with_underscores_1() -> TestResult {\n     run_test(\"420_min\", \"7hr\")",
+      "changedFiles": 2,
+      "addedLines": 8,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Rust",
+      "labels": [
+        "A:parser",
+        "notes:fixes",
+        "notes:ready"
+      ]
+    },
+    "testCase": {
+      "id": "rge_tc_0003",
+      "title": "A list literal containing a bare word that starts with a period parses as a string",
+      "preconditions": "Nushell is installed and a REPL or script can be run.",
+      "steps": [
+        "Run the command: [.foons] | get 0"
+      ],
+      "expectedResult": "The command returns the string '.foons' with no parser error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-03-29T12:23:42Z",
+      "testType": "OTHER",
+      "tags": [
+        "parser",
+        "cli",
+        "list-literal"
+      ],
+      "durationMs": null,
+      "feature": "Nushell list/string literal parsing",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/nushell/nushell/pull/17923",
+        "issueUrl": "https://github.com/nushell/nushell/pull/18363",
+        "evidenceTestFile": "tests/repl/test_parser.rs",
+        "note": "PR #17923 merged 2026-03-29 changed parse_unit_value's entry condition in crates/nu-parser/src/parser.rs to accept any byte sequence starting with '.' as a potential duration/filesize literal, without requiring a following digit. This caused non-numeric dot-prefixed tokens such as '.foons' inside list literals to be misrouted into unit-value parsing and fail with a parser error. PR #18363, titled 'fix(parser): a regression of parse_unit_value where [.foons] not return early' and whose body states 'Fixes a regression introduced by #17923', merged 2026-06-08, tightened the condition to require bytes[1].is_ascii_digit() and added the regression test list_raw_string_unit_value_like asserting `[.foons] | get 0` returns '.foons'."
+      }
+    }
+  },
+  {
+    "id": "rge_0005",
+    "revision": "base",
+    "flipPairId": "rge_flip_0003",
+    "pr": {
+      "repository": "guzzle/guzzle",
+      "number": 2778,
+      "baseSha": "2890bde08eb42ec57b3fbc9bc6b7f332d3a7b877",
+      "headSha": "9b6e8676f06326b3e7402dcc48a9b9431875778e",
+      "title": "Do not connect a sink for HEAD requests",
+      "description": "This PR was created in response to the test discussion in #2741: https://github.com/guzzle/guzzle/pull/2741#issuecomment-698808528",
+      "diff": "diff --git a/src/Handler/CurlFactory.php b/src/Handler/CurlFactory.php\nindex a6fcae555..ced94afca 100644\n--- a/src/Handler/CurlFactory.php\n+++ b/src/Handler/CurlFactory.php\n@@ -393,29 +393,33 @@ private function applyHandlerOptions(EasyHandle $easy, array &$conf): void\n             }\n         }\n \n-        if (isset($options['sink'])) {\n-            $sink = $options['sink'];\n-            if (!\\is_string($sink)) {\n-                $sink = \\GuzzleHttp\\Psr7\\stream_for($sink);\n-            } elseif (!\\is_dir(\\dirname($sink))) {\n-                // Ensure that the directory exists before failing in curl.\n-                throw new \\RuntimeException(\\sprintf(\n-                    'Directory %s does not exist for sink value of %s',\n-                    \\dirname($sink),\n-                    $sink\n-                ));\n+        // Do not connect a sink for HEAD requests.\n+        if ($easy->request->getMethod() !== 'HEAD') {\n+            if (isset($options['sink'])) {\n+                $sink = $options['sink'];\n+                if (!\\is_string($sink)) {\n+                    $sink = \\GuzzleHttp\\Psr7\\stream_for($sink);\n+                } elseif (!\\is_dir(\\dirname($sink))) {\n+                    // Ensure that the directory exists before failing in curl.\n+                    throw new \\RuntimeException(\\sprintf(\n+                        'Directory %s does not exist for sink value of %s',\n+                        \\dirname($sink),\n+                        $sink\n+                    ));\n+                } else {\n+                    $sink = new LazyOpenStream($sink, 'w+');\n+                }\n+                $easy->sink = $sink;\n+                $conf[\\CURLOPT_WRITEFUNCTION] = static function ($ch, $write) use ($sink): int {\n+                    return $sink->write($write);\n+                };\n             } else {\n-                $sink = new LazyOpenStream($sink, 'w+');\n+                // Use a default temp stream if no sink was set.\n+                $conf[\\CURLOPT_FILE] = \\fopen('php://temp', 'w+');\n+                $easy->sink = Psr7\\stream_for($conf[\\CURLOPT_FILE]);\n             }\n-            $easy->sink = $sink;\n-            $conf[\\CURLOPT_WRITEFUNCTION] = static function ($ch, $write) use ($sink): int {\n-                return $sink->write($write);\n-            };\n-        } else {\n-            // Use a default temp stream if no sink was set.\n-            $conf[\\CURLOPT_FILE] = \\fopen('php://temp', 'w+');\n-            $easy->sink = Psr7\\stream_for($conf[\\CURLOPT_FILE]);\n         }\n+\n         $timeoutRequiresNoSignal = false;\n         if (isset($options['timeout'])) {\n             $timeoutRequiresNoSignal |= $options['timeout'] < 1;\ndiff --git a/tests/Handler/CurlFactoryTest.php b/tests/Handler/CurlFactoryTest.php\nindex da4e6a505..c7eebc6a9 100644\n--- a/tests/Handler/CurlFactoryTest.php\n+++ b/tests/Handler/CurlFactoryTest.php\n@@ -82,7 +82,7 @@ public function testSendsHeadRequests()\n         $response = $a(new Psr7\\Request('HEAD', Server::$url), []);\n         $response->wait();\n         self::assertTrue($_SERVER['_curl'][\\CURLOPT_NOBODY]);\n-        $checks = [\\CURLOPT_WRITEFUNCTION, \\CURLOPT_READFUNCTION, \\CURLOPT_INFILE];\n+        $checks = [\\CURLOPT_WRITEFUNCTION, \\CURLOPT_READFUNCTION, \\CURLOPT_FILE, \\CURLOPT_INFILE];\n         foreach ($checks as $check) {\n             self::assertArrayNotHasKey($check, $_SERVER['_curl']);\n         }",
+      "changedFiles": 2,
+      "addedLines": 25,
+      "deletedLines": 21,
+      "commits": 1,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0005",
+      "title": "Sending a HEAD request with an Accept-Encoding header via the cURL handler completes successfully",
+      "preconditions": "A Guzzle HTTP client is configured to use the default cURL handler.",
+      "steps": [
+        "Create a Guzzle client with the header 'Accept-Encoding: gzip, deflate, br' set as a default header",
+        "Send a HEAD request to a reachable HTTP endpoint using that client"
+      ],
+      "expectedResult": "The request completes and returns a response object with a valid HTTP status code; no fatal error is raised."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2020-09-29T15:46:33Z",
+      "testType": "API",
+      "tags": [
+        "http",
+        "curl",
+        "head-request"
+      ],
+      "durationMs": null,
+      "feature": "HTTP HEAD request handling (cURL handler)",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/guzzle/guzzle/pull/2778",
+        "issueUrl": "https://github.com/guzzle/guzzle/issues/2799",
+        "evidenceTestFile": "tests/Handler/CurlFactoryTest.php",
+        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests."
+      }
+    }
+  },
+  {
+    "id": "rge_0006",
+    "revision": "head",
+    "flipPairId": "rge_flip_0003",
+    "pr": {
+      "repository": "guzzle/guzzle",
+      "number": 2778,
+      "baseSha": "2890bde08eb42ec57b3fbc9bc6b7f332d3a7b877",
+      "headSha": "9b6e8676f06326b3e7402dcc48a9b9431875778e",
+      "title": "Do not connect a sink for HEAD requests",
+      "description": "This PR was created in response to the test discussion in #2741: https://github.com/guzzle/guzzle/pull/2741#issuecomment-698808528",
+      "diff": "diff --git a/src/Handler/CurlFactory.php b/src/Handler/CurlFactory.php\nindex a6fcae555..ced94afca 100644\n--- a/src/Handler/CurlFactory.php\n+++ b/src/Handler/CurlFactory.php\n@@ -393,29 +393,33 @@ private function applyHandlerOptions(EasyHandle $easy, array &$conf): void\n             }\n         }\n \n-        if (isset($options['sink'])) {\n-            $sink = $options['sink'];\n-            if (!\\is_string($sink)) {\n-                $sink = \\GuzzleHttp\\Psr7\\stream_for($sink);\n-            } elseif (!\\is_dir(\\dirname($sink))) {\n-                // Ensure that the directory exists before failing in curl.\n-                throw new \\RuntimeException(\\sprintf(\n-                    'Directory %s does not exist for sink value of %s',\n-                    \\dirname($sink),\n-                    $sink\n-                ));\n+        // Do not connect a sink for HEAD requests.\n+        if ($easy->request->getMethod() !== 'HEAD') {\n+            if (isset($options['sink'])) {\n+                $sink = $options['sink'];\n+                if (!\\is_string($sink)) {\n+                    $sink = \\GuzzleHttp\\Psr7\\stream_for($sink);\n+                } elseif (!\\is_dir(\\dirname($sink))) {\n+                    // Ensure that the directory exists before failing in curl.\n+                    throw new \\RuntimeException(\\sprintf(\n+                        'Directory %s does not exist for sink value of %s',\n+                        \\dirname($sink),\n+                        $sink\n+                    ));\n+                } else {\n+                    $sink = new LazyOpenStream($sink, 'w+');\n+                }\n+                $easy->sink = $sink;\n+                $conf[\\CURLOPT_WRITEFUNCTION] = static function ($ch, $write) use ($sink): int {\n+                    return $sink->write($write);\n+                };\n             } else {\n-                $sink = new LazyOpenStream($sink, 'w+');\n+                // Use a default temp stream if no sink was set.\n+                $conf[\\CURLOPT_FILE] = \\fopen('php://temp', 'w+');\n+                $easy->sink = Psr7\\stream_for($conf[\\CURLOPT_FILE]);\n             }\n-            $easy->sink = $sink;\n-            $conf[\\CURLOPT_WRITEFUNCTION] = static function ($ch, $write) use ($sink): int {\n-                return $sink->write($write);\n-            };\n-        } else {\n-            // Use a default temp stream if no sink was set.\n-            $conf[\\CURLOPT_FILE] = \\fopen('php://temp', 'w+');\n-            $easy->sink = Psr7\\stream_for($conf[\\CURLOPT_FILE]);\n         }\n+\n         $timeoutRequiresNoSignal = false;\n         if (isset($options['timeout'])) {\n             $timeoutRequiresNoSignal |= $options['timeout'] < 1;\ndiff --git a/tests/Handler/CurlFactoryTest.php b/tests/Handler/CurlFactoryTest.php\nindex da4e6a505..c7eebc6a9 100644\n--- a/tests/Handler/CurlFactoryTest.php\n+++ b/tests/Handler/CurlFactoryTest.php\n@@ -82,7 +82,7 @@ public function testSendsHeadRequests()\n         $response = $a(new Psr7\\Request('HEAD', Server::$url), []);\n         $response->wait();\n         self::assertTrue($_SERVER['_curl'][\\CURLOPT_NOBODY]);\n-        $checks = [\\CURLOPT_WRITEFUNCTION, \\CURLOPT_READFUNCTION, \\CURLOPT_INFILE];\n+        $checks = [\\CURLOPT_WRITEFUNCTION, \\CURLOPT_READFUNCTION, \\CURLOPT_FILE, \\CURLOPT_INFILE];\n         foreach ($checks as $check) {\n             self::assertArrayNotHasKey($check, $_SERVER['_curl']);\n         }",
+      "changedFiles": 2,
+      "addedLines": 25,
+      "deletedLines": 21,
+      "commits": 1,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0005",
+      "title": "Sending a HEAD request with an Accept-Encoding header via the cURL handler completes successfully",
+      "preconditions": "A Guzzle HTTP client is configured to use the default cURL handler.",
+      "steps": [
+        "Create a Guzzle client with the header 'Accept-Encoding: gzip, deflate, br' set as a default header",
+        "Send a HEAD request to a reachable HTTP endpoint using that client"
+      ],
+      "expectedResult": "The request completes and returns a response object with a valid HTTP status code; no fatal error is raised."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2020-09-29T15:46:33Z",
+      "testType": "API",
+      "tags": [
+        "http",
+        "curl",
+        "head-request"
+      ],
+      "durationMs": null,
+      "feature": "HTTP HEAD request handling (cURL handler)",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": true,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/guzzle/guzzle/pull/2778",
+        "issueUrl": "https://github.com/guzzle/guzzle/issues/2799",
+        "evidenceTestFile": "tests/Handler/CurlFactoryTest.php",
+        "note": "PR #2778 merged 2020-09-29 changed CurlFactory::applyHandlerOptions() to skip setting $easy->sink entirely for HEAD requests when using the cURL handler. Issue #2799, titled 'Regression in #2778 - Call to a member function getSize() on null' (filed 2020-10-06), reports that a HEAD request with an Accept-Encoding header crashes with 'Call to a member function getSize() on null' at EasyHandle.php:84 because $easy->sink was left null; the reporter explicitly names #2778 as the cause and proposes reverting its commit 4552f37ba6027812d044aa4cdd8f8744b833bff4. PR #2804 ('Make sure the Request always has a body object'), merged 2020-10-09, states in its body 'It will revert changes in #2778 ... fix #2799', restoring an always-present sink/body object for HEAD requests."
+      }
+    }
+  },
+  {
+    "id": "rge_0007",
+    "revision": "base",
+    "flipPairId": "rge_flip_0004",
+    "pr": {
+      "repository": "elixir-lang/elixir",
+      "number": 13954,
+      "baseSha": "e3f017d0b2cbae8fa813183de24b43fa0c5548c1",
+      "headSha": "ef7fd405c9194344718a999f8c70af2eccd87812",
+      "title": "Format inserted/deleted maps in list assertions",
+      "description": "Solves #13624 When the elements are equal then we pass them as ast, when deleted or inserted we pass maps as %{a: 1, b: 2} and fall into inspect in safe_to_algebra. This pr changes maps to ast representation so it's formatted correctly in the function that handles maps.",
+      "diff": "diff --git a/lib/ex_unit/lib/ex_unit/diff.ex b/lib/ex_unit/lib/ex_unit/diff.ex\nindex 05c2c7fda7e..f784d1a60b4 100644\n--- a/lib/ex_unit/lib/ex_unit/diff.ex\n+++ b/lib/ex_unit/lib/ex_unit/diff.ex\n@@ -1142,9 +1142,22 @@ defmodule ExUnit.Diff do\n   defp maybe_escape(other, %{context: :match}), do: other\n   defp maybe_escape(other, _env), do: escape(other)\n \n-  # We escape container types to make a distinction between AST\n-  # and values that should be inspected. All other values have no\n-  # special AST representation, so we can keep them as is.\n+  # We escape container types to make a distinction between AST and values that\n+  # should be inspected. Maps and structs without custom inspect implementation\n+  # should not be inspected, convert it to ast.\n+  # All other values have no special AST representation, so we can keep them as is.\n+  defp escape(other) when is_map(other) do\n+    struct = maybe_struct(other)\n+\n+    if struct && Inspect.impl_for(other) not in [Inspect.Any, Inspect.Map] do\n+      other\n+    else\n+      other\n+      |> Map.to_list()\n+      |> build_map_or_struct(struct)\n+    end\n+  end\n+\n   defp escape(other) when is_list(other) or is_tuple(other), do: {other}\n   defp escape(other), do: other\n \ndiff --git a/lib/ex_unit/test/ex_unit/diff_test.exs b/lib/ex_unit/test/ex_unit/diff_test.exs\nindex 04340b8db5a..93d34d5cee0 100644\n--- a/lib/ex_unit/test/ex_unit/diff_test.exs\n+++ b/lib/ex_unit/test/ex_unit/diff_test.exs\n@@ -10,6 +10,10 @@ defmodule ExUnit.DiffTest do\n     defstruct [:name, :age]\n   end\n \n+  defmodule Customer do\n+    defstruct [:address, :age, :first_name, :language, :last_name, :notifications]\n+  end\n+\n   defmodule Person do\n     defstruct [:age]\n   end\n@@ -126,10 +130,11 @@ defmodule ExUnit.DiffTest do\n     assert env_binding == expected_binding\n   end\n \n+  @terminal_width 80\n   defp to_diff(side, sign) do\n     side\n     |> Diff.to_algebra(&diff_wrapper(&1, sign))\n-    |> Algebra.format(:infinity)\n+    |> Algebra.format(@terminal_width)\n     |> IO.iodata_to_binary()\n   end\n \n@@ -682,13 +687,49 @@ defmodule ExUnit.DiffTest do\n     refute_diff(\n       %User{age: %Date{}} = struct,\n       ~s/%ExUnit.DiffTest.User{age: %-Date-{}}/,\n-      ~s/%ExUnit.DiffTest.User{age: %+DateTime+{calendar: Calendar.ISO, day: 30, hour: 13, microsecond: {253158, 6}, minute: 49, month: 7, second: 59, std_offset: 0, time_zone: \"Etc\\/UTC\", utc_offset: 0, year: 2020, zone_abbr: \"UTC\"}, name: nil}/\n+      \"\"\"\n+      %ExUnit.DiffTest.User{\n+        age: %+DateTime+{\n+          calendar: Calendar.ISO,\n+          day: 30,\n+          hour: 13,\n+          microsecond: {253158, 6},\n+          minute: 49,\n+          month: 7,\n+          second: 59,\n+          std_offset: 0,\n+          time_zone: \"Etc\\/UTC\",\n+          utc_offset: 0,\n+          year: 2020,\n+          zone_abbr: \"UTC\"\n+        },\n+        name: nil\n+      }\\\n+      \"\"\"\n     )\n \n     refute_diff(\n       %{age: %Date{}} = struct,\n       ~s/%{age: %-Date-{}}/,\n-      ~s/%ExUnit.DiffTest.User{age: %+DateTime+{calendar: Calendar.ISO, day: 30, hour: 13, microsecond: {253158, 6}, minute: 49, month: 7, second: 59, std_offset: 0, time_zone: \"Etc\\/UTC\", utc_offset: 0, year: 2020, zone_abbr: \"UTC\"}, name: nil}/\n+      \"\"\"\n+      %ExUnit.DiffTest.User{\n+        age: %+DateTime+{\n+          calendar: Calendar.ISO,\n+          day: 30,\n+          hour: 13,\n+          microsecond: {253158, 6},\n+          minute: 49,\n+          month: 7,\n+          second: 59,\n+          std_offset: 0,\n+          time_zone: \\\"Etc/UTC\\\",\n+          utc_offset: 0,\n+          year: 2020,\n+          zone_abbr: \\\"UTC\\\"\n+        },\n+        name: nil\n+      }\\\n+      \"\"\"\n     )\n   end\n \n@@ -836,6 +877,110 @@ defmodule ExUnit.DiffTest do\n     )\n   end\n \n+  test \"maps in lists\" do\n+    map = %{\n+      address: %{\n+        street: \"123 Main St\",\n+        city: \"Springfield\",\n+        state: \"IL\",\n+        zip: \"62701\"\n+      },\n+      age: 30,\n+      first_name: \"John\",\n+      language: \"en-US\",\n+      last_name: \"Doe\",\n+      notifications: true\n+    }\n+\n+    refute_diff(\n+      [map] == [],\n+      \"\"\"\n+      [\n+        -%{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }-\n+      ]\\\n+      \"\"\",\n+      \"[]\"\n+    )\n+\n+    refute_diff(\n+      [] == [map],\n+      \"[]\",\n+      \"\"\"\n+      [\n+        +%{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }+\n+      ]\\\n+      \"\"\"\n+    )\n+\n+    assert_diff([map] == [map], [])\n+  end\n+\n+  test \"structs in lists\" do\n+    customer = %Customer{\n+      address: %{\n+        street: \"123 Main St\",\n+        city: \"Springfield\",\n+        state: \"IL\",\n+        zip: \"62701\"\n+      },\n+      age: 30,\n+      first_name: \"John\",\n+      language: \"en-US\",\n+      last_name: \"Doe\",\n+      notifications: true\n+    }\n+\n+    refute_diff(\n+      [customer] == [],\n+      \"\"\"\n+      [\n+        -%ExUnit.DiffTest.Customer{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }-\n+      ]\\\n+      \"\"\",\n+      \"[]\"\n+    )\n+\n+    refute_diff(\n+      [] == [customer],\n+      \"[]\",\n+      \"\"\"\n+      [\n+        +%ExUnit.DiffTest.Customer{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }+\n+      ]\\\n+      \"\"\"\n+    )\n+\n+    assert_diff([customer] == [customer], [])\n+  end\n+\n   test \"maps and structs with escaped values\" do\n     refute_diff(\n       %User{age: {1, 2, 3}} = %User{age: {1, 2, 4}},\n@@ -1082,8 +1227,18 @@ defmodule ExUnit.DiffTest do\n \n     refute_diff(\n       {ref1, ref2} == {ref2, ref1},\n-      \"{-#{inspect_ref1}-, -#{inspect_ref2}-}\",\n-      \"{+#{inspect_ref2}+, +#{inspect_ref1}+}\"\n+      \"\"\"\n+      {\n+        -#{inspect_ref1}-,\n+        -#{inspect_ref2}-\n+      }\\\n+      \"\"\",\n+      \"\"\"\n+      {\n+        +#{inspect_ref2}+,\n+        +#{inspect_ref1}+\n+      }\\\n+      \"\"\"\n     )\n \n     refute_diff(\n@@ -1100,7 +1255,16 @@ defmodule ExUnit.DiffTest do\n \n     refute_diff(ref1 == :a, \"-#{inspect_ref1}-\", \"+:a+\")\n     refute_diff({ref1, ref2} == :a, \"-{#{inspect_ref1}, #{inspect_ref2}}\", \"+:a+\")\n-    refute_diff(%{ref1 => ref2} == :a, \"-%{#{inspect_ref1} => #{inspect_ref2}}\", \"+:a+\")\n+\n+    refute_diff(\n+      %{ref1 => ref2} == :a,\n+      \"\"\"\n+      -%{\n+        #{inspect_ref1} => #{inspect_ref2}\n+      }\\\n+      \"\"\",\n+      \"+:a+\"\n+    )\n \n     refute_diff(\n       %Opaque{data: ref1} == :a,\n@@ -1141,7 +1305,16 @@ defmodule ExUnit.DiffTest do\n     refute_diff(identity == :a, \"-#{inspect}-\", \"+:a+\")\n     refute_diff({identity, identity} == :a, \"-{#{inspect}, #{inspect}}\", \"+:a+\")\n     refute_diff({identity, :a} == {:a, identity}, \"{-#{inspect}-, -:a-}\", \"{+:a+, +#{inspect}+}\")\n-    refute_diff(%{identity => identity} == :a, \"-%{#{inspect} => #{inspect}}\", \"+:a+\")\n+\n+    refute_diff(\n+      %{identity => identity} == :a,\n+      \"\"\"\n+      -%{\n+        #{inspect} => #{inspect}\n+      }-\\\n+      \"\"\",\n+      \"+:a+\"\n+    )\n \n     refute_diff(\n       (&String.to_charlist/1) == (&String.unknown/1),",
+      "changedFiles": 2,
+      "addedLines": 196,
+      "deletedLines": 10,
+      "commits": 9,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0007",
+      "title": "ExUnit reports a clear match-failure diff for an assertion against a map containing an improper list",
+      "preconditions": "An Elixir project using ExUnit for testing.",
+      "steps": [
+        "Write a test containing the assertion: assert :foo = %{bar: [1 | 2]}",
+        "Run the test suite with mix test"
+      ],
+      "expectedResult": "The test fails with a standard 'match (=) failed' assertion error that shows the left value (:foo) and the right value (%{bar: [1 | 2]}); no additional crash occurs while formatting the failure."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2024-11-17T13:09:10Z",
+      "testType": "OTHER",
+      "tags": [
+        "exunit",
+        "assertions",
+        "diffing"
+      ],
+      "durationMs": null,
+      "feature": "ExUnit assertion diff formatting",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-lang/elixir/pull/13954",
+        "issueUrl": "https://github.com/elixir-lang/elixir/issues/14291",
+        "evidenceTestFile": "lib/ex_unit/test/ex_unit/diff_test.exs",
+        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing."
+      }
+    }
+  },
+  {
+    "id": "rge_0008",
+    "revision": "head",
+    "flipPairId": "rge_flip_0004",
+    "pr": {
+      "repository": "elixir-lang/elixir",
+      "number": 13954,
+      "baseSha": "e3f017d0b2cbae8fa813183de24b43fa0c5548c1",
+      "headSha": "ef7fd405c9194344718a999f8c70af2eccd87812",
+      "title": "Format inserted/deleted maps in list assertions",
+      "description": "Solves #13624 When the elements are equal then we pass them as ast, when deleted or inserted we pass maps as %{a: 1, b: 2} and fall into inspect in safe_to_algebra. This pr changes maps to ast representation so it's formatted correctly in the function that handles maps.",
+      "diff": "diff --git a/lib/ex_unit/lib/ex_unit/diff.ex b/lib/ex_unit/lib/ex_unit/diff.ex\nindex 05c2c7fda7e..f784d1a60b4 100644\n--- a/lib/ex_unit/lib/ex_unit/diff.ex\n+++ b/lib/ex_unit/lib/ex_unit/diff.ex\n@@ -1142,9 +1142,22 @@ defmodule ExUnit.Diff do\n   defp maybe_escape(other, %{context: :match}), do: other\n   defp maybe_escape(other, _env), do: escape(other)\n \n-  # We escape container types to make a distinction between AST\n-  # and values that should be inspected. All other values have no\n-  # special AST representation, so we can keep them as is.\n+  # We escape container types to make a distinction between AST and values that\n+  # should be inspected. Maps and structs without custom inspect implementation\n+  # should not be inspected, convert it to ast.\n+  # All other values have no special AST representation, so we can keep them as is.\n+  defp escape(other) when is_map(other) do\n+    struct = maybe_struct(other)\n+\n+    if struct && Inspect.impl_for(other) not in [Inspect.Any, Inspect.Map] do\n+      other\n+    else\n+      other\n+      |> Map.to_list()\n+      |> build_map_or_struct(struct)\n+    end\n+  end\n+\n   defp escape(other) when is_list(other) or is_tuple(other), do: {other}\n   defp escape(other), do: other\n \ndiff --git a/lib/ex_unit/test/ex_unit/diff_test.exs b/lib/ex_unit/test/ex_unit/diff_test.exs\nindex 04340b8db5a..93d34d5cee0 100644\n--- a/lib/ex_unit/test/ex_unit/diff_test.exs\n+++ b/lib/ex_unit/test/ex_unit/diff_test.exs\n@@ -10,6 +10,10 @@ defmodule ExUnit.DiffTest do\n     defstruct [:name, :age]\n   end\n \n+  defmodule Customer do\n+    defstruct [:address, :age, :first_name, :language, :last_name, :notifications]\n+  end\n+\n   defmodule Person do\n     defstruct [:age]\n   end\n@@ -126,10 +130,11 @@ defmodule ExUnit.DiffTest do\n     assert env_binding == expected_binding\n   end\n \n+  @terminal_width 80\n   defp to_diff(side, sign) do\n     side\n     |> Diff.to_algebra(&diff_wrapper(&1, sign))\n-    |> Algebra.format(:infinity)\n+    |> Algebra.format(@terminal_width)\n     |> IO.iodata_to_binary()\n   end\n \n@@ -682,13 +687,49 @@ defmodule ExUnit.DiffTest do\n     refute_diff(\n       %User{age: %Date{}} = struct,\n       ~s/%ExUnit.DiffTest.User{age: %-Date-{}}/,\n-      ~s/%ExUnit.DiffTest.User{age: %+DateTime+{calendar: Calendar.ISO, day: 30, hour: 13, microsecond: {253158, 6}, minute: 49, month: 7, second: 59, std_offset: 0, time_zone: \"Etc\\/UTC\", utc_offset: 0, year: 2020, zone_abbr: \"UTC\"}, name: nil}/\n+      \"\"\"\n+      %ExUnit.DiffTest.User{\n+        age: %+DateTime+{\n+          calendar: Calendar.ISO,\n+          day: 30,\n+          hour: 13,\n+          microsecond: {253158, 6},\n+          minute: 49,\n+          month: 7,\n+          second: 59,\n+          std_offset: 0,\n+          time_zone: \"Etc\\/UTC\",\n+          utc_offset: 0,\n+          year: 2020,\n+          zone_abbr: \"UTC\"\n+        },\n+        name: nil\n+      }\\\n+      \"\"\"\n     )\n \n     refute_diff(\n       %{age: %Date{}} = struct,\n       ~s/%{age: %-Date-{}}/,\n-      ~s/%ExUnit.DiffTest.User{age: %+DateTime+{calendar: Calendar.ISO, day: 30, hour: 13, microsecond: {253158, 6}, minute: 49, month: 7, second: 59, std_offset: 0, time_zone: \"Etc\\/UTC\", utc_offset: 0, year: 2020, zone_abbr: \"UTC\"}, name: nil}/\n+      \"\"\"\n+      %ExUnit.DiffTest.User{\n+        age: %+DateTime+{\n+          calendar: Calendar.ISO,\n+          day: 30,\n+          hour: 13,\n+          microsecond: {253158, 6},\n+          minute: 49,\n+          month: 7,\n+          second: 59,\n+          std_offset: 0,\n+          time_zone: \\\"Etc/UTC\\\",\n+          utc_offset: 0,\n+          year: 2020,\n+          zone_abbr: \\\"UTC\\\"\n+        },\n+        name: nil\n+      }\\\n+      \"\"\"\n     )\n   end\n \n@@ -836,6 +877,110 @@ defmodule ExUnit.DiffTest do\n     )\n   end\n \n+  test \"maps in lists\" do\n+    map = %{\n+      address: %{\n+        street: \"123 Main St\",\n+        city: \"Springfield\",\n+        state: \"IL\",\n+        zip: \"62701\"\n+      },\n+      age: 30,\n+      first_name: \"John\",\n+      language: \"en-US\",\n+      last_name: \"Doe\",\n+      notifications: true\n+    }\n+\n+    refute_diff(\n+      [map] == [],\n+      \"\"\"\n+      [\n+        -%{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }-\n+      ]\\\n+      \"\"\",\n+      \"[]\"\n+    )\n+\n+    refute_diff(\n+      [] == [map],\n+      \"[]\",\n+      \"\"\"\n+      [\n+        +%{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }+\n+      ]\\\n+      \"\"\"\n+    )\n+\n+    assert_diff([map] == [map], [])\n+  end\n+\n+  test \"structs in lists\" do\n+    customer = %Customer{\n+      address: %{\n+        street: \"123 Main St\",\n+        city: \"Springfield\",\n+        state: \"IL\",\n+        zip: \"62701\"\n+      },\n+      age: 30,\n+      first_name: \"John\",\n+      language: \"en-US\",\n+      last_name: \"Doe\",\n+      notifications: true\n+    }\n+\n+    refute_diff(\n+      [customer] == [],\n+      \"\"\"\n+      [\n+        -%ExUnit.DiffTest.Customer{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }-\n+      ]\\\n+      \"\"\",\n+      \"[]\"\n+    )\n+\n+    refute_diff(\n+      [] == [customer],\n+      \"[]\",\n+      \"\"\"\n+      [\n+        +%ExUnit.DiffTest.Customer{\n+          address: %{state: \"IL\", zip: \"62701\", street: \"123 Main St\", city: \"Springfield\"},\n+          age: 30,\n+          first_name: \"John\",\n+          language: \"en-US\",\n+          last_name: \"Doe\",\n+          notifications: true\n+        }+\n+      ]\\\n+      \"\"\"\n+    )\n+\n+    assert_diff([customer] == [customer], [])\n+  end\n+\n   test \"maps and structs with escaped values\" do\n     refute_diff(\n       %User{age: {1, 2, 3}} = %User{age: {1, 2, 4}},\n@@ -1082,8 +1227,18 @@ defmodule ExUnit.DiffTest do\n \n     refute_diff(\n       {ref1, ref2} == {ref2, ref1},\n-      \"{-#{inspect_ref1}-, -#{inspect_ref2}-}\",\n-      \"{+#{inspect_ref2}+, +#{inspect_ref1}+}\"\n+      \"\"\"\n+      {\n+        -#{inspect_ref1}-,\n+        -#{inspect_ref2}-\n+      }\\\n+      \"\"\",\n+      \"\"\"\n+      {\n+        +#{inspect_ref2}+,\n+        +#{inspect_ref1}+\n+      }\\\n+      \"\"\"\n     )\n \n     refute_diff(\n@@ -1100,7 +1255,16 @@ defmodule ExUnit.DiffTest do\n \n     refute_diff(ref1 == :a, \"-#{inspect_ref1}-\", \"+:a+\")\n     refute_diff({ref1, ref2} == :a, \"-{#{inspect_ref1}, #{inspect_ref2}}\", \"+:a+\")\n-    refute_diff(%{ref1 => ref2} == :a, \"-%{#{inspect_ref1} => #{inspect_ref2}}\", \"+:a+\")\n+\n+    refute_diff(\n+      %{ref1 => ref2} == :a,\n+      \"\"\"\n+      -%{\n+        #{inspect_ref1} => #{inspect_ref2}\n+      }\\\n+      \"\"\",\n+      \"+:a+\"\n+    )\n \n     refute_diff(\n       %Opaque{data: ref1} == :a,\n@@ -1141,7 +1305,16 @@ defmodule ExUnit.DiffTest do\n     refute_diff(identity == :a, \"-#{inspect}-\", \"+:a+\")\n     refute_diff({identity, identity} == :a, \"-{#{inspect}, #{inspect}}\", \"+:a+\")\n     refute_diff({identity, :a} == {:a, identity}, \"{-#{inspect}-, -:a-}\", \"{+:a+, +#{inspect}+}\")\n-    refute_diff(%{identity => identity} == :a, \"-%{#{inspect} => #{inspect}}\", \"+:a+\")\n+\n+    refute_diff(\n+      %{identity => identity} == :a,\n+      \"\"\"\n+      -%{\n+        #{inspect} => #{inspect}\n+      }-\\\n+      \"\"\",\n+      \"+:a+\"\n+    )\n \n     refute_diff(\n       (&String.to_charlist/1) == (&String.unknown/1),",
+      "changedFiles": 2,
+      "addedLines": 196,
+      "deletedLines": 10,
+      "commits": 9,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rge_tc_0007",
+      "title": "ExUnit reports a clear match-failure diff for an assertion against a map containing an improper list",
+      "preconditions": "An Elixir project using ExUnit for testing.",
+      "steps": [
+        "Write a test containing the assertion: assert :foo = %{bar: [1 | 2]}",
+        "Run the test suite with mix test"
+      ],
+      "expectedResult": "The test fails with a standard 'match (=) failed' assertion error that shows the left value (:foo) and the right value (%{bar: [1 | 2]}); no additional crash occurs while formatting the failure."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2024-11-17T13:09:10Z",
+      "testType": "OTHER",
+      "tags": [
+        "exunit",
+        "assertions",
+        "diffing"
+      ],
+      "durationMs": null,
+      "feature": "ExUnit assertion diff formatting",
+      "platform": "cross-platform",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-lang/elixir/pull/13954",
+        "issueUrl": "https://github.com/elixir-lang/elixir/issues/14291",
+        "evidenceTestFile": "lib/ex_unit/test/ex_unit/diff_test.exs",
+        "note": "PR #13954 merged 2024-11-17 changed ExUnit.Diff's escape/1 to convert map values via Map.to_list() and build_map_or_struct without escaping the resulting key/value pairs. Issue #14291 (filed 2025-02-20) reports a FunctionClauseError crash when formatting an assertion diff for a map containing an improper list; a reporter bisected the regression to commit a8c92060ea8fc9c0cfcec675d0752ffdd58699c9, which is PR #13954's merge commit. PR #14292 ('Fix regression when diffing nested improper lists'), merged 2025-02-21, adds '|> Enum.map(&escape_pair/1)' in lib/ex_unit/lib/ex_unit/diff.ex and adds a regression test asserting that `assert :foo = %{bar: [1 | 2]}` produces a proper match-failure diff instead of crashing."
+      }
+    }
+  }
+]

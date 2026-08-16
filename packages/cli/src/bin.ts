@@ -464,7 +464,8 @@ program
             'MODEL',
             'PROMPT',
             'STRATEGY',
-            'DATA',
+            'SCOPE',
+            'N',
             descriptor.label.toUpperCase(),
             ...(showsAccuracySeparately ? ['ACCURACY'] : []),
           ],
@@ -473,16 +474,22 @@ program
             entry.summary.modelName,
             `${entry.summary.promptName} v${entry.summary.promptVersion}`,
             entry.summary.contextStrategy,
-            `v${entry.summary.datasetVersion}`,
+            `v${entry.summary.datasetVersion}${entry.summary.split === null ? '' : `/${entry.summary.split}`}`,
+            String(entry.summary.resolved),
             descriptor.format === 'ratio' ? percent(entry.value) : score(entry.value),
             ...(showsAccuracySeparately ? [percent(entry.summary.metrics.accuracy)] : []),
           ]),
         ]),
       );
 
-      if (versions.size > 1) {
+      const scopes = new Set(
+        ranked.map((entry) => `${entry.summary.datasetVersion}:${entry.summary.split ?? 'all'}`),
+      );
+      if (scopes.size > 1) {
         out(
-          `\nThese runs span ${versions.size} dataset versions, so the ranking compares scores from different case sets.`,
+          `\nThese runs were not all scored on the same cases (see SCOPE and N). A score on a small` +
+            `\nsplit and a score on the full dataset estimate the same quantity from different samples,` +
+            `\nso use \`benchmark compare\` to read a difference between two of them.`,
         );
       }
 

@@ -19,11 +19,11 @@ pnpm benchmark run --model mock-thorough --prompt reasoning-v1
 pnpm dev        # ダッシュボード
 ```
 
-`seed` は実PRから作った72ケースのデータセット、プロンプト3種、決定論的なmockモデル4種を投入します。
+`seed` は実PRから作った148ケースのデータセット、プロンプト3種、決定論的なmockモデル4種を投入します。
 
 ## Dataset
 
-公開リポジトリの実際のマージ済みPRから構築しています（36リポジトリ / 10言語 / 72ケース）。
+公開リポジトリの実際のマージ済みPRから構築しています（**71リポジトリ / 15言語 / 148ケース**）。
 各ケースは1つのPRの **base** と **head** それぞれに対する「そのテストが実際にどうなるか」を持ちます。
 
 gold ラベルはリポジトリ自身の証拠に基づきます。ケースは6種類:
@@ -37,11 +37,27 @@ gold ラベルはリポジトリ自身の証拠に基づきます。ケースは
 | `KNOWN_BROKEN` | FAIL | FAIL | PRが触れていない未修正のオープンなバグ |
 | `REGRESSION` | PASS | FAIL | 後続PRが「これが壊した」と明示している変更 |
 
-**後半4パターンは飾りではありません。** `BUG_FIX` だけのデータセットは「baseならFAIL、headならPASS」と答えるだけで高得点が取れてしまい、テストを読む能力を何も測れません。実際にこの構成をやってみると、そのナイーブな戦略は flip pair accuracy 100% を取ります。6パターン揃えると 66.7% まで落ちます。
+**後半4パターンは飾りではありません。** `BUG_FIX` だけのデータセットは「baseならFAIL、headならPASS」と答えるだけで高得点が取れてしまい、テストを読む能力を何も測れません。
 
-現在の分布は base が 18 PASS / 18 FAIL、head が 24 PASS / 12 FAIL で、revision だけからは答えが決まりません。`checkDatasetIntegrity` がこの偏りを検査し、退化したデータセットを警告します。
+これは実測できています。同梱のmockアダプタはまさにその「headならPASSに寄せる」ナイーブな戦略です。開発初期の48ケース（`BUG_FIX`+`UNRELATED`+`REFACTOR`のみ）では **flip pair accuracy 100% / accuracy 74.6%** を取りました。6パターン148ケースに揃えた現在は **accuracy 約51% / TEST_ONLYのflip pair accuracy 18.6%** — つまり偶然と変わりません。
+
+最終的な分布は gold が **74 PASS / 74 FAIL**、base が 36 PASS / 38 FAIL、head が 38 PASS / 36 FAIL。revision からも、全体の偏りからも答えは決まりません。`checkDatasetIntegrity` がこの退化を検査し、警告します。
 
 各ケースの `metadata.provenance` にPR URL・Issue URL・根拠テストファイルが入っているので、ラベルは手で検証できます。
+
+## Results so far
+
+dev split（24ケース / 12 PRクラスタ）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。
+
+| 構成 | Accuracy | 95%区間 | MCC | FAIL recall | False PASS |
+|---|---|---|---|---|---|
+| Claude Sonnet 5 | 62.5% | 33.3–87.5% | 0.308 | 33.3% | 8 |
+| mock-lean（ナイーブな発見的手法） | 61.8% | 42.9–78.9% | — | — | — |
+| Claude Haiku 4.5 | 54.2% | 25.0–79.2% | 0.092 | 33.3% | 8 |
+
+**この表の正しい読み方は「まだ何も分かっていない」です。** Sonnet と Haiku の差は +8.3%、対応のある比較で 95%区間 0.0–20.8% と**ゼロを含みます**。24ケース・12クラスタでは、この2つを区別できません。区間の広さがそれを正直に示しています。有意な差を測りたければ、より大きな split で回してください（`--split test` で124ケース）。
+
+**それでも一貫して出ている所見**があります。両モデルとも **FAIL recall 33.3%**、**False PASS 8件**でした。gold が 12 PASS / 12 FAIL のセットに対し、Sonnet は 19 PASS / 5 FAIL、Haiku は 17 PASS / 7 FAIL と答えています。つまり**両方とも PASS 側に強く偏り、実際に落ちるテスト12件のうち8件を「通る」と誤判定**しました。これは運用上いちばん高くつく誤りの方向です。この偏りは区間が広いこととは独立に、両モデルで同じ向きに出ています。
 
 ## Architecture
 
@@ -162,7 +178,7 @@ pnpm site:serve    # 出力をローカルで確認
 ## Testing
 
 ```bash
-pnpm test          # 120 tests
+pnpm test          # 211 tests
 pnpm coverage
 pnpm typecheck
 pnpm build
@@ -188,7 +204,7 @@ pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split
 
 - **Gemini アダプタは非ストリーミング**です。したがってTTFTは常に `null` になります。総レイテンシから推定はしません。
 - **mockプロバイダのスループット表示は非現実的**です。mockはシミュレートしたレイテンシを報告する一方、実時間ではほとんどsleepしないため、`tests/minute` が数万になります。実プロバイダでは正しい値になります。
-- **データセットは72ケース**です。スライスによっては n が小さく、区間が広くなります。UIは常に n を併記します。
+- **データセットは148ケース / 71 PR クラスタ**です。スライスによっては n が小さく、区間が広くなります。UIは常に n と scope（データセット版・split）を併記します。
 - `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
 
 詳細仕様は [SPECIFICATION.md](./SPECIFICATION.md)、設計判断は [docs/superpowers/specs/](./docs/superpowers/specs/) を参照してください。
