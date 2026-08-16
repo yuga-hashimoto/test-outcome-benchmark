@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { count, intervalText, money, percent, shortId } from '@/lib/format';
 import type { LeaderboardMetric, RunSummary } from '@tob/core';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 
 const paretoPoints = (
   summaries: readonly RunSummary[],

@@ -4,7 +4,7 @@ import { Empty } from '@/components/Stat';
 import { db } from '@/lib/db';
 import { dateTime, percent, shortId } from '@/lib/format';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 
 const statusPill = (status: string): string => {
   if (status === 'COMPLETED') return 'pill pill-pass';

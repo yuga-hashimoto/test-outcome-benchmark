@@ -1,0 +1,772 @@
+[
+  {
+    "id": "sb_0001",
+    "revision": "base",
+    "flipPairId": "sb_flip_0001",
+    "pr": {
+      "repository": "elixir-lang/elixir",
+      "number": 15740,
+      "baseSha": "a89dcdc8652304ca958d30bdae801a10b13c1140",
+      "headSha": "f2ef0308acdec04cf4805d816947b0b8b9721d79",
+      "title": "Fix Date.to_iso8601/2 loses :format with custom calendar",
+      "description": "Date.to_iso8601/2 loses the requested :format for a date built with a non-ISO calendar. Calling to_iso8601(date, :basic) on such a date silently returned the :extended representation instead of the requested :basic one. The change preserves the requested format when converting the date to the ISO calendar first, and adds a regression test.",
+      "diff": "diff --git a/lib/elixir/lib/calendar/date.ex b/lib/elixir/lib/calendar/date.ex\nindex ad709413306..cbdbcf07bee 100644\n--- a/lib/elixir/lib/calendar/date.ex\n+++ b/lib/elixir/lib/calendar/date.ex\n@@ -422,7 +422,7 @@ defmodule Date do\n   def to_iso8601(%{calendar: _} = date, format) when format in [:basic, :extended] do\n     date\n     |> convert!(Calendar.ISO)\n-    |> to_iso8601()\n+    |> to_iso8601(format)\n   end\n \n   @doc \"\"\"\ndiff --git a/lib/elixir/test/elixir/calendar/date_test.exs b/lib/elixir/test/elixir/calendar/date_test.exs\nindex c7d33533335..81a233133f5 100644\n--- a/lib/elixir/test/elixir/calendar/date_test.exs\n+++ b/lib/elixir/test/elixir/calendar/date_test.exs\n@@ -38,6 +38,16 @@ defmodule DateTest do\n     end\n   end\n \n+  test \"to_iso8601/2\" do\n+    date = ~D[2000-01-01]\n+    assert Date.to_iso8601(date) == \"2000-01-01\"\n+    assert Date.to_iso8601(date, :basic) == \"20000101\"\n+\n+    holo_date = Calendar.Holocene.date(12001, 1, 1)\n+    assert Date.to_iso8601(holo_date) == \"2001-01-01\"\n+    assert Date.to_iso8601(holo_date, :basic) == \"20010101\"\n+  end\n+\n   test \"to_string/1\" do\n     date = ~D[2000-01-01]\n     assert to_string(date) == \"2000-01-01\"\n",
+      "changedFiles": 2,
+      "addedLines": 11,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0001",
+      "title": "Formatting a non-Gregorian-calendar date in basic ISO 8601 style",
+      "preconditions": "A Date value has been built using an alternate (non-default, non-ISO) calendar implementation, representing the same day as January 1st of the year 2001 in the standard calendar.",
+      "steps": [
+        "Convert the date to its ISO 8601 string representation with no format argument (the default, extended, form).",
+        "Note the returned string.",
+        "Convert the same date to its ISO 8601 string representation again, this time explicitly requesting the basic (no separators) format.",
+        "Compare the two returned strings."
+      ],
+      "expectedResult": "The default call returns \"2001-01-01\" (extended form, with dashes). The explicit basic-format call returns \"20010101\" (compact form, no dashes) — the requested basic format is honored rather than the result silently falling back to the extended form."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-13T19:39:28Z",
+      "testType": "API",
+      "tags": [
+        "date-formatting",
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "Date ISO8601 formatting with custom calendars",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-lang/elixir/pull/15740",
+        "issueUrl": null,
+        "evidenceTestFile": "lib/elixir/test/elixir/calendar/date_test.exs",
+        "note": "The PR adds a test asserting Date.to_iso8601/2 preserves the requested :basic/:extended format for a date built with a non-ISO calendar; at the base commit the basic-format call incorrectly returns the extended-format string, so the assertion (and this equivalent behavior check) fails."
+      }
+    }
+  },
+  {
+    "id": "sb_0002",
+    "revision": "head",
+    "flipPairId": "sb_flip_0001",
+    "pr": {
+      "repository": "elixir-lang/elixir",
+      "number": 15740,
+      "baseSha": "a89dcdc8652304ca958d30bdae801a10b13c1140",
+      "headSha": "f2ef0308acdec04cf4805d816947b0b8b9721d79",
+      "title": "Fix Date.to_iso8601/2 loses :format with custom calendar",
+      "description": "Date.to_iso8601/2 loses the requested :format for a date built with a non-ISO calendar. Calling to_iso8601(date, :basic) on such a date silently returned the :extended representation instead of the requested :basic one. The change preserves the requested format when converting the date to the ISO calendar first, and adds a regression test.",
+      "diff": "diff --git a/lib/elixir/lib/calendar/date.ex b/lib/elixir/lib/calendar/date.ex\nindex ad709413306..cbdbcf07bee 100644\n--- a/lib/elixir/lib/calendar/date.ex\n+++ b/lib/elixir/lib/calendar/date.ex\n@@ -422,7 +422,7 @@ defmodule Date do\n   def to_iso8601(%{calendar: _} = date, format) when format in [:basic, :extended] do\n     date\n     |> convert!(Calendar.ISO)\n-    |> to_iso8601()\n+    |> to_iso8601(format)\n   end\n \n   @doc \"\"\"\ndiff --git a/lib/elixir/test/elixir/calendar/date_test.exs b/lib/elixir/test/elixir/calendar/date_test.exs\nindex c7d33533335..81a233133f5 100644\n--- a/lib/elixir/test/elixir/calendar/date_test.exs\n+++ b/lib/elixir/test/elixir/calendar/date_test.exs\n@@ -38,6 +38,16 @@ defmodule DateTest do\n     end\n   end\n \n+  test \"to_iso8601/2\" do\n+    date = ~D[2000-01-01]\n+    assert Date.to_iso8601(date) == \"2000-01-01\"\n+    assert Date.to_iso8601(date, :basic) == \"20000101\"\n+\n+    holo_date = Calendar.Holocene.date(12001, 1, 1)\n+    assert Date.to_iso8601(holo_date) == \"2001-01-01\"\n+    assert Date.to_iso8601(holo_date, :basic) == \"20010101\"\n+  end\n+\n   test \"to_string/1\" do\n     date = ~D[2000-01-01]\n     assert to_string(date) == \"2000-01-01\"\n",
+      "changedFiles": 2,
+      "addedLines": 11,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0001",
+      "title": "Formatting a non-Gregorian-calendar date in basic ISO 8601 style",
+      "preconditions": "A Date value has been built using an alternate (non-default, non-ISO) calendar implementation, representing the same day as January 1st of the year 2001 in the standard calendar.",
+      "steps": [
+        "Convert the date to its ISO 8601 string representation with no format argument (the default, extended, form).",
+        "Note the returned string.",
+        "Convert the same date to its ISO 8601 string representation again, this time explicitly requesting the basic (no separators) format.",
+        "Compare the two returned strings."
+      ],
+      "expectedResult": "The default call returns \"2001-01-01\" (extended form, with dashes). The explicit basic-format call returns \"20010101\" (compact form, no dashes) — the requested basic format is honored rather than the result silently falling back to the extended form."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-13T19:39:28Z",
+      "testType": "API",
+      "tags": [
+        "date-formatting",
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "Date ISO8601 formatting with custom calendars",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-lang/elixir/pull/15740",
+        "issueUrl": null,
+        "evidenceTestFile": "lib/elixir/test/elixir/calendar/date_test.exs",
+        "note": "At the head commit the one-line fix threads the requested format through the ISO conversion, so the basic-format call returns the compact form and the check passes."
+      }
+    }
+  },
+  {
+    "id": "sb_0003",
+    "revision": "base",
+    "flipPairId": "sb_flip_0002",
+    "pr": {
+      "repository": "briannesbitt/Carbon",
+      "number": 3333,
+      "baseSha": "0b004790c36cd389cc64dd928434fb17d477fe2b",
+      "headSha": "f6565a954e0cb838a3f0c7cf4fd9efdc65e78b40",
+      "title": "#3307 Fix ->end property not updating after setEndDate() on PHP 8.2+",
+      "description": "On PHP 8.2+, a date-period object's native `end` property is managed internally by the engine and cannot be written directly after construction. Calling the method that updates the period's end date correctly updated the object's internal end-date state but left the native `end` property showing the original value from construction. The fix re-synchronizes the native property after start/end date updates, and adds a regression test.",
+      "diff": "diff --git a/src/Carbon/CarbonPeriod.php b/src/Carbon/CarbonPeriod.php\nindex 805b77e398..0212bb1b00 100644\n--- a/src/Carbon/CarbonPeriod.php\n+++ b/src/Carbon/CarbonPeriod.php\n@@ -1313,6 +1313,8 @@ public function setStartDate(mixed $date, ?bool $inclusive = null): static\n             $self = $self->toggleOptions(static::EXCLUDE_START_DATE, !$inclusive);\n         }\n \n+        $self->syncNativePeriod();\n+\n         return $self;\n     }\n \n@@ -1332,11 +1334,15 @@ public function setEndDate(mixed $date, ?bool $inclusive = null): static\n             throw new InvalidPeriodDateException('Invalid end date.');\n         }\n \n+        $self = $this->copyIfImmutable();\n+\n         if (!$date) {\n-            return $this->removeFilter(static::END_DATE_FILTER);\n+            $self = $self->removeFilter(static::END_DATE_FILTER);\n+            $self->syncNativePeriod();\n+\n+            return $self;\n         }\n \n-        $self = $this->copyIfImmutable();\n         $self->endDate = $date;\n \n         if ($inclusive !== null) {\n@@ -1344,10 +1350,12 @@ public function setEndDate(mixed $date, ?bool $inclusive = null): static\n         }\n \n         if (!$self->hasFilter(static::END_DATE_FILTER)) {\n-            return $self->addFilter(static::END_DATE_FILTER);\n+            $self = $self->addFilter(static::END_DATE_FILTER);\n+        } else {\n+            $self->handleChangedParameters();\n         }\n \n-        $self->handleChangedParameters();\n+        $self->syncNativePeriod();\n \n         return $self;\n     }\n@@ -2471,6 +2479,28 @@ protected function handleChangedParameters(): void\n         $this->validationResult = null;\n     }\n \n+    /**\n+     * Synchronize the native DatePeriod properties with the current state.\n+     */\n+    protected function syncNativePeriod(): void\n+    {\n+        if (\\PHP_VERSION_ID < 80200) {\n+            return; // @codeCoverageIgnore\n+        }\n+\n+        // Default interval if not set (matches __construct logic)\n+        $interval = $this->dateInterval ?? \\Carbon\\CarbonInterval::day();\n+\n+        // Reinitialize the parent DatePeriod to update $start, $end, etc.\n+        // This mirrors the logic in __construct and initializeSerialization.\n+        parent::__construct(\n+            $this->startDate,\n+            $interval,\n+            $this->endDate ?? max(1, min(2147483639, $this->recurrences ?? 1)),\n+            $this->options ?? 0,\n+        );\n+    }\n+\n     /**\n      * Validate current date and stop iteration when necessary.\n      *\ndiff --git a/tests/CarbonPeriod/GettersTest.php b/tests/CarbonPeriod/GettersTest.php\nindex 4b2051ac59..b868080919 100644\n--- a/tests/CarbonPeriod/GettersTest.php\n+++ b/tests/CarbonPeriod/GettersTest.php\n@@ -440,6 +440,18 @@ public function testGetEnd()\n         $this->assertSame('2024-09-30 00:00:00', $period->endDate->format('Y-m-d H:i:s'));\n     }\n \n+    public function testEndPropertySyncsAfterSetEndDate()\n+    {\n+        $periodClass = static::$periodClass;\n+        $period = $periodClass::create('2024-09-01/3 days/2024-09-30');\n+        $period = $period->setEndDate('2025-06-15');\n+        $this->assertSame('2025-06-15 00:00:00', $period->end->format('Y-m-d H:i:s'));\n+        $this->assertSame('2025-06-15 00:00:00', $period->getEndDate()->format('Y-m-d H:i:s'));\n+        $period2 = $periodClass::between('2024-01-01', '2024-12-31');\n+        $period2 = $period2->setEndDate('2026-03-01');\n+        $this->assertSame('2026-03-01 00:00:00', $period2->end->format('Y-m-d H:i:s'));\n+    }\n+\n     public function testGetCurrent()\n     {\n         $periodClass = static::$periodClass;\n",
+      "changedFiles": 2,
+      "addedLines": 46,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0003",
+      "title": "Reading a date range's end value after changing its end date",
+      "preconditions": "A date-range/period object has been created spanning 2024-09-01 to 2024-09-30, running on PHP 8.2 or later.",
+      "steps": [
+        "Call the method that updates the period's end date, setting it to 2025-06-15.",
+        "Read the period's end date via its `end` property.",
+        "Read the period's end date via its `getEndDate()` accessor method."
+      ],
+      "expectedResult": "Both the `end` property and the `getEndDate()` accessor report the newly set end date, 2025-06-15 00:00:00 — not the original end date (2024-09-30) that was set when the period was first constructed."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-05-31T14:14:38Z",
+      "testType": "API",
+      "tags": [
+        "caching-staleness"
+      ],
+      "durationMs": null,
+      "feature": "CarbonPeriod end date mutation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/briannesbitt/Carbon/pull/3333",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/CarbonPeriod/GettersTest.php",
+        "note": "The PR adds testEndPropertySyncsAfterSetEndDate, asserting `->end` reflects the date passed to the end-date setter. At the base commit, on PHP 8.2+, the `end` property still reports the original construction-time value while `getEndDate()` reports the update, so the two disagree and the check fails."
+      }
+    }
+  },
+  {
+    "id": "sb_0004",
+    "revision": "head",
+    "flipPairId": "sb_flip_0002",
+    "pr": {
+      "repository": "briannesbitt/Carbon",
+      "number": 3333,
+      "baseSha": "0b004790c36cd389cc64dd928434fb17d477fe2b",
+      "headSha": "f6565a954e0cb838a3f0c7cf4fd9efdc65e78b40",
+      "title": "#3307 Fix ->end property not updating after setEndDate() on PHP 8.2+",
+      "description": "On PHP 8.2+, a date-period object's native `end` property is managed internally by the engine and cannot be written directly after construction. Calling the method that updates the period's end date correctly updated the object's internal end-date state but left the native `end` property showing the original value from construction. The fix re-synchronizes the native property after start/end date updates, and adds a regression test.",
+      "diff": "diff --git a/src/Carbon/CarbonPeriod.php b/src/Carbon/CarbonPeriod.php\nindex 805b77e398..0212bb1b00 100644\n--- a/src/Carbon/CarbonPeriod.php\n+++ b/src/Carbon/CarbonPeriod.php\n@@ -1313,6 +1313,8 @@ public function setStartDate(mixed $date, ?bool $inclusive = null): static\n             $self = $self->toggleOptions(static::EXCLUDE_START_DATE, !$inclusive);\n         }\n \n+        $self->syncNativePeriod();\n+\n         return $self;\n     }\n \n@@ -1332,11 +1334,15 @@ public function setEndDate(mixed $date, ?bool $inclusive = null): static\n             throw new InvalidPeriodDateException('Invalid end date.');\n         }\n \n+        $self = $this->copyIfImmutable();\n+\n         if (!$date) {\n-            return $this->removeFilter(static::END_DATE_FILTER);\n+            $self = $self->removeFilter(static::END_DATE_FILTER);\n+            $self->syncNativePeriod();\n+\n+            return $self;\n         }\n \n-        $self = $this->copyIfImmutable();\n         $self->endDate = $date;\n \n         if ($inclusive !== null) {\n@@ -1344,10 +1350,12 @@ public function setEndDate(mixed $date, ?bool $inclusive = null): static\n         }\n \n         if (!$self->hasFilter(static::END_DATE_FILTER)) {\n-            return $self->addFilter(static::END_DATE_FILTER);\n+            $self = $self->addFilter(static::END_DATE_FILTER);\n+        } else {\n+            $self->handleChangedParameters();\n         }\n \n-        $self->handleChangedParameters();\n+        $self->syncNativePeriod();\n \n         return $self;\n     }\n@@ -2471,6 +2479,28 @@ protected function handleChangedParameters(): void\n         $this->validationResult = null;\n     }\n \n+    /**\n+     * Synchronize the native DatePeriod properties with the current state.\n+     */\n+    protected function syncNativePeriod(): void\n+    {\n+        if (\\PHP_VERSION_ID < 80200) {\n+            return; // @codeCoverageIgnore\n+        }\n+\n+        // Default interval if not set (matches __construct logic)\n+        $interval = $this->dateInterval ?? \\Carbon\\CarbonInterval::day();\n+\n+        // Reinitialize the parent DatePeriod to update $start, $end, etc.\n+        // This mirrors the logic in __construct and initializeSerialization.\n+        parent::__construct(\n+            $this->startDate,\n+            $interval,\n+            $this->endDate ?? max(1, min(2147483639, $this->recurrences ?? 1)),\n+            $this->options ?? 0,\n+        );\n+    }\n+\n     /**\n      * Validate current date and stop iteration when necessary.\n      *\ndiff --git a/tests/CarbonPeriod/GettersTest.php b/tests/CarbonPeriod/GettersTest.php\nindex 4b2051ac59..b868080919 100644\n--- a/tests/CarbonPeriod/GettersTest.php\n+++ b/tests/CarbonPeriod/GettersTest.php\n@@ -440,6 +440,18 @@ public function testGetEnd()\n         $this->assertSame('2024-09-30 00:00:00', $period->endDate->format('Y-m-d H:i:s'));\n     }\n \n+    public function testEndPropertySyncsAfterSetEndDate()\n+    {\n+        $periodClass = static::$periodClass;\n+        $period = $periodClass::create('2024-09-01/3 days/2024-09-30');\n+        $period = $period->setEndDate('2025-06-15');\n+        $this->assertSame('2025-06-15 00:00:00', $period->end->format('Y-m-d H:i:s'));\n+        $this->assertSame('2025-06-15 00:00:00', $period->getEndDate()->format('Y-m-d H:i:s'));\n+        $period2 = $periodClass::between('2024-01-01', '2024-12-31');\n+        $period2 = $period2->setEndDate('2026-03-01');\n+        $this->assertSame('2026-03-01 00:00:00', $period2->end->format('Y-m-d H:i:s'));\n+    }\n+\n     public function testGetCurrent()\n     {\n         $periodClass = static::$periodClass;\n",
+      "changedFiles": 2,
+      "addedLines": 46,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "PHP",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0003",
+      "title": "Reading a date range's end value after changing its end date",
+      "preconditions": "A date-range/period object has been created spanning 2024-09-01 to 2024-09-30, running on PHP 8.2 or later.",
+      "steps": [
+        "Call the method that updates the period's end date, setting it to 2025-06-15.",
+        "Read the period's end date via its `end` property.",
+        "Read the period's end date via its `getEndDate()` accessor method."
+      ],
+      "expectedResult": "Both the `end` property and the `getEndDate()` accessor report the newly set end date, 2025-06-15 00:00:00 — not the original end date (2024-09-30) that was set when the period was first constructed."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-31T14:14:38Z",
+      "testType": "API",
+      "tags": [
+        "caching-staleness"
+      ],
+      "durationMs": null,
+      "feature": "CarbonPeriod end date mutation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/briannesbitt/Carbon/pull/3333",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/CarbonPeriod/GettersTest.php",
+        "note": "At the head commit the native property is re-synchronized whenever the end date changes, so both the `end` property and `getEndDate()` report the newly set date and the check passes."
+      }
+    }
+  },
+  {
+    "id": "sb_0005",
+    "revision": "base",
+    "flipPairId": "sb_flip_0003",
+    "pr": {
+      "repository": "httprb/http",
+      "number": 765,
+      "baseSha": "3b7133ca1317ffb897baa2c87eadf3dfd3609fa7",
+      "headSha": "7b9d1041f7b353e45bdab90c05f81e924e8797fd",
+      "title": "Prevent CRLF injection due to broken URL normalizer",
+      "description": "If a custom URL normalizer does not filter out whitespace, the client would previously happily transmit a request line containing embedded whitespace, including newline characters. Whitespace, in particular a literal newline, is never allowed in a request's path, query, or hostname. The change raises an error before the request is sent if the resolved path or host contains whitespace, and adds regression specs. Not a security fix in itself but an extra line of defence.",
+      "diff": "diff --git a/lib/http/request.rb b/lib/http/request.rb\nindex 1372cd11..39dd6b1c 100644\n--- a/lib/http/request.rb\n+++ b/lib/http/request.rb\n@@ -172,7 +172,9 @@ def headline\n           uri.omit(:fragment)\n         else\n           uri.request_uri\n-        end\n+        end.to_s\n+\n+      raise RequestError, \"Invalid request URI: #{request_uri.inspect}\" if request_uri.match?(/\\s/)\n \n       \"#{verb.to_s.upcase} #{request_uri} HTTP/#{version}\"\n     end\n@@ -230,7 +232,11 @@ def port\n \n     # @return [String] Default host (with port if needed) header value.\n     def default_host_header_value\n-      PORTS[@scheme] == port ? host : \"#{host}:#{port}\"\n+      value = PORTS[@scheme] == port ? host : \"#{host}:#{port}\"\n+\n+      raise RequestError, \"Invalid host: #{value.inspect}\" if value.match?(/\\s/)\n+\n+      value\n     end\n \n     def prepare_body(body)\ndiff --git a/spec/lib/http_spec.rb b/spec/lib/http_spec.rb\nindex f7a1bb21..746a08ec 100644\n--- a/spec/lib/http_spec.rb\n+++ b/spec/lib/http_spec.rb\n@@ -460,20 +460,37 @@ def setsockopt(*args)\n \n     context \"with :normalize_uri\" do\n       it \"normalizes URI\" do\n-        response = HTTP.get \"#{dummy.endpoint}/hello world\"\n+        response = HTTP.get \"#{dummy.endpoint}/héllö-wörld\"\n         expect(response.to_s).to eq(\"hello world\")\n       end\n \n       it \"uses the custom URI Normalizer method\" do\n         client = HTTP.use(:normalize_uri => {:normalizer => :itself.to_proc})\n-        response = client.get(\"#{dummy.endpoint}/hello world\")\n+        response = client.get(\"#{dummy.endpoint}/héllö-wörld\")\n         expect(response.status).to eq(400)\n       end\n \n+      it \"raises if custom URI Normalizer returns invalid path\" do\n+        client = HTTP.use(:normalize_uri => {:normalizer => :itself.to_proc})\n+        expect { client.get(\"#{dummy.endpoint}/hello\\nworld\") }.\n+          to raise_error HTTP::RequestError, 'Invalid request URI: \"/hello\\nworld\"'\n+      end\n+\n+      it \"raises if custom URI Normalizer returns invalid host\" do\n+        normalizer = lambda do |uri|\n+          uri.port = nil\n+          uri.instance_variable_set(:@host, \"example\\ncom\")\n+          uri\n+        end\n+        client = HTTP.use(:normalize_uri => {:normalizer => normalizer})\n+        expect { client.get(dummy.endpoint) }.\n+          to raise_error HTTP::RequestError, 'Invalid host: \"example\\ncom\"'\n+      end\n+\n       it \"uses the default URI normalizer\" do\n         client = HTTP.use :normalize_uri\n         expect(HTTP::URI::NORMALIZER).to receive(:call).and_call_original\n-        response = client.get(\"#{dummy.endpoint}/hello world\")\n+        response = client.get(\"#{dummy.endpoint}/héllö-wörld\")\n         expect(response.to_s).to eq(\"hello world\")\n       end\n     end\ndiff --git a/spec/support/dummy_server/servlet.rb b/spec/support/dummy_server/servlet.rb\nindex 9f835c33..81e32ab4 100644\n--- a/spec/support/dummy_server/servlet.rb\n+++ b/spec/support/dummy_server/servlet.rb\n@@ -149,7 +149,7 @@ def do_#{method.upcase}(req, res)\n       res.body   = req.body\n     end\n \n-    get \"/hello world\" do |_req, res|\n+    get \"/héllö-wörld\".b do |_req, res|\n       res.status = 200\n       res.body   = \"hello world\"\n     end\n",
+      "changedFiles": 3,
+      "addedLines": 29,
+      "deletedLines": 6,
+      "commits": 2,
+      "language": "Ruby",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0005",
+      "title": "Requesting a URL whose path contains an embedded newline character",
+      "preconditions": "The HTTP client is configured to use a custom URL-normalization step that passes the request path through unchanged (it does not strip whitespace).",
+      "steps": [
+        "Issue a GET request for a path that contains a literal newline character in the middle of it, e.g. a path like \"/hello\" followed by a newline followed by \"world\".",
+        "Observe what the client does before anything is transmitted over the network."
+      ],
+      "expectedResult": "The client refuses to send the request and raises an error describing the request URI as invalid, rather than transmitting a request line containing an embedded newline character to the server."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2023-10-04T03:50:35Z",
+      "testType": "API",
+      "tags": [
+        "security",
+        "input-validation"
+      ],
+      "durationMs": null,
+      "feature": "HTTP request line construction with custom URI normalizers",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/httprb/http/pull/765",
+        "issueUrl": null,
+        "evidenceTestFile": "spec/lib/http_spec.rb",
+        "note": "The PR adds specs asserting an error is raised when a custom URI normalizer returns a path or host containing whitespace/newlines. At the base commit no such check exists, so the request proceeds and the malformed request line would be sent instead of raising."
+      }
+    }
+  },
+  {
+    "id": "sb_0006",
+    "revision": "head",
+    "flipPairId": "sb_flip_0003",
+    "pr": {
+      "repository": "httprb/http",
+      "number": 765,
+      "baseSha": "3b7133ca1317ffb897baa2c87eadf3dfd3609fa7",
+      "headSha": "7b9d1041f7b353e45bdab90c05f81e924e8797fd",
+      "title": "Prevent CRLF injection due to broken URL normalizer",
+      "description": "If a custom URL normalizer does not filter out whitespace, the client would previously happily transmit a request line containing embedded whitespace, including newline characters. Whitespace, in particular a literal newline, is never allowed in a request's path, query, or hostname. The change raises an error before the request is sent if the resolved path or host contains whitespace, and adds regression specs. Not a security fix in itself but an extra line of defence.",
+      "diff": "diff --git a/lib/http/request.rb b/lib/http/request.rb\nindex 1372cd11..39dd6b1c 100644\n--- a/lib/http/request.rb\n+++ b/lib/http/request.rb\n@@ -172,7 +172,9 @@ def headline\n           uri.omit(:fragment)\n         else\n           uri.request_uri\n-        end\n+        end.to_s\n+\n+      raise RequestError, \"Invalid request URI: #{request_uri.inspect}\" if request_uri.match?(/\\s/)\n \n       \"#{verb.to_s.upcase} #{request_uri} HTTP/#{version}\"\n     end\n@@ -230,7 +232,11 @@ def port\n \n     # @return [String] Default host (with port if needed) header value.\n     def default_host_header_value\n-      PORTS[@scheme] == port ? host : \"#{host}:#{port}\"\n+      value = PORTS[@scheme] == port ? host : \"#{host}:#{port}\"\n+\n+      raise RequestError, \"Invalid host: #{value.inspect}\" if value.match?(/\\s/)\n+\n+      value\n     end\n \n     def prepare_body(body)\ndiff --git a/spec/lib/http_spec.rb b/spec/lib/http_spec.rb\nindex f7a1bb21..746a08ec 100644\n--- a/spec/lib/http_spec.rb\n+++ b/spec/lib/http_spec.rb\n@@ -460,20 +460,37 @@ def setsockopt(*args)\n \n     context \"with :normalize_uri\" do\n       it \"normalizes URI\" do\n-        response = HTTP.get \"#{dummy.endpoint}/hello world\"\n+        response = HTTP.get \"#{dummy.endpoint}/héllö-wörld\"\n         expect(response.to_s).to eq(\"hello world\")\n       end\n \n       it \"uses the custom URI Normalizer method\" do\n         client = HTTP.use(:normalize_uri => {:normalizer => :itself.to_proc})\n-        response = client.get(\"#{dummy.endpoint}/hello world\")\n+        response = client.get(\"#{dummy.endpoint}/héllö-wörld\")\n         expect(response.status).to eq(400)\n       end\n \n+      it \"raises if custom URI Normalizer returns invalid path\" do\n+        client = HTTP.use(:normalize_uri => {:normalizer => :itself.to_proc})\n+        expect { client.get(\"#{dummy.endpoint}/hello\\nworld\") }.\n+          to raise_error HTTP::RequestError, 'Invalid request URI: \"/hello\\nworld\"'\n+      end\n+\n+      it \"raises if custom URI Normalizer returns invalid host\" do\n+        normalizer = lambda do |uri|\n+          uri.port = nil\n+          uri.instance_variable_set(:@host, \"example\\ncom\")\n+          uri\n+        end\n+        client = HTTP.use(:normalize_uri => {:normalizer => normalizer})\n+        expect { client.get(dummy.endpoint) }.\n+          to raise_error HTTP::RequestError, 'Invalid host: \"example\\ncom\"'\n+      end\n+\n       it \"uses the default URI normalizer\" do\n         client = HTTP.use :normalize_uri\n         expect(HTTP::URI::NORMALIZER).to receive(:call).and_call_original\n-        response = client.get(\"#{dummy.endpoint}/hello world\")\n+        response = client.get(\"#{dummy.endpoint}/héllö-wörld\")\n         expect(response.to_s).to eq(\"hello world\")\n       end\n     end\ndiff --git a/spec/support/dummy_server/servlet.rb b/spec/support/dummy_server/servlet.rb\nindex 9f835c33..81e32ab4 100644\n--- a/spec/support/dummy_server/servlet.rb\n+++ b/spec/support/dummy_server/servlet.rb\n@@ -149,7 +149,7 @@ def do_#{method.upcase}(req, res)\n       res.body   = req.body\n     end\n \n-    get \"/hello world\" do |_req, res|\n+    get \"/héllö-wörld\".b do |_req, res|\n       res.status = 200\n       res.body   = \"hello world\"\n     end\n",
+      "changedFiles": 3,
+      "addedLines": 29,
+      "deletedLines": 6,
+      "commits": 2,
+      "language": "Ruby",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0005",
+      "title": "Requesting a URL whose path contains an embedded newline character",
+      "preconditions": "The HTTP client is configured to use a custom URL-normalization step that passes the request path through unchanged (it does not strip whitespace).",
+      "steps": [
+        "Issue a GET request for a path that contains a literal newline character in the middle of it, e.g. a path like \"/hello\" followed by a newline followed by \"world\".",
+        "Observe what the client does before anything is transmitted over the network."
+      ],
+      "expectedResult": "The client refuses to send the request and raises an error describing the request URI as invalid, rather than transmitting a request line containing an embedded newline character to the server."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2023-10-04T03:50:35Z",
+      "testType": "API",
+      "tags": [
+        "security",
+        "input-validation"
+      ],
+      "durationMs": null,
+      "feature": "HTTP request line construction with custom URI normalizers",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/httprb/http/pull/765",
+        "issueUrl": null,
+        "evidenceTestFile": "spec/lib/http_spec.rb",
+        "note": "At the head commit the request-line and host-header builders raise before sending whenever whitespace is present, so the specs pass and the observed behavior matches the expected result."
+      }
+    }
+  },
+  {
+    "id": "sb_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "Humanizr/Humanizer",
+      "number": 1870,
+      "baseSha": "bbce5529dc12c36084d42e2c2df2261c7be493df",
+      "headSha": "56c21ca363970047284b10ce56d5dcd72caf7ace",
+      "title": "fix: pluralize Albanian million scale",
+      "description": "Albanian number-to-words output now uses the plural scale word for 'million' whenever the million count is greater than one, while preserving the singular form for exactly one million. Previously, compound values such as 12,345,678 rendered the plural count with the singular scale word. The locale data follows the official CLDR Albanian spellout rules, and dedicated Albanian-locale coverage protects both singular and plural output.",
+      "diff": "diff --git a/src/Humanizer/Locales/sq.yml b/src/Humanizer/Locales/sq.yml\nindex 7455caafa..18740b24d 100644\n--- a/src/Humanizer/Locales/sq.yml\n+++ b/src/Humanizer/Locales/sq.yml\n@@ -286,6 +286,7 @@ surfaces:\n         -\n           value: 1000000\n           name: 'milion'\n+          pluralName: 'milionë'\n         -\n           value: 1000\n           name: 'mijë'\ndiff --git a/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs b/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\nindex 56586d32c..8b62df9d4 100644\n--- a/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\n+++ b/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\n@@ -13,7 +13,7 @@ public static class LocaleNumberMagnitudeTheoryData\n             { \"et\", 1000001L, \"miljon üks\" },\n             { \"et\", 1234567L, \"miljon kakssada kolmkümmend neli tuhat viissada kuuskümmend seitse\" },\n         { \"sq\", 1000000L, \"një milion\" },\n-        { \"sq\", 12345678L, \"dymbëdhjetë milion e treqind e dyzet e pesë mijë e gjashtëqind e shtatëdhjetë e tetë\" },\n+        { \"sq\", 12345678L, \"dymbëdhjetë milionë e treqind e dyzet e pesë mijë e gjashtëqind e shtatëdhjetë e tetë\" },\n         { \"sq\", 1000000000L, \"një miliar\" },\n         { \"mk\", 1001L, \"илјада и еден\" },\n         { \"mk\", 1000001L, \"еден милион и еден\" },\n@@ -228,7 +228,7 @@ public static class LocaleNumberMagnitudeTheoryData\n \n             { \"et\", 1001000001L, \"miljard miljon üks\" },\n         { \"sq\", 1000000000000L, \"një bilion\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n \ndiff --git a/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs b/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\nindex 1fe6d93e2..744c8d7c4 100644\n--- a/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\n+++ b/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\n@@ -8,7 +8,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и еден\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -271,7 +271,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и еден\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -533,7 +533,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и една\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и една\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -795,7 +795,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и една\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и една\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\ndiff --git a/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs b/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\nindex 33258e3f1..6f14fa22c 100644\n--- a/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\n+++ b/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\n@@ -15,6 +15,7 @@ public class AlbanianLocaleParityTests\n     [InlineData(101, \"njëqind e një\")]\n     [InlineData(1234, \"një mijë e dyqind e tridhjetë e katër\")]\n     [InlineData(1000000, \"një milion\")]\n+    [InlineData(2_000_000, \"dy milionë\")]\n     [InlineData(1_000_000_000, \"një miliar\")]\n     [InlineData(2_000_000_000, \"dy miliarë\")]\n     [InlineData(1_000_000_000_000, \"një bilion\")]\n",
+      "changedFiles": 4,
+      "addedLines": 8,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "C#",
+      "labels": [
+        "bug",
+        "localisation"
+      ]
+    },
+    "testCase": {
+      "id": "sb_tc_0007",
+      "title": "Converting whole numbers to English words",
+      "preconditions": "The number-to-words humanization feature is available with the default (English) locale active.",
+      "steps": [
+        "Convert the integer value 1,000,000 to words, leaving the locale at its default English setting.",
+        "Convert the integer value 2,000,000 to words the same way."
+      ],
+      "expectedResult": "The first conversion returns \"one million\" and the second returns \"two million\", using standard English pluralization of the word \"million\"."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-28T16:59:26Z",
+      "testType": "API",
+      "tags": [
+        "localization",
+        "unrelated-locale"
+      ],
+      "durationMs": null,
+      "feature": "Number to words conversion (English locale)",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/Humanizr/Humanizer/pull/1870",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/Humanizer.Tests/NumberToWordsTests.cs",
+        "note": "The PR only edits Albanian locale data (src/Humanizer/Locales/sq.yml) and Albanian-specific test fixtures; the default English number-to-words path exercised here, covered by NumberToWordsTests.cs, is untouched by the diff and behaves identically at base and head."
+      }
+    }
+  },
+  {
+    "id": "sb_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "Humanizr/Humanizer",
+      "number": 1870,
+      "baseSha": "bbce5529dc12c36084d42e2c2df2261c7be493df",
+      "headSha": "56c21ca363970047284b10ce56d5dcd72caf7ace",
+      "title": "fix: pluralize Albanian million scale",
+      "description": "Albanian number-to-words output now uses the plural scale word for 'million' whenever the million count is greater than one, while preserving the singular form for exactly one million. Previously, compound values such as 12,345,678 rendered the plural count with the singular scale word. The locale data follows the official CLDR Albanian spellout rules, and dedicated Albanian-locale coverage protects both singular and plural output.",
+      "diff": "diff --git a/src/Humanizer/Locales/sq.yml b/src/Humanizer/Locales/sq.yml\nindex 7455caafa..18740b24d 100644\n--- a/src/Humanizer/Locales/sq.yml\n+++ b/src/Humanizer/Locales/sq.yml\n@@ -286,6 +286,7 @@ surfaces:\n         -\n           value: 1000000\n           name: 'milion'\n+          pluralName: 'milionë'\n         -\n           value: 1000\n           name: 'mijë'\ndiff --git a/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs b/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\nindex 56586d32c..8b62df9d4 100644\n--- a/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\n+++ b/tests/Humanizer.Tests/Localisation/LocaleNumberMagnitudeTheoryData.cs\n@@ -13,7 +13,7 @@ public static class LocaleNumberMagnitudeTheoryData\n             { \"et\", 1000001L, \"miljon üks\" },\n             { \"et\", 1234567L, \"miljon kakssada kolmkümmend neli tuhat viissada kuuskümmend seitse\" },\n         { \"sq\", 1000000L, \"një milion\" },\n-        { \"sq\", 12345678L, \"dymbëdhjetë milion e treqind e dyzet e pesë mijë e gjashtëqind e shtatëdhjetë e tetë\" },\n+        { \"sq\", 12345678L, \"dymbëdhjetë milionë e treqind e dyzet e pesë mijë e gjashtëqind e shtatëdhjetë e tetë\" },\n         { \"sq\", 1000000000L, \"një miliar\" },\n         { \"mk\", 1001L, \"илјада и еден\" },\n         { \"mk\", 1000001L, \"еден милион и еден\" },\n@@ -228,7 +228,7 @@ public static class LocaleNumberMagnitudeTheoryData\n \n             { \"et\", 1001000001L, \"miljard miljon üks\" },\n         { \"sq\", 1000000000000L, \"një bilion\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n \ndiff --git a/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs b/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\nindex 1fe6d93e2..744c8d7c4 100644\n--- a/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\n+++ b/tests/Humanizer.Tests/Localisation/LocaleNumberOverloadTheoryData.cs\n@@ -8,7 +8,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и еден\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -271,7 +271,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и еден\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и еден\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -533,7 +533,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и една\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и една\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\n@@ -795,7 +795,7 @@ public static class LocaleNumberOverloadTheoryData\n         { \"tk\", 1001001L, \"bir million müň bir\" },\n \n             { \"et\", 1001001L, \"miljon tuhat üks\" },\n-        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milion e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n+        { \"sq\", 1234567890123L, \"një bilion e dyqind e tridhjetë e katër miliarë e pesëqind e gjashtëdhjetë e shtatë milionë e tetëqind e nëntëdhjetë mijë e njëqind e njëzet e tre\" },\n         { \"mk\", 1001001L, \"еден милион илјада и една\" },\n         { \"mk\", 1001000001L, \"една милијарда еден милион и една\" },\n         { \"mk\", 4325010007018L, \"четири билиони триста дваесет и пет милијарди десет милиони седум илјади и осумнаесет\" },\ndiff --git a/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs b/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\nindex 33258e3f1..6f14fa22c 100644\n--- a/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\n+++ b/tests/Humanizer.Tests/Localisation/sq/AlbanianLocaleParityTests.cs\n@@ -15,6 +15,7 @@ public class AlbanianLocaleParityTests\n     [InlineData(101, \"njëqind e një\")]\n     [InlineData(1234, \"një mijë e dyqind e tridhjetë e katër\")]\n     [InlineData(1000000, \"një milion\")]\n+    [InlineData(2_000_000, \"dy milionë\")]\n     [InlineData(1_000_000_000, \"një miliar\")]\n     [InlineData(2_000_000_000, \"dy miliarë\")]\n     [InlineData(1_000_000_000_000, \"një bilion\")]\n",
+      "changedFiles": 4,
+      "addedLines": 8,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "C#",
+      "labels": [
+        "bug",
+        "localisation"
+      ]
+    },
+    "testCase": {
+      "id": "sb_tc_0007",
+      "title": "Converting whole numbers to English words",
+      "preconditions": "The number-to-words humanization feature is available with the default (English) locale active.",
+      "steps": [
+        "Convert the integer value 1,000,000 to words, leaving the locale at its default English setting.",
+        "Convert the integer value 2,000,000 to words the same way."
+      ],
+      "expectedResult": "The first conversion returns \"one million\" and the second returns \"two million\", using standard English pluralization of the word \"million\"."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-07-28T16:59:26Z",
+      "testType": "API",
+      "tags": [
+        "localization",
+        "unrelated-locale"
+      ],
+      "durationMs": null,
+      "feature": "Number to words conversion (English locale)",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/Humanizr/Humanizer/pull/1870",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/Humanizer.Tests/NumberToWordsTests.cs",
+        "note": "Same reasoning as the base revision: the change is scoped to Albanian locale data only, so English number-to-words output is unaffected at head as well."
+      }
+    }
+  },
+  {
+    "id": "sb_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "InsertKoinIO/koin",
+      "number": 2446,
+      "baseSha": "fff5291f333c04fe5d6d9447f72740647d40d186",
+      "headSha": "26020e8b4721dc6cfa638f950392ba18e1eb4fc5",
+      "title": "Fix #2348 - ignore non-String environment properties (ClassCastException)",
+      "description": "The property-loading routine cast every entry of a Java Properties object to string key/value pairs. Properties can legally hold non-String keys or values (for example after replacing the system properties with arbitrary objects at runtime), and the hard cast then threw a ClassCastException during application startup. The change filters to string-keyed entries and ignores (with a debug log) any entry whose key is not a string, instead of crashing, and adds a regression test.",
+      "diff": "diff --git a/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt b/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\nindex 16c3c997a..2dcb055ed 100644\n--- a/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\n+++ b/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\n@@ -10,13 +10,20 @@ import java.util.*\n /**\n  *Save properties values into PropertyRegister\n  */\n-@Suppress(\"UNCHECKED_CAST\")\n fun PropertyRegistry.saveProperties(properties: Properties) {\n     _koin.logger.debug(\"load ${properties.size} properties\")\n \n-    val propertiesMapValues = properties.toMap() as Map<String, String>\n-    propertiesMapValues.forEach { (k: String, v: String) ->\n-        saveProperty(k, v)\n+    // java.util.Properties can legally hold non-String keys/values (e.g. after\n+    // System.setProperties(...) with arbitrary objects). The registry is keyed by\n+    // String but stores Any values, so keep any String-keyed entry (value as-is)\n+    // and only drop non-String keys — instead of hard-casting values to String and\n+    // crashing (#2348).\n+    properties.forEach { (k, v) ->\n+        if (k is String && v != null) {\n+            saveProperty(k, v)\n+        } else {\n+            _koin.logger.debug(\"ignore property with non-string key '$k'\")\n+        }\n     }\n }\n \ndiff --git a/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt b/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt\nnew file mode 100644\nindex 000000000..243410e42\n--- /dev/null\n+++ b/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt\n@@ -0,0 +1,41 @@\n+package org.koin.core\n+\n+import org.koin.core.annotation.KoinInternalApi\n+import org.koin.core.registry.saveProperties\n+import org.koin.dsl.koinApplication\n+import java.util.Properties\n+import kotlin.test.Test\n+import kotlin.test.assertEquals\n+import kotlin.test.assertSame\n+\n+/**\n+ * Regression test for #2348. java.util.Properties can legally hold non-String keys/values\n+ * (e.g. after System.setProperties(...) with arbitrary objects). Koin hard-cast every entry to\n+ * String, crashing with ClassCastException on startup. The registry is String-keyed but holds\n+ * Any values, so: non-String *keys* are dropped (unaddressable), non-String *values* are kept.\n+ */\n+@OptIn(KoinInternalApi::class)\n+class EnvironmentPropertiesTest {\n+\n+    @Test\n+    fun saveProperties_tolerates_non_string_entries_issue_2348() {\n+        val koin = koinApplication { }.koin\n+\n+        val objectValue = Any()\n+        val props = Properties().apply {\n+            setProperty(\"valid.key\", \"valid.value\")\n+            // legacy Properties permits arbitrary objects:\n+            put(\"object.value\", objectValue) // String key, Any value -> kept (values are Any)\n+            put(Any(), Any())                 // non-string key -> dropped\n+            put(42, \"string.value\")           // non-string key -> dropped\n+        }\n+\n+        // must NOT throw ClassCastException\n+        koin.propertyRegistry.saveProperties(props)\n+\n+        // valid string property is saved\n+        assertEquals(\"valid.value\", koin.getProperty<String>(\"valid.key\"))\n+        // a non-String value under a String key is preserved as-is (registry stores Any)\n+        assertSame(objectValue, koin.getProperty<Any>(\"object.value\"))\n+    }\n+}\n",
+      "changedFiles": 2,
+      "addedLines": 52,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Kotlin",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0009",
+      "title": "Resolving a singleton dependency declared in a dependency-injection module",
+      "preconditions": "A dependency-injection container has been started with a module that declares a single (singleton-scoped) instance of a component class, and no custom properties are involved.",
+      "steps": [
+        "Start the container using the module that provides the singleton component.",
+        "Resolve an instance of the component from the container.",
+        "Resolve an instance of the same component from the container a second time."
+      ],
+      "expectedResult": "Both resolutions return the exact same object instance (they are equal/identical), consistent with singleton scope."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-06-12T13:05:35Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "dependency-injection",
+        "unrelated-feature"
+      ],
+      "durationMs": null,
+      "feature": "Singleton dependency resolution",
+      "platform": "jvm",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/InsertKoinIO/koin/pull/2446",
+        "issueUrl": null,
+        "evidenceTestFile": "projects/core/koin-core/src/commonTest/kotlin/org/koin/core/InstanceResolutionTest.kt",
+        "note": "The PR only touches the environment-properties loading path (PropertyRegistryExt.kt) used when importing a java.util.Properties object; core singleton resolution, covered separately by InstanceResolutionTest.kt, does not go through that code path and is unaffected at base or head."
+      }
+    }
+  },
+  {
+    "id": "sb_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "InsertKoinIO/koin",
+      "number": 2446,
+      "baseSha": "fff5291f333c04fe5d6d9447f72740647d40d186",
+      "headSha": "26020e8b4721dc6cfa638f950392ba18e1eb4fc5",
+      "title": "Fix #2348 - ignore non-String environment properties (ClassCastException)",
+      "description": "The property-loading routine cast every entry of a Java Properties object to string key/value pairs. Properties can legally hold non-String keys or values (for example after replacing the system properties with arbitrary objects at runtime), and the hard cast then threw a ClassCastException during application startup. The change filters to string-keyed entries and ignores (with a debug log) any entry whose key is not a string, instead of crashing, and adds a regression test.",
+      "diff": "diff --git a/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt b/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\nindex 16c3c997a..2dcb055ed 100644\n--- a/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\n+++ b/projects/core/koin-core/src/jvmMain/kotlin/org/koin/core/registry/PropertyRegistryExt.kt\n@@ -10,13 +10,20 @@ import java.util.*\n /**\n  *Save properties values into PropertyRegister\n  */\n-@Suppress(\"UNCHECKED_CAST\")\n fun PropertyRegistry.saveProperties(properties: Properties) {\n     _koin.logger.debug(\"load ${properties.size} properties\")\n \n-    val propertiesMapValues = properties.toMap() as Map<String, String>\n-    propertiesMapValues.forEach { (k: String, v: String) ->\n-        saveProperty(k, v)\n+    // java.util.Properties can legally hold non-String keys/values (e.g. after\n+    // System.setProperties(...) with arbitrary objects). The registry is keyed by\n+    // String but stores Any values, so keep any String-keyed entry (value as-is)\n+    // and only drop non-String keys — instead of hard-casting values to String and\n+    // crashing (#2348).\n+    properties.forEach { (k, v) ->\n+        if (k is String && v != null) {\n+            saveProperty(k, v)\n+        } else {\n+            _koin.logger.debug(\"ignore property with non-string key '$k'\")\n+        }\n     }\n }\n \ndiff --git a/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt b/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt\nnew file mode 100644\nindex 000000000..243410e42\n--- /dev/null\n+++ b/projects/core/koin-core/src/jvmTest/kotlin/org/koin/core/EnvironmentPropertiesTest.kt\n@@ -0,0 +1,41 @@\n+package org.koin.core\n+\n+import org.koin.core.annotation.KoinInternalApi\n+import org.koin.core.registry.saveProperties\n+import org.koin.dsl.koinApplication\n+import java.util.Properties\n+import kotlin.test.Test\n+import kotlin.test.assertEquals\n+import kotlin.test.assertSame\n+\n+/**\n+ * Regression test for #2348. java.util.Properties can legally hold non-String keys/values\n+ * (e.g. after System.setProperties(...) with arbitrary objects). Koin hard-cast every entry to\n+ * String, crashing with ClassCastException on startup. The registry is String-keyed but holds\n+ * Any values, so: non-String *keys* are dropped (unaddressable), non-String *values* are kept.\n+ */\n+@OptIn(KoinInternalApi::class)\n+class EnvironmentPropertiesTest {\n+\n+    @Test\n+    fun saveProperties_tolerates_non_string_entries_issue_2348() {\n+        val koin = koinApplication { }.koin\n+\n+        val objectValue = Any()\n+        val props = Properties().apply {\n+            setProperty(\"valid.key\", \"valid.value\")\n+            // legacy Properties permits arbitrary objects:\n+            put(\"object.value\", objectValue) // String key, Any value -> kept (values are Any)\n+            put(Any(), Any())                 // non-string key -> dropped\n+            put(42, \"string.value\")           // non-string key -> dropped\n+        }\n+\n+        // must NOT throw ClassCastException\n+        koin.propertyRegistry.saveProperties(props)\n+\n+        // valid string property is saved\n+        assertEquals(\"valid.value\", koin.getProperty<String>(\"valid.key\"))\n+        // a non-String value under a String key is preserved as-is (registry stores Any)\n+        assertSame(objectValue, koin.getProperty<Any>(\"object.value\"))\n+    }\n+}\n",
+      "changedFiles": 2,
+      "addedLines": 52,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Kotlin",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0009",
+      "title": "Resolving a singleton dependency declared in a dependency-injection module",
+      "preconditions": "A dependency-injection container has been started with a module that declares a single (singleton-scoped) instance of a component class, and no custom properties are involved.",
+      "steps": [
+        "Start the container using the module that provides the singleton component.",
+        "Resolve an instance of the component from the container.",
+        "Resolve an instance of the same component from the container a second time."
+      ],
+      "expectedResult": "Both resolutions return the exact same object instance (they are equal/identical), consistent with singleton scope."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-06-12T13:05:35Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "dependency-injection",
+        "unrelated-feature"
+      ],
+      "durationMs": null,
+      "feature": "Singleton dependency resolution",
+      "platform": "jvm",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/InsertKoinIO/koin/pull/2446",
+        "issueUrl": null,
+        "evidenceTestFile": "projects/core/koin-core/src/commonTest/kotlin/org/koin/core/InstanceResolutionTest.kt",
+        "note": "Same reasoning as the base revision: the change is scoped to non-String Properties handling, so ordinary singleton resolution is unaffected at head as well."
+      }
+    }
+  },
+  {
+    "id": "sb_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "apple/swift-collections",
+      "number": 688,
+      "baseSha": "899809d3f83cabe30a59a6f00223a0981270be52",
+      "headSha": "771d6984e421165d9b48b15531879c6c148e50de",
+      "title": "[OrderedCollections] Share OrderedSet's replace primitive with OrderedDictionary.replaceElement",
+      "description": "An ordered dictionary's replace-element-at-index operation and an ordered set's replace-member-at-index operation each performed the same 'append the new member, swap it into position, then remove the old one from the end' step inline. This factors that step into a single shared internal primitive used by both. The PR description states this is a behavior-preserving cleanup with no public API change; the existing test suite passes unmodified.",
+      "diff": "diff --git a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\nindex 9a584e8fa..85c117a64 100644\n--- a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\n+++ b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\n@@ -408,8 +408,9 @@ extension OrderedDictionary.Elements {\n   ///     dict.elements.replaceElement(at: 1, withKey: \"é\", value: 2)\n   ///     // dict is now [\"a\": 1, \"é\": 2, \"c\": 3]\n   ///\n-  /// In the general case, the new pair is appended, swapped into position,\n-  /// and the old element is removed from the end — each step is O(1).\n+  /// In the general case, the new key is appended, swapped into position, and\n+  /// the old key removed from the end, while the value is overwritten in\n+  /// place — each step is O(1).\n   /// When the new key compares equal to the one being replaced, the pair\n   /// is updated in place and the hash table is left untouched.\n   ///\ndiff --git a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\nindex bbeadd48c..2c07c1487 100644\n--- a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\t\n+++ b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\t\n@@ -44,8 +44,9 @@ extension OrderedDictionary {\n   ///     dict.replaceElement(at: 1, withKey: \"é\", value: 2)\n   ///     // dict is now [\"a\": 1, \"é\": 2, \"c\": 3]\n   ///\n-  /// In the general case, the new pair is appended, swapped into position,\n-  /// and the old element is removed from the end — each step is O(1).\n+  /// In the general case, the new key is appended, swapped into position, and\n+  /// the old key removed from the end, while the value is overwritten in\n+  /// place — each step is O(1).\n   /// When the new key compares equal to the one being replaced, the pair\n   /// is updated in place and the hash table is left untouched.\n   ///\n@@ -90,17 +91,10 @@ extension OrderedDictionary {\n \n     precondition(existingIndex == nil, \"Duplicate key: '\\(key)'\")\n \n-    // Append the new key-value pair at the end — amortized O(1)\n-    _keys._appendNew(key, in: bucket)\n-    _values.append(value)\n-\n-    // Swap the new element into the target position — O(1)\n-    _keys.swapAt(index, count - 1)\n-    _values.swapAt(index, count - 1)\n-\n-    // Remove the old element from the end — O(1)\n-    let oldKey = _keys.removeLast()\n-    let oldValue = _values.removeLast()\n+    // Replace the key through OrderedSet's shared primitive, then overwrite the\n+    // value at `index` — each step is O(1).\n+    let oldKey = _keys._replaceNew(at: index, with: key, in: bucket)\n+    let oldValue = exchange(&_values[index], with: value)\n \n     _checkInvariants()\n     return (oldKey, oldValue)\ndiff --git a/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift b/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\nindex 7b80d1188..2efe70cf9 100644\n--- a/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\n+++ b/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\n@@ -202,6 +202,25 @@ extension OrderedSet {\n }\n \n extension OrderedSet {\n+  /// Replace the member at `index` with `item`, a new element that is not yet a\n+  /// member of the set, registering it in the given hash table `bucket` (as\n+  /// returned by `_find`) without verifying that it isn't present elsewhere.\n+  /// The member currently at `index` is removed and returned.\n+  ///\n+  /// Appends the new element, swaps it into `index`, then removes the old\n+  /// member from the end — each step is O(1).\n+  ///\n+  /// - Complexity: Amortized O(1)\n+  @inlinable\n+  @discardableResult\n+  internal mutating func _replaceNew(\n+    at index: Int, with item: Element, in bucket: _Bucket\n+  ) -> Element {\n+    _appendNew(item, in: bucket)\n+    swapAt(index, count - 1)\n+    return removeLast()\n+  }\n+\n   /// Replace the member at the given index with a new element.\n   ///\n   /// If `item` compares equal to the member currently at `index`, then it is\n@@ -243,12 +262,7 @@ extension OrderedSet {\n     }\n \n     precondition(existing == nil, \"Duplicate element\")\n-\n-    // Append the new element, swap it into the target position, and remove the\n-    // old member from the end — each step is O(1).\n-    _appendNew(item, in: bucket)\n-    swapAt(index, count - 1)\n-    return removeLast()\n+    return _replaceNew(at: index, with: item, in: bucket)\n   }\n }\n \n",
+      "changedFiles": 3,
+      "addedLines": 30,
+      "deletedLines": 21,
+      "commits": 2,
+      "language": "Swift",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0011",
+      "title": "Replacing an element's key at a specific position in an ordered dictionary",
+      "preconditions": "An ordered dictionary contains three key-value pairs in insertion order: (\"a\", 1), (\"b\", 2), (\"c\", 3).",
+      "steps": [
+        "Call the operation that replaces the element at position 1 with a new key \"z\", keeping the same value 2.",
+        "Inspect the resulting dictionary's contents and their order.",
+        "Attempt the same kind of replace operation again on the updated dictionary, but this time supply a new key that already exists elsewhere in the dictionary (e.g. \"a\")."
+      ],
+      "expectedResult": "After the first replace, the dictionary contains (\"a\", 1), (\"z\", 2), (\"c\", 3) in that order — the element at position 1 now has the new key with its value unchanged, and overall ordering is preserved. The second attempt, which supplies a key duplicating an existing one, fails with a duplicate-key error rather than silently corrupting the dictionary."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T21:11:17Z",
+      "testType": "API",
+      "tags": [
+        "refactor",
+        "ordered-collections"
+      ],
+      "durationMs": null,
+      "feature": "Ordered dictionary element replacement",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/apple/swift-collections/pull/688",
+        "issueUrl": null,
+        "evidenceTestFile": "Tests/OrderedCollectionsTests/OrderedDictionary/OrderedDictionary+Elements Tests.swift",
+        "note": "The change only consolidates the internal append/swap/remove mechanics that both OrderedSet and OrderedDictionary already used inline into one shared primitive; the PR states no public API or behavior changes, so the described replace-at-index and duplicate-key-trap behavior holds identically before the refactor."
+      }
+    }
+  },
+  {
+    "id": "sb_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "apple/swift-collections",
+      "number": 688,
+      "baseSha": "899809d3f83cabe30a59a6f00223a0981270be52",
+      "headSha": "771d6984e421165d9b48b15531879c6c148e50de",
+      "title": "[OrderedCollections] Share OrderedSet's replace primitive with OrderedDictionary.replaceElement",
+      "description": "An ordered dictionary's replace-element-at-index operation and an ordered set's replace-member-at-index operation each performed the same 'append the new member, swap it into position, then remove the old one from the end' step inline. This factors that step into a single shared internal primitive used by both. The PR description states this is a behavior-preserving cleanup with no public API change; the existing test suite passes unmodified.",
+      "diff": "diff --git a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\nindex 9a584e8fa..85c117a64 100644\n--- a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\n+++ b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Elements.swift\n@@ -408,8 +408,9 @@ extension OrderedDictionary.Elements {\n   ///     dict.elements.replaceElement(at: 1, withKey: \"é\", value: 2)\n   ///     // dict is now [\"a\": 1, \"é\": 2, \"c\": 3]\n   ///\n-  /// In the general case, the new pair is appended, swapped into position,\n-  /// and the old element is removed from the end — each step is O(1).\n+  /// In the general case, the new key is appended, swapped into position, and\n+  /// the old key removed from the end, while the value is overwritten in\n+  /// place — each step is O(1).\n   /// When the new key compares equal to the one being replaced, the pair\n   /// is updated in place and the hash table is left untouched.\n   ///\ndiff --git a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\nindex bbeadd48c..2c07c1487 100644\n--- a/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\t\n+++ b/Sources/OrderedCollections/OrderedDictionary/OrderedDictionary+Partial MutableCollection.swift\t\n@@ -44,8 +44,9 @@ extension OrderedDictionary {\n   ///     dict.replaceElement(at: 1, withKey: \"é\", value: 2)\n   ///     // dict is now [\"a\": 1, \"é\": 2, \"c\": 3]\n   ///\n-  /// In the general case, the new pair is appended, swapped into position,\n-  /// and the old element is removed from the end — each step is O(1).\n+  /// In the general case, the new key is appended, swapped into position, and\n+  /// the old key removed from the end, while the value is overwritten in\n+  /// place — each step is O(1).\n   /// When the new key compares equal to the one being replaced, the pair\n   /// is updated in place and the hash table is left untouched.\n   ///\n@@ -90,17 +91,10 @@ extension OrderedDictionary {\n \n     precondition(existingIndex == nil, \"Duplicate key: '\\(key)'\")\n \n-    // Append the new key-value pair at the end — amortized O(1)\n-    _keys._appendNew(key, in: bucket)\n-    _values.append(value)\n-\n-    // Swap the new element into the target position — O(1)\n-    _keys.swapAt(index, count - 1)\n-    _values.swapAt(index, count - 1)\n-\n-    // Remove the old element from the end — O(1)\n-    let oldKey = _keys.removeLast()\n-    let oldValue = _values.removeLast()\n+    // Replace the key through OrderedSet's shared primitive, then overwrite the\n+    // value at `index` — each step is O(1).\n+    let oldKey = _keys._replaceNew(at: index, with: key, in: bucket)\n+    let oldValue = exchange(&_values[index], with: value)\n \n     _checkInvariants()\n     return (oldKey, oldValue)\ndiff --git a/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift b/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\nindex 7b80d1188..2efe70cf9 100644\n--- a/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\n+++ b/Sources/OrderedCollections/OrderedSet/OrderedSet+Insertions.swift\n@@ -202,6 +202,25 @@ extension OrderedSet {\n }\n \n extension OrderedSet {\n+  /// Replace the member at `index` with `item`, a new element that is not yet a\n+  /// member of the set, registering it in the given hash table `bucket` (as\n+  /// returned by `_find`) without verifying that it isn't present elsewhere.\n+  /// The member currently at `index` is removed and returned.\n+  ///\n+  /// Appends the new element, swaps it into `index`, then removes the old\n+  /// member from the end — each step is O(1).\n+  ///\n+  /// - Complexity: Amortized O(1)\n+  @inlinable\n+  @discardableResult\n+  internal mutating func _replaceNew(\n+    at index: Int, with item: Element, in bucket: _Bucket\n+  ) -> Element {\n+    _appendNew(item, in: bucket)\n+    swapAt(index, count - 1)\n+    return removeLast()\n+  }\n+\n   /// Replace the member at the given index with a new element.\n   ///\n   /// If `item` compares equal to the member currently at `index`, then it is\n@@ -243,12 +262,7 @@ extension OrderedSet {\n     }\n \n     precondition(existing == nil, \"Duplicate element\")\n-\n-    // Append the new element, swap it into the target position, and remove the\n-    // old member from the end — each step is O(1).\n-    _appendNew(item, in: bucket)\n-    swapAt(index, count - 1)\n-    return removeLast()\n+    return _replaceNew(at: index, with: item, in: bucket)\n   }\n }\n \n",
+      "changedFiles": 3,
+      "addedLines": 30,
+      "deletedLines": 21,
+      "commits": 2,
+      "language": "Swift",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0011",
+      "title": "Replacing an element's key at a specific position in an ordered dictionary",
+      "preconditions": "An ordered dictionary contains three key-value pairs in insertion order: (\"a\", 1), (\"b\", 2), (\"c\", 3).",
+      "steps": [
+        "Call the operation that replaces the element at position 1 with a new key \"z\", keeping the same value 2.",
+        "Inspect the resulting dictionary's contents and their order.",
+        "Attempt the same kind of replace operation again on the updated dictionary, but this time supply a new key that already exists elsewhere in the dictionary (e.g. \"a\")."
+      ],
+      "expectedResult": "After the first replace, the dictionary contains (\"a\", 1), (\"z\", 2), (\"c\", 3) in that order — the element at position 1 now has the new key with its value unchanged, and overall ordering is preserved. The second attempt, which supplies a key duplicating an existing one, fails with a duplicate-key error rather than silently corrupting the dictionary."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T21:11:17Z",
+      "testType": "API",
+      "tags": [
+        "refactor",
+        "ordered-collections"
+      ],
+      "durationMs": null,
+      "feature": "Ordered dictionary element replacement",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/apple/swift-collections/pull/688",
+        "issueUrl": null,
+        "evidenceTestFile": "Tests/OrderedCollectionsTests/OrderedDictionary/OrderedDictionary+Elements Tests.swift",
+        "note": "After the refactor the same behavior is preserved by construction: the shared primitive performs the identical append/swap/remove steps and the calling code keeps its own duplicate-key and bounds preconditions, so the described behavior still holds."
+      }
+    }
+  },
+  {
+    "id": "sb_0013",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "spf13/viper",
+      "number": 2029,
+      "baseSha": "8fd6b8123b5ff4eab8af0d018ba2d998d8630cc8",
+      "headSha": "b9621ec45830703f78fbd3bcbfdced0daafb0ccc",
+      "title": "refactor: use the built-in max/min to simplify the code",
+      "description": "In Go 1.21, the standard library includes built-in max/min functions, which can greatly simplify code that previously implemented the same comparison manually. The change replaces a manual 'if value is negative, clamp to zero' check in the byte-size string parsing helper with an equivalent call to the built-in max function.",
+      "diff": "diff --git a/util.go b/util.go\nindex 2a08074bc..d08ed4621 100644\n--- a/util.go\n+++ b/util.go\n@@ -174,10 +174,7 @@ func parseSizeInBytes(sizeStr string) uint {\n \t\t}\n \t}\n \n-\tsize := cast.ToInt(sizeStr)\n-\tif size < 0 {\n-\t\tsize = 0\n-\t}\n+\tsize := max(cast.ToInt(sizeStr), 0)\n \n \treturn safeMul(uint(size), multiplier)\n }\n",
+      "changedFiles": 1,
+      "addedLines": 1,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0013",
+      "title": "Reading a size-in-bytes configuration value when the stored size string is invalid",
+      "preconditions": "A configuration key has been set to a string that does not represent a valid positive size, such as \"-5MB\".",
+      "steps": [
+        "Set a configuration key's value to the string \"-5MB\".",
+        "Retrieve that key's value using the configuration library's size-in-bytes accessor."
+      ],
+      "expectedResult": "The accessor returns 0 (zero bytes) rather than a negative number, treating the invalid/negative size as zero."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-08-01T12:59:34Z",
+      "testType": "API",
+      "tags": [
+        "refactor",
+        "config-parsing"
+      ],
+      "durationMs": null,
+      "feature": "Byte-size configuration value parsing",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/viper/pull/2029",
+        "issueUrl": null,
+        "evidenceTestFile": "viper_test.go",
+        "note": "The change replaces a manual 'if size < 0 { size = 0 }' check with an equivalent call to Go's built-in max(size, 0); both forms clamp a negative parsed size to zero, so the size-in-bytes accessor returns 0 for an invalid negative size string both before and after the refactor."
+      }
+    }
+  },
+  {
+    "id": "sb_0014",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "spf13/viper",
+      "number": 2029,
+      "baseSha": "8fd6b8123b5ff4eab8af0d018ba2d998d8630cc8",
+      "headSha": "b9621ec45830703f78fbd3bcbfdced0daafb0ccc",
+      "title": "refactor: use the built-in max/min to simplify the code",
+      "description": "In Go 1.21, the standard library includes built-in max/min functions, which can greatly simplify code that previously implemented the same comparison manually. The change replaces a manual 'if value is negative, clamp to zero' check in the byte-size string parsing helper with an equivalent call to the built-in max function.",
+      "diff": "diff --git a/util.go b/util.go\nindex 2a08074bc..d08ed4621 100644\n--- a/util.go\n+++ b/util.go\n@@ -174,10 +174,7 @@ func parseSizeInBytes(sizeStr string) uint {\n \t\t}\n \t}\n \n-\tsize := cast.ToInt(sizeStr)\n-\tif size < 0 {\n-\t\tsize = 0\n-\t}\n+\tsize := max(cast.ToInt(sizeStr), 0)\n \n \treturn safeMul(uint(size), multiplier)\n }\n",
+      "changedFiles": 1,
+      "addedLines": 1,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Go",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sb_tc_0013",
+      "title": "Reading a size-in-bytes configuration value when the stored size string is invalid",
+      "preconditions": "A configuration key has been set to a string that does not represent a valid positive size, such as \"-5MB\".",
+      "steps": [
+        "Set a configuration key's value to the string \"-5MB\".",
+        "Retrieve that key's value using the configuration library's size-in-bytes accessor."
+      ],
+      "expectedResult": "The accessor returns 0 (zero bytes) rather than a negative number, treating the invalid/negative size as zero."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-08-01T12:59:34Z",
+      "testType": "API",
+      "tags": [
+        "refactor",
+        "config-parsing"
+      ],
+      "durationMs": null,
+      "feature": "Byte-size configuration value parsing",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/spf13/viper/pull/2029",
+        "issueUrl": null,
+        "evidenceTestFile": "viper_test.go",
+        "note": "Same reasoning as the base revision: the refactor is mathematically equivalent (max(size, 0) versus the prior if-check), so the clamped-to-zero result is unchanged at head."
+      }
+    }
+  }
+]

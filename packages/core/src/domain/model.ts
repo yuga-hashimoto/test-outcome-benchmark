@@ -4,6 +4,13 @@ export const PROVIDER_IDS = [
   'anthropic',
   'gemini',
   'openai-compatible',
+  /**
+   * Predictions produced outside this process and imported as a run — a harness
+   * driving a model the adapters cannot reach directly. Its adapter refuses to
+   * be called, so an external run can never be started or resumed by mistake;
+   * the answers must come from an import.
+   */
+  'external',
 ] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 

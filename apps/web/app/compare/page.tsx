@@ -1,20 +1,17 @@
 import Link from 'next/link';
-import { getRunMetrics, listRuns } from '@tob/db';
+import { rankRuns } from '@tob/core';
+import { listRunSummaries } from '@tob/db';
 import { compareRuns } from '@tob/runner';
-import { Empty, Note, Stat } from '@/components/Stat';
+import { Empty, Note } from '@/components/Stat';
+import { comparableRuns } from '@/lib/comparable';
 import { db } from '@/lib/db';
-import { count, percent, shortId } from '@/lib/format';
+import { percent, shortId } from '@/lib/format';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 
-export default async function ComparePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ baseline?: string; candidate?: string }>;
-}) {
-  const { baseline, candidate } = await searchParams;
+export default function CompareIndexPage() {
   const handle = db();
-  const runs = listRuns(handle, 200).filter((run) => getRunMetrics(handle, run.id) !== null);
+  const runs = comparableRuns();
 
   if (runs.length < 2) {
     return (
@@ -25,125 +22,129 @@ export default async function ComparePage({
     );
   }
 
-  const baselineRun = runs.find((run) => run.id === baseline);
-  const candidateRun = runs.find((run) => run.id === candidate);
-  const comparison =
-    baselineRun !== undefined && candidateRun !== undefined && baselineRun.id !== candidateRun.id
-      ? compareRuns(handle, baselineRun.id, candidateRun.id)
-      : null;
+  const runIds = new Set(runs.map((run) => run.id));
+  const summaries = listRunSummaries(handle, 200).filter((summary) => runIds.has(summary.runId));
+  const leader = rankRuns(summaries, 'accuracy')[0];
 
-  const includesZero =
-    comparison !== null &&
-    comparison.interval.lower !== null &&
-    comparison.interval.upper !== null &&
-    comparison.interval.lower <= 0 &&
-    comparison.interval.upper >= 0;
+  if (leader === undefined) {
+    return (
+      <>
+        <h1>Compare runs</h1>
+        <Empty>No run has a measurable accuracy yet.</Empty>
+      </>
+    );
+  }
+
+  const rows = runs
+    .filter((run) => run.id !== leader.summary.runId)
+    .map((run) => ({ run, comparison: compareRuns(handle, leader.summary.runId, run.id) }));
 
   return (
     <>
       <h1>Compare runs</h1>
       <p className="lede">
-        A paired comparison over the cases both runs scored. Pairing removes case difficulty from
-        the difference, so the interval reflects the configurations rather than the dataset.
+        Every run measured against the current leader, paired over the cases both scored. Pairing
+        removes case difficulty from the difference, so the interval describes the configurations
+        rather than the dataset.
       </p>
 
-      <div className="split" style={{ marginTop: 18 }}>
-        {(['baseline', 'candidate'] as const).map((role) => (
-          <div key={role} className="card">
-            <h3>{role}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {runs.map((run) => {
-                const selected = role === 'baseline' ? baseline : candidate;
-                const other = role === 'baseline' ? candidate : baseline;
-                const query = new URLSearchParams();
-                if (role === 'baseline') {
-                  query.set('baseline', run.id);
-                  if (other !== undefined) query.set('candidate', other);
-                } else {
-                  if (other !== undefined) query.set('baseline', other);
-                  query.set('candidate', run.id);
-                }
-                return (
-                  <Link
-                    key={run.id}
-                    href={`/compare?${query.toString()}`}
-                    style={{
-                      padding: '5px 9px',
-                      borderRadius: 7,
-                      textDecoration: 'none',
-                      fontSize: 13,
-                      background: run.id === selected ? 'var(--accent-soft)' : 'transparent',
-                      color: run.id === selected ? 'var(--accent)' : 'var(--muted)',
-                    }}
-                  >
-                    {run.name}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <h2>Against {leader.summary.modelName}</h2>
+      <p className="lede">
+        Baseline: <Link href={`/runs/${leader.summary.runId}`}>{leader.summary.runName}</Link> at{' '}
+        {percent(leader.value)} accuracy.
+      </p>
+
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th className="wrap">Candidate</th>
+              <th className="num">Accuracy</th>
+              <th className="num">Difference</th>
+              <th className="num">95% interval</th>
+              <th>Distinguishable?</th>
+              <th className="num">Cases</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ run, comparison }) => {
+              const decided =
+                comparison.interval.lower !== null &&
+                comparison.interval.upper !== null &&
+                (comparison.interval.lower > 0 || comparison.interval.upper < 0);
+
+              return (
+                <tr key={run.id}>
+                  <td className="wrap">
+                    <Link href={`/compare/${leader.summary.runId}/${run.id}`}>{run.name}</Link>
+                  </td>
+                  <td className="num">{percent(comparison.candidateAccuracy)}</td>
+                  <td className="num">
+                    {comparison.deltaAccuracy === null
+                      ? '—'
+                      : `${comparison.deltaAccuracy >= 0 ? '+' : ''}${percent(comparison.deltaAccuracy)}`}
+                  </td>
+                  <td className="num muted">
+                    {comparison.interval.lower === null || comparison.interval.upper === null
+                      ? '—'
+                      : `${percent(comparison.interval.lower)} to ${percent(comparison.interval.upper)}`}
+                  </td>
+                  <td>
+                    {decided ? (
+                      <span className="pill pill-pass">yes</span>
+                    ) : (
+                      <span className="pill pill-warn">not distinguishable</span>
+                    )}
+                  </td>
+                  <td className="num muted">{comparison.matchedCases}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {comparison === null ? (
-        <Note>Pick a baseline and a candidate above.</Note>
-      ) : (
-        <>
-          <div className="grid" style={{ marginTop: 20 }}>
-            <Stat
-              label="Baseline accuracy"
-              value={percent(comparison.baselineAccuracy)}
-              note={baselineRun?.name}
-            />
-            <Stat
-              label="Candidate accuracy"
-              value={percent(comparison.candidateAccuracy)}
-              note={candidateRun?.name}
-            />
-            <Stat
-              label="Difference"
-              value={
-                comparison.deltaAccuracy === null
-                  ? '—'
-                  : `${comparison.deltaAccuracy >= 0 ? '+' : ''}${percent(comparison.deltaAccuracy)}`
-              }
-              note={
-                comparison.interval.lower === null || comparison.interval.upper === null
-                  ? 'interval unavailable'
-                  : `95%: ${percent(comparison.interval.lower)} to ${percent(comparison.interval.upper)}`
-              }
-            />
-            <Stat
-              label="Matched cases"
-              value={count(comparison.matchedCases)}
-              note={`${count(comparison.interval.clusters)} pull requests`}
-            />
-          </div>
+      <Note>
+        &ldquo;Not distinguishable&rdquo; means the 95% interval on the difference includes zero:
+        the observed gap is within what resampling whole pull requests produces by chance. It does
+        not mean the two configurations are equal, only that this dataset cannot separate them.
+      </Note>
 
-          {includesZero ? (
-            <Note tone="warn">
-              The interval includes zero. On this dataset, these two configurations are not
-              distinguishable — the observed gap is within what resampling produces by chance.
-            </Note>
-          ) : (
-            <Note>
-              The interval excludes zero, so the difference survives resampling whole pull requests.
-            </Note>
-          )}
-
-          {!comparison.sameDatasetVersion && (
-            <Note tone="warn">
-              These runs used different dataset versions. Only the cases they share are compared,
-              and the shared subset may not be representative of either full dataset.
-            </Note>
-          )}
-
-          <p className="lede mono">
-            baseline {shortId(comparison.baselineRunId)} · candidate{' '}
-            {shortId(comparison.candidateRunId)}
-          </p>
-        </>
-      )}
+      <h2>All pairs</h2>
+      <p className="lede">Pick any two runs for the full paired comparison.</p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th className="wrap">Baseline</th>
+              <th className="wrap">Compare with</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((baseline) => (
+              <tr key={baseline.id}>
+                <td className="wrap">
+                  {baseline.name} <span className="muted mono">{shortId(baseline.id)}</span>
+                </td>
+                <td className="wrap">
+                  {runs
+                    .filter((candidate) => candidate.id !== baseline.id)
+                    .map((candidate) => (
+                      <Link
+                        key={candidate.id}
+                        href={`/compare/${baseline.id}/${candidate.id}`}
+                        className="pill"
+                        style={{ marginRight: 4, marginBottom: 4, display: 'inline-block' }}
+                      >
+                        {candidate.snapshot.modelName} · {candidate.snapshot.promptName}
+                      </Link>
+                    ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

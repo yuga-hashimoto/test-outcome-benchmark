@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import {
   getRun,
   getRunMetrics,
+  listRuns,
   listErroredCases,
   listFalsePassCases,
   listHighConfidenceMistakes,
@@ -13,7 +14,12 @@ import { CaseTable } from '@/components/CaseTable';
 import { db } from '@/lib/db';
 import { count, intervalText, millis, money, percent, score, shortId } from '@/lib/format';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
+
+/** Pre-renders one page per run so the site can be exported statically. */
+export function generateStaticParams(): { id: string }[] {
+  return listRuns(db(), 500).map((run) => ({ id: run.id }));
+}
 
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

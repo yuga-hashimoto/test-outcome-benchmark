@@ -40,6 +40,17 @@ export const createAdapter = (
       return createGeminiAdapter(context);
     case 'openai-compatible':
       return createOpenAiCompatibleAdapter(context);
+    case 'external':
+      return {
+        provider: 'external',
+        maxConcurrency: 1,
+        complete: () => {
+          throw new InfrastructureError(
+            'This configuration records predictions produced outside the benchmark. Use `benchmark import-run` instead of starting a run.',
+            { code: 'EXTERNAL_PROVIDER', retryable: false },
+          );
+        },
+      };
     default: {
       const exhaustive: never = config.provider;
       throw new InfrastructureError(`Unsupported provider ${String(exhaustive)}`, {
@@ -100,5 +111,13 @@ export const PROVIDER_DESCRIPTORS: readonly ProviderDescriptor[] = [
     requiresBaseUrl: true,
     supportsStreaming: true,
     defaultConcurrency: 4,
+  },
+  {
+    id: 'external',
+    label: 'Imported from an external harness',
+    requiresApiKey: false,
+    requiresBaseUrl: false,
+    supportsStreaming: false,
+    defaultConcurrency: 1,
   },
 ];

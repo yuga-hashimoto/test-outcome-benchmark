@@ -1,0 +1,847 @@
+[
+  {
+    "id": "kbd_0001",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "redis/redis",
+      "number": 15538,
+      "baseSha": "24b87eb55a4d3d40df0fe12239ef113942eca7d3",
+      "headSha": "59dc378a12ac0b28abcc99fa456d4ad69f3864d1",
+      "title": "Fix ACL key checks for SORT",
+      "description": "Sort command resolved ACL keys from a keyspec that didn't match the key the command actually operates on, allowing a permission bypass. STORE also uses last-wins semantics; the STORE keyspec is already `unknown`, so ACL falls back to `sortGetKeys()` -- but that parser didn't skip the STORE argument, so an earlier STORE value that looks like an option keyword (BY/GET/LIMIT) derailed the scan. Fixed the parser to skip the STORE argument so it isn't re-parsed as an option keyword; the last STORE still wins.",
+      "diff": "diff --git a/src/db.c b/src/db.c\nindex 50497731e5c..c3d7c41e5fb 100644\n--- a/src/db.c\n+++ b/src/db.c\n@@ -1752,6 +1752,7 @@ int sortGetKeys(struct redisCommand *cmd, robj **argv, int argc, getKeysResult *\n                  * ones are provided. This is same behavior as SORT. */\n                 found_store = 1;\n                 keys[num] = i+1; /* <store-key> */\n+                i++; /* Skip the store argument so it isn't re-parsed as an option keyword. */\n                 break;\n             }\n         }\ndiff --git a/tests/unit/acl.tcl b/tests/unit/acl.tcl\nindex beec71ceb57..4c55c2e2a3d 100644\n--- a/tests/unit/acl.tcl\n+++ b/tests/unit/acl.tcl\n@@ -476,6 +476,24 @@ start_server {tags {\"acl\"}} {\n         assert_match \"*Unknown subcommand or wrong number of arguments*\" $e\n     }\n \n+    test {SORT duplicate STORE is checked against the last key} {\n+        # Duplicate STORE uses last-wins semantics, so ACL must validate the\n+        # last key. The earlier STORE argument can look like an option keyword\n+        # (BY/GET/LIMIT) and must be skipped so a permitted first key doesn't\n+        # mask a forbidden last key. (Backport smoke test for redis/redis#15478;\n+        # 6.2 has no ACL DRYRUN, so we exercise the real command path.)\n+        r ACL setuser command-test reset on nopass +@all ~read* ~by ~get ~limit\n+        r AUTH command-test \"\"\n+\n+        assert_equal {0} [r SORT read STORE by STORE read2]\n+        assert_error {*NOPERM*key*} {r SORT read STORE by STORE write2}\n+        assert_error {*NOPERM*key*} {r SORT read STORE get STORE write2}\n+        assert_error {*NOPERM*key*} {r SORT read STORE limit STORE write2}\n+\n+        r AUTH default \"\"\n+        r ACL deluser command-test\n+    }\n+\n     test {Delete a user that the client doesn't use} {\n         r ACL setuser not_used on >passwd\n         assert {[r ACL deluser not_used] == 1}\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "C",
+      "labels": [
+        "release-notes"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0001",
+      "title": "Background save completes successfully on a 32-bit Redis server once the dataset grows past a few megabytes",
+      "preconditions": "A redis-server instance built for a 32-bit architecture is running in standalone mode with persistence enabled and no other background save currently in progress.",
+      "steps": [
+        "Start a redis-server built for a 32-bit target architecture with default persistence (save points) enabled.",
+        "Insert keys until the in-memory dataset is large enough that the resulting RDB file would be a few megabytes.",
+        "Issue the BGSAVE command.",
+        "Wait for the background save to finish and check the server log and INFO persistence section."
+      ],
+      "expectedResult": "The background save finishes and the log reports 'Background saving terminated successfully'; INFO persistence shows rdb_last_bgsave_status:ok and rdb_last_bgsave_time_sec with a non-negative value."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-28T04:05:07Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "persistence",
+        "rdb",
+        "32-bit",
+        "bgsave"
+      ],
+      "durationMs": null,
+      "feature": "RDB background save",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/redis/redis/pull/15538",
+        "issueUrl": "https://github.com/redis/redis/issues/13671",
+        "evidenceTestFile": null,
+        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0002",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "redis/redis",
+      "number": 15538,
+      "baseSha": "24b87eb55a4d3d40df0fe12239ef113942eca7d3",
+      "headSha": "59dc378a12ac0b28abcc99fa456d4ad69f3864d1",
+      "title": "Fix ACL key checks for SORT",
+      "description": "Sort command resolved ACL keys from a keyspec that didn't match the key the command actually operates on, allowing a permission bypass. STORE also uses last-wins semantics; the STORE keyspec is already `unknown`, so ACL falls back to `sortGetKeys()` -- but that parser didn't skip the STORE argument, so an earlier STORE value that looks like an option keyword (BY/GET/LIMIT) derailed the scan. Fixed the parser to skip the STORE argument so it isn't re-parsed as an option keyword; the last STORE still wins.",
+      "diff": "diff --git a/src/db.c b/src/db.c\nindex 50497731e5c..c3d7c41e5fb 100644\n--- a/src/db.c\n+++ b/src/db.c\n@@ -1752,6 +1752,7 @@ int sortGetKeys(struct redisCommand *cmd, robj **argv, int argc, getKeysResult *\n                  * ones are provided. This is same behavior as SORT. */\n                 found_store = 1;\n                 keys[num] = i+1; /* <store-key> */\n+                i++; /* Skip the store argument so it isn't re-parsed as an option keyword. */\n                 break;\n             }\n         }\ndiff --git a/tests/unit/acl.tcl b/tests/unit/acl.tcl\nindex beec71ceb57..4c55c2e2a3d 100644\n--- a/tests/unit/acl.tcl\n+++ b/tests/unit/acl.tcl\n@@ -476,6 +476,24 @@ start_server {tags {\"acl\"}} {\n         assert_match \"*Unknown subcommand or wrong number of arguments*\" $e\n     }\n \n+    test {SORT duplicate STORE is checked against the last key} {\n+        # Duplicate STORE uses last-wins semantics, so ACL must validate the\n+        # last key. The earlier STORE argument can look like an option keyword\n+        # (BY/GET/LIMIT) and must be skipped so a permitted first key doesn't\n+        # mask a forbidden last key. (Backport smoke test for redis/redis#15478;\n+        # 6.2 has no ACL DRYRUN, so we exercise the real command path.)\n+        r ACL setuser command-test reset on nopass +@all ~read* ~by ~get ~limit\n+        r AUTH command-test \"\"\n+\n+        assert_equal {0} [r SORT read STORE by STORE read2]\n+        assert_error {*NOPERM*key*} {r SORT read STORE by STORE write2}\n+        assert_error {*NOPERM*key*} {r SORT read STORE get STORE write2}\n+        assert_error {*NOPERM*key*} {r SORT read STORE limit STORE write2}\n+\n+        r AUTH default \"\"\n+        r ACL deluser command-test\n+    }\n+\n     test {Delete a user that the client doesn't use} {\n         r ACL setuser not_used on >passwd\n         assert {[r ACL deluser not_used] == 1}\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "C",
+      "labels": [
+        "release-notes"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0002",
+      "title": "A 32-bit Redis server running under systemd persists a growing dataset without background-save failures",
+      "preconditions": "A redis-server instance built for a 32-bit architecture is running in standalone mode with persistence enabled and no other background save currently in progress.",
+      "steps": [
+        "Start redis-server via systemd on a 32-bit host with a configured 'save' point (e.g. save 3600 1).",
+        "Populate keys over time until the dataset size crosses roughly the 4 MB mark.",
+        "Wait for the automatic background save triggered by the configured save point to run.",
+        "Inspect the Redis log entries written after the save interval elapses."
+      ],
+      "expectedResult": "The log shows 'Background saving started by pid ...' followed by 'Background saving terminated successfully', with no 'Background saving terminated by signal' message, and dump.rdb on disk reflects the latest dataset."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-28T04:05:07Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "persistence",
+        "rdb",
+        "32-bit",
+        "bgsave"
+      ],
+      "durationMs": null,
+      "feature": "RDB background save",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/redis/redis/pull/15538",
+        "issueUrl": "https://github.com/redis/redis/issues/13671",
+        "evidenceTestFile": null,
+        "note": "Issue #13671 ('redis rdb saving fails with signal 31 on 32bit machine - due to integer overflow?') opened 2024-11-28 and still OPEN as of 2026-08-16, with Redis collaborator sundb actively engaging on the thread (requesting repro data as recently as Jan 2025) without a fix landing. PR #15538 merged 2026-07-28 touches only src/db.c's sortGetKeys() ACL key-resolution parser and tests/unit/acl.tcl -- nowhere near the RDB background-save/fork code path (src/rdb.c, src/child.c) implicated in the open issue, so the background-save failure is present unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0003",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "neovim/neovim",
+      "number": 41328,
+      "baseSha": "9cca923ab4f9ddca4b817e989eba546ddba675e1",
+      "headSha": "aeae2ff9577dc8784a13f6132284264ec40eec37",
+      "title": "fix(cwd): nvim_win_set_buf changes global CWD",
+      "description": "nvim_win_set_buf() on a non-current window, while the current window has a win-local dir, was changing the global CWD. `globaldir` is where to return when no local dir applies; switching to a window with no local dir made update_cwd() chdir back to `globaldir` and clear it, and kCtxKeepCwd restored the process CWD but not that bookkeeping, so the restored window-local dir was mistaken for the global one. Fixed by saving/restoring `globaldir` together with the CWD.",
+      "diff": "diff --git a/src/nvim/context.c b/src/nvim/context.c\nindex 7afab8d891594f..27fa060de63b88 100644\n--- a/src/nvim/context.c\n+++ b/src/nvim/context.c\n@@ -311,13 +311,14 @@ static void ctx_localdirs_restore(CtxSwitch *cs, win_T *cwp, tabpage_T *tp, bool\n   if (!(persist && cs->cs_globaldir == NULL && globaldir != NULL)) {\n     xfree(globaldir);\n     globaldir = cs->cs_globaldir;\n+    cs->cs_globaldir = NULL;\n   }\n }\n \n /// Saves the dir state to be restored by ctx_dirs_restore():\n-/// - kCtxKeepCwd or kCtxKeepDirs: the CWD, so any directory change caused by switching to `wp`\n-///   ('autochdir', win/tab-local directories) can be undone.\n-/// - kCtxKeepDirs: also copies of the target context's dir scopes (w/b/tp-local, global).\n+/// - kCtxKeepCwd or kCtxKeepDirs: the CWD and `globaldir`, so any directory change caused by\n+///   switching to `wp` ('autochdir', win/tab-local directories) can be undone.\n+/// - kCtxKeepDirs: also copies of the target context's dir scopes (w/b/tp-local).\n static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n   FUNC_ATTR_NONNULL_ARG(1, 2, 3)\n {\n@@ -325,6 +326,9 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n     return;\n   }\n \n+  // `globaldir` is where to return when no local dir applies (NULL: the CWD is already there).\n+  cs->cs_globaldir = globaldir == NULL ? NULL : xstrdup(globaldir);\n+\n   // kCtxKeepDirs: also save copies of the target context's dir scopes.\n   if (cs->cs_flags & kCtxKeepDirs) {\n     buf_T *target_buf = buf != NULL ? buf : wp->w_buffer;\n@@ -332,7 +336,6 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n     cs->cs_w_localdir = wp->w_localdir == NULL ? NULL : xstrdup(wp->w_localdir);\n     cs->cs_b_localdir = target_buf->b_localdir == NULL ? NULL : xstrdup(target_buf->b_localdir);\n     cs->cs_tp_localdir = tp->tp_localdir == NULL ? NULL : xstrdup(tp->tp_localdir);\n-    cs->cs_globaldir = globaldir == NULL ? NULL : xstrdup(globaldir);\n   }\n \n   // Getting and setting directory can be slow on some systems, only do this when the current or\n@@ -367,8 +370,12 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n /// target window/buffer/tab may have been closed meanwhile.\n static void ctx_dirs_restore(CtxSwitch *cs)\n {\n-  // kCtxKeepDirs: restore the saved dir scopes. But not for hidden buf (ctx_win).\n-  if ((cs->cs_flags & kCtxKeepDirs) && cs->cs_ctxwin_idx < 0) {\n+  if (cs->cs_ctxwin_idx >= 0) {\n+    return;  // Hidden-buffer target: ctx_localdirs_restore() already restored dirs.\n+  }\n+\n+  // kCtxKeepDirs: restore the saved dir scopes.\n+  if (cs->cs_flags & kCtxKeepDirs) {\n     tabpage_T *dirs_tab = NULL;\n     FOR_ALL_TABS(tp) {\n       if (tp->handle == cs->cs_dirs_tab) {\n@@ -377,7 +384,13 @@ static void ctx_dirs_restore(CtxSwitch *cs)\n       }\n     }\n     ctx_localdirs_restore(cs, NULL, dirs_tab, false);\n+  } else if (cs->cs_cwd != NULL && !_ctx_did_chdir) {\n+    // Pairs with the CWD restore below.\n+    xfree(globaldir);\n+    globaldir = cs->cs_globaldir;\n+    cs->cs_globaldir = NULL;\n   }\n+  XFREE_CLEAR(cs->cs_globaldir);\n \n   // Restore the CWD itself.\n   if (cs->cs_apply_acd) {\ndiff --git a/src/nvim/context_defs.h b/src/nvim/context_defs.h\nindex c45e744fec058a..ad933437002d5b 100644\n--- a/src/nvim/context_defs.h\n+++ b/src/nvim/context_defs.h\n@@ -106,9 +106,10 @@ typedef struct {\n   // State kept across the switch:\n   bool cs_did_chdir;              ///< saved `ctx_did_chdir` of the enclosing context\n   handle_T cs_dirs_tab;           ///< kCtxKeepDirs: tabpage that owns cs_tp_localdir.\n-  // Saved dir state. Two users:\n+  // Saved dir state. Three users:\n   // 1. hidden-buffer target always saves b/tp/globaldir (so the temp context starts dir-neutral)\n-  // 2. kCtxKeepDirs saves copies of all four.\n+  // 2. kCtxKeepCwd saves globaldir.\n+  // 3. kCtxKeepDirs also saves w/b/tp-localdir.\n   char *cs_w_localdir;            ///< Saved w_localdir of the target window\n   char *cs_b_localdir;            ///< Saved b_localdir of the target buffer\n   char *cs_tp_localdir;           ///< Saved tp_localdir\ndiff --git a/test/functional/ex_cmds/cd_spec.lua b/test/functional/ex_cmds/cd_spec.lua\nindex 59ddd678709968..fb1193379d2953 100644\n--- a/test/functional/ex_cmds/cd_spec.lua\n+++ b/test/functional/ex_cmds/cd_spec.lua\n@@ -543,6 +543,14 @@ describe('cd during temp context-switch', function()\n     eq({ 1, windir, startdir }, { lwd(2), cwd(2), cwd() })\n     command('only')\n \n+    -- Entering a hidden buffer must not consume the global dir.\n+    command('lcd ' .. windir)\n+    exec_lua(function(b)\n+      vim.api.nvim_buf_call(b, function() end)\n+    end, hidden)\n+    eq({ windir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('lcd!')\n+\n     -- An autocmd handler targeting a hidden buffer can set its buffer-local dir; the caller's\n     -- cwd is unchanged.\n     local hidden2 = hidden_buf('Xtest-cd-hidden2')\n@@ -558,9 +566,10 @@ describe('cd during temp context-switch', function()\n     end, hidden2, bufdir)\n     eq({ 1, bufdir, startdir }, { lwd(-1, -1, hidden2), cwd(-1, -1, hidden2), cwd() })\n \n-    -- :tcd via nvim_buf_call() persists, and the tab scope claims the new cwd.\n+    -- :tcd targets the tabpage, shared with the temp context: it persists and changes the caller's\n+    -- cwd. `globaldir` (the pre-switch cwd, set by :tcd) is kept, so :tcd! can return to it.\n     cd_in_buf_call(hidden, 'tcd', tabdir)\n-    eq({ 1, tabdir, tabdir }, { tlwd(), tcwd(), cwd() })\n+    eq({ 1, tabdir, tabdir, startdir }, { tlwd(), tcwd(), cwd(), cwd(-1, -1) })\n   end)\n \n   it(\"nvim_open_win / nvim_win_set_buf keep the caller's cwd\", function()\n@@ -584,6 +593,16 @@ describe('cd during temp context-switch', function()\n     call('nvim_win_close', float, true)\n     eq(bufdir, cwd())\n     command('bcd!')\n+\n+    -- Switching to a window with no local dir must not consume the global dir. #41238\n+    local windir = join(startdir, directories.window)\n+    command('split')\n+    command('lcd ' .. windir)\n+    call('nvim_win_set_buf', call('win_getid', 2), call('nvim_create_buf', true, true))\n+    eq({ windir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('wincmd w')\n+    eq({ startdir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('only')\n   end)\n end)\n \n",
+      "changedFiles": 3,
+      "addedLines": 43,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "C",
+      "labels": [
+        "AI assisted"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0003",
+      "title": "Incrementing a number under the cursor with CTRL-A preserves every digit when the number exceeds 64-bit range",
+      "preconditions": "Neovim is running with an empty scratch buffer and default settings ('nrformats' includes decimal handling).",
+      "steps": [
+        "Open a new empty buffer.",
+        "Type the number 12016012609141909200527091927191118250205120747 on a line by itself, then return to normal mode.",
+        "Move the cursor to the first character of that line.",
+        "Press CTRL-A to increment the number under the cursor."
+      ],
+      "expectedResult": "The line now reads 12016012609141909200527091927191118250205120748 -- the original 50-digit number incremented by exactly one, with none of its digits lost, replaced, or otherwise altered."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-15T15:45:45Z",
+      "testType": "UI",
+      "tags": [
+        "increment",
+        "decrement",
+        "editing",
+        "large-numbers"
+      ],
+      "durationMs": null,
+      "feature": "CTRL-A/CTRL-X number increment-decrement",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/neovim/neovim/pull/41328",
+        "issueUrl": "https://github.com/neovim/neovim/issues/3739",
+        "evidenceTestFile": null,
+        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0004",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "neovim/neovim",
+      "number": 41328,
+      "baseSha": "9cca923ab4f9ddca4b817e989eba546ddba675e1",
+      "headSha": "aeae2ff9577dc8784a13f6132284264ec40eec37",
+      "title": "fix(cwd): nvim_win_set_buf changes global CWD",
+      "description": "nvim_win_set_buf() on a non-current window, while the current window has a win-local dir, was changing the global CWD. `globaldir` is where to return when no local dir applies; switching to a window with no local dir made update_cwd() chdir back to `globaldir` and clear it, and kCtxKeepCwd restored the process CWD but not that bookkeeping, so the restored window-local dir was mistaken for the global one. Fixed by saving/restoring `globaldir` together with the CWD.",
+      "diff": "diff --git a/src/nvim/context.c b/src/nvim/context.c\nindex 7afab8d891594f..27fa060de63b88 100644\n--- a/src/nvim/context.c\n+++ b/src/nvim/context.c\n@@ -311,13 +311,14 @@ static void ctx_localdirs_restore(CtxSwitch *cs, win_T *cwp, tabpage_T *tp, bool\n   if (!(persist && cs->cs_globaldir == NULL && globaldir != NULL)) {\n     xfree(globaldir);\n     globaldir = cs->cs_globaldir;\n+    cs->cs_globaldir = NULL;\n   }\n }\n \n /// Saves the dir state to be restored by ctx_dirs_restore():\n-/// - kCtxKeepCwd or kCtxKeepDirs: the CWD, so any directory change caused by switching to `wp`\n-///   ('autochdir', win/tab-local directories) can be undone.\n-/// - kCtxKeepDirs: also copies of the target context's dir scopes (w/b/tp-local, global).\n+/// - kCtxKeepCwd or kCtxKeepDirs: the CWD and `globaldir`, so any directory change caused by\n+///   switching to `wp` ('autochdir', win/tab-local directories) can be undone.\n+/// - kCtxKeepDirs: also copies of the target context's dir scopes (w/b/tp-local).\n static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n   FUNC_ATTR_NONNULL_ARG(1, 2, 3)\n {\n@@ -325,6 +326,9 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n     return;\n   }\n \n+  // `globaldir` is where to return when no local dir applies (NULL: the CWD is already there).\n+  cs->cs_globaldir = globaldir == NULL ? NULL : xstrdup(globaldir);\n+\n   // kCtxKeepDirs: also save copies of the target context's dir scopes.\n   if (cs->cs_flags & kCtxKeepDirs) {\n     buf_T *target_buf = buf != NULL ? buf : wp->w_buffer;\n@@ -332,7 +336,6 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n     cs->cs_w_localdir = wp->w_localdir == NULL ? NULL : xstrdup(wp->w_localdir);\n     cs->cs_b_localdir = target_buf->b_localdir == NULL ? NULL : xstrdup(target_buf->b_localdir);\n     cs->cs_tp_localdir = tp->tp_localdir == NULL ? NULL : xstrdup(tp->tp_localdir);\n-    cs->cs_globaldir = globaldir == NULL ? NULL : xstrdup(globaldir);\n   }\n \n   // Getting and setting directory can be slow on some systems, only do this when the current or\n@@ -367,8 +370,12 @@ static void ctx_dirs_save(CtxSwitch *cs, win_T *wp, tabpage_T *tp, buf_T *buf)\n /// target window/buffer/tab may have been closed meanwhile.\n static void ctx_dirs_restore(CtxSwitch *cs)\n {\n-  // kCtxKeepDirs: restore the saved dir scopes. But not for hidden buf (ctx_win).\n-  if ((cs->cs_flags & kCtxKeepDirs) && cs->cs_ctxwin_idx < 0) {\n+  if (cs->cs_ctxwin_idx >= 0) {\n+    return;  // Hidden-buffer target: ctx_localdirs_restore() already restored dirs.\n+  }\n+\n+  // kCtxKeepDirs: restore the saved dir scopes.\n+  if (cs->cs_flags & kCtxKeepDirs) {\n     tabpage_T *dirs_tab = NULL;\n     FOR_ALL_TABS(tp) {\n       if (tp->handle == cs->cs_dirs_tab) {\n@@ -377,7 +384,13 @@ static void ctx_dirs_restore(CtxSwitch *cs)\n       }\n     }\n     ctx_localdirs_restore(cs, NULL, dirs_tab, false);\n+  } else if (cs->cs_cwd != NULL && !_ctx_did_chdir) {\n+    // Pairs with the CWD restore below.\n+    xfree(globaldir);\n+    globaldir = cs->cs_globaldir;\n+    cs->cs_globaldir = NULL;\n   }\n+  XFREE_CLEAR(cs->cs_globaldir);\n \n   // Restore the CWD itself.\n   if (cs->cs_apply_acd) {\ndiff --git a/src/nvim/context_defs.h b/src/nvim/context_defs.h\nindex c45e744fec058a..ad933437002d5b 100644\n--- a/src/nvim/context_defs.h\n+++ b/src/nvim/context_defs.h\n@@ -106,9 +106,10 @@ typedef struct {\n   // State kept across the switch:\n   bool cs_did_chdir;              ///< saved `ctx_did_chdir` of the enclosing context\n   handle_T cs_dirs_tab;           ///< kCtxKeepDirs: tabpage that owns cs_tp_localdir.\n-  // Saved dir state. Two users:\n+  // Saved dir state. Three users:\n   // 1. hidden-buffer target always saves b/tp/globaldir (so the temp context starts dir-neutral)\n-  // 2. kCtxKeepDirs saves copies of all four.\n+  // 2. kCtxKeepCwd saves globaldir.\n+  // 3. kCtxKeepDirs also saves w/b/tp-localdir.\n   char *cs_w_localdir;            ///< Saved w_localdir of the target window\n   char *cs_b_localdir;            ///< Saved b_localdir of the target buffer\n   char *cs_tp_localdir;           ///< Saved tp_localdir\ndiff --git a/test/functional/ex_cmds/cd_spec.lua b/test/functional/ex_cmds/cd_spec.lua\nindex 59ddd678709968..fb1193379d2953 100644\n--- a/test/functional/ex_cmds/cd_spec.lua\n+++ b/test/functional/ex_cmds/cd_spec.lua\n@@ -543,6 +543,14 @@ describe('cd during temp context-switch', function()\n     eq({ 1, windir, startdir }, { lwd(2), cwd(2), cwd() })\n     command('only')\n \n+    -- Entering a hidden buffer must not consume the global dir.\n+    command('lcd ' .. windir)\n+    exec_lua(function(b)\n+      vim.api.nvim_buf_call(b, function() end)\n+    end, hidden)\n+    eq({ windir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('lcd!')\n+\n     -- An autocmd handler targeting a hidden buffer can set its buffer-local dir; the caller's\n     -- cwd is unchanged.\n     local hidden2 = hidden_buf('Xtest-cd-hidden2')\n@@ -558,9 +566,10 @@ describe('cd during temp context-switch', function()\n     end, hidden2, bufdir)\n     eq({ 1, bufdir, startdir }, { lwd(-1, -1, hidden2), cwd(-1, -1, hidden2), cwd() })\n \n-    -- :tcd via nvim_buf_call() persists, and the tab scope claims the new cwd.\n+    -- :tcd targets the tabpage, shared with the temp context: it persists and changes the caller's\n+    -- cwd. `globaldir` (the pre-switch cwd, set by :tcd) is kept, so :tcd! can return to it.\n     cd_in_buf_call(hidden, 'tcd', tabdir)\n-    eq({ 1, tabdir, tabdir }, { tlwd(), tcwd(), cwd() })\n+    eq({ 1, tabdir, tabdir, startdir }, { tlwd(), tcwd(), cwd(), cwd(-1, -1) })\n   end)\n \n   it(\"nvim_open_win / nvim_win_set_buf keep the caller's cwd\", function()\n@@ -584,6 +593,16 @@ describe('cd during temp context-switch', function()\n     call('nvim_win_close', float, true)\n     eq(bufdir, cwd())\n     command('bcd!')\n+\n+    -- Switching to a window with no local dir must not consume the global dir. #41238\n+    local windir = join(startdir, directories.window)\n+    command('split')\n+    command('lcd ' .. windir)\n+    call('nvim_win_set_buf', call('win_getid', 2), call('nvim_create_buf', true, true))\n+    eq({ windir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('wincmd w')\n+    eq({ startdir, startdir }, { cwd(), cwd(-1, -1) })\n+    command('only')\n   end)\n end)\n \n",
+      "changedFiles": 3,
+      "addedLines": 43,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "C",
+      "labels": [
+        "AI assisted"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0004",
+      "title": "Decrementing a number under the cursor with CTRL-X preserves every digit when the number exceeds 64-bit range",
+      "preconditions": "Neovim is running with an empty scratch buffer and default settings ('nrformats' includes decimal handling).",
+      "steps": [
+        "Open a new empty buffer.",
+        "Type the number 12016012609141909200527091927191118250205120747 on a line by itself, then return to normal mode.",
+        "Move the cursor to the first character of that line.",
+        "Press CTRL-X to decrement the number under the cursor."
+      ],
+      "expectedResult": "The line now reads 12016012609141909200527091927191118250205120746 -- the original 50-digit number decremented by exactly one, with none of its digits lost, replaced, or otherwise altered."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-15T15:45:45Z",
+      "testType": "UI",
+      "tags": [
+        "increment",
+        "decrement",
+        "editing",
+        "large-numbers"
+      ],
+      "durationMs": null,
+      "feature": "CTRL-A/CTRL-X number increment-decrement",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/neovim/neovim/pull/41328",
+        "issueUrl": "https://github.com/neovim/neovim/issues/3739",
+        "evidenceTestFile": null,
+        "note": "Issue #3739 ('Increment and decrement operations truncate big numbers') opened 2015-11-24 and still OPEN as of 2026-08-16, with core contributors (e-kwsm, ZyX-I) confirming in-thread that the truncation to a 64-bit integer is a real, reproducible limitation of the CTRL-A/CTRL-X implementation. PR #41328 merged 2026-08-15 touches only src/nvim/context.c and context_defs.h (the temp-context CWD/globaldir save-restore machinery used by nvim_win_set_buf) plus its test spec -- entirely unrelated to the increment/decrement code in src/nvim/ops.c, so large-number truncation is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0005",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "duckdb/duckdb",
+      "number": 24729,
+      "baseSha": "d1bcd3575e64eeb2d04e99de3e1339be3d56e558",
+      "headSha": "cd7bc9356553ec1937f58cc90364fdda295fd8a3",
+      "title": "Fix race condition in reclaiming file cache blocks",
+      "description": "There was a race condition in reclaiming external file cache blocks: when a cached file's metadata was found stale, the code reset cache blocks in place even though another reader might already have pinned the same blocks and still need their byte counts, leading to an internal error such as 'FileBufferHandleGroup::CopyTo: handles contain N bytes but M were requested'. Fixed by adding RetireBlocks(), which removes only the matching map entries (without mutating blocks in place) so existing readers keep valid data while future reads fetch fresh blocks.",
+      "diff": "diff --git a/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp b/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\nindex b2c2b0a47aca..46369afa7342 100644\n--- a/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\n+++ b/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\n@@ -81,6 +81,9 @@ class ExternalFileCache {\n \t//! Return the blocks cached for the given range.\n \tvector<shared_ptr<CacheBlock>> ReindexAndAcquireBlocks(CachedFile &cached_file, idx_t current_block_size,\n \t                                                       idx_t first_block, idx_t num_blocks);\n+\t//! Remove an acquired block range from the cache without mutating blocks that may still be used by readers.\n+\t//! A block is only removed when it is still the current entry for its index.\n+\tvoid RetireBlocks(CachedFile &cached_file, idx_t first_block, const vector<shared_ptr<CacheBlock>> &blocks);\n \n \tBufferManager &GetBufferManager() const;\n \t//! Gets the shared cached file for the given path, creating it if not yet present.\ndiff --git a/src/storage/external_file_cache/caching_file_system.cpp b/src/storage/external_file_cache/caching_file_system.cpp\nindex 34ddca4e5ffa..7e6f83c80f5a 100644\n--- a/src/storage/external_file_cache/caching_file_system.cpp\n+++ b/src/storage/external_file_cache/caching_file_system.cpp\n@@ -342,9 +342,10 @@ FileBufferHandleGroup CachingFileHandle::Read(const idx_t nr_bytes, const idx_t\n \t\tconst annotated_lock_guard<annotated_mutex> meta_guard(current_cached_file->meta_lock);\n \t\tif (!ExternalFileCache::IsValid(true, current_cached_file->version_tag, current_cached_file->last_modified,\n \t\t                                current_version_tag, current_last_modified)) {\n-\t\t\tfor (auto &block : blocks) {\n-\t\t\t\tblock->Reinit();\n-\t\t\t}\n+\t\t\t// Do not reset blocks in place: another reader may already have pinned the same blocks and still need their\n+\t\t\t// byte counts. Removing only the matching map entries preserves those readers while forcing future reads\n+\t\t\t// to fetch fresh blocks.\n+\t\t\texternal_file_cache.RetireBlocks(*current_cached_file, first_block, blocks);\n \t\t}\n \t}\n \ndiff --git a/src/storage/external_file_cache/external_file_cache.cpp b/src/storage/external_file_cache/external_file_cache.cpp\nindex a7384430f586..b91c66348499 100644\n--- a/src/storage/external_file_cache/external_file_cache.cpp\n+++ b/src/storage/external_file_cache/external_file_cache.cpp\n@@ -199,6 +199,19 @@ vector<shared_ptr<CacheBlock>> ExternalFileCache::ReindexAndAcquireBlocks(Cached\n \treturn blocks;\n }\n \n+void ExternalFileCache::RetireBlocks(CachedFile &cached_file, idx_t first_block,\n+                                     const vector<shared_ptr<CacheBlock>> &blocks) {\n+\tconst annotated_lock_guard<annotated_mutex> map_guard(cached_file.map_lock);\n+\tfor (idx_t idx = 0; idx < blocks.size(); idx++) {\n+\t\tconst auto block_idx = first_block + idx;\n+\t\tauto entry = cached_file.blocks.find(block_idx);\n+\t\tif (entry == cached_file.blocks.end() || entry->second != blocks[idx]) {\n+\t\t\tcontinue;\n+\t\t}\n+\t\tcached_file.blocks.erase(entry);\n+\t}\n+}\n+\n ExternalFileCache::CachedFile::CachedFile(string path_p, idx_t generation_p)\n     : path(std::move(path_p)), generation(generation_p) {\n }\ndiff --git a/test/common/test_external_file_cache.cpp b/test/common/test_external_file_cache.cpp\nindex 41ed3d364d4b..e45a82b0c414 100644\n--- a/test/common/test_external_file_cache.cpp\n+++ b/test/common/test_external_file_cache.cpp\n@@ -554,4 +554,49 @@ TEST_CASE(\"No-metadata file is not cached and always returns fresh content\", \"[e\n \tREQUIRE(CountCachedBlocks(cache) == 0);\n }\n \n+TEST_CASE(\"Retiring cache blocks preserves existing readers and cannot erase replacements\", \"[external_file_cache]\") {\n+\tDuckDB db = MakeCacheLocalFilesDB();\n+\tauto &cache = db.instance->GetExternalFileCache();\n+\tauto cached_file = cache.GetOrCreateCachedFile(\"retire-blocks-test\");\n+\n+\tconstexpr idx_t BLOCK_SIZE = 4096;\n+\tconstexpr idx_t FIRST_BLOCK = 7;\n+\tauto acquired = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[0]->mtx);\n+\t\tacquired[0]->state = CacheBlockState::LOADED;\n+\t\tacquired[0]->nr_bytes = BLOCK_SIZE;\n+\t}\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[1]->mtx);\n+\t\tacquired[1]->state = CacheBlockState::LOADED;\n+\t\tacquired[1]->nr_bytes = 123;\n+\t}\n+\n+\tcache.RetireBlocks(*cached_file, FIRST_BLOCK, acquired);\n+\n+\t// Existing readers retain the immutable block metadata needed to finish their reads.\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[0]->mtx);\n+\t\tREQUIRE(acquired[0]->state == CacheBlockState::LOADED);\n+\t\tREQUIRE(acquired[0]->nr_bytes == BLOCK_SIZE);\n+\t}\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[1]->mtx);\n+\t\tREQUIRE(acquired[1]->state == CacheBlockState::LOADED);\n+\t\tREQUIRE(acquired[1]->nr_bytes == 123);\n+\t}\n+\n+\t// Future readers receive fresh cache blocks.\n+\tauto replacements = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\tREQUIRE(replacements[0] != acquired[0]);\n+\tREQUIRE(replacements[1] != acquired[1]);\n+\n+\t// A delayed retirement of the old range must not erase its replacements.\n+\tcache.RetireBlocks(*cached_file, FIRST_BLOCK, acquired);\n+\tauto reacquired = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\tREQUIRE(reacquired[0] == replacements[0]);\n+\tREQUIRE(reacquired[1] == replacements[1]);\n+}\n+\n } // namespace duckdb\n",
+      "changedFiles": 4,
+      "addedLines": 65,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "C++",
+      "labels": [
+        "Ready To Merge",
+        "Member"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0005",
+      "title": "Concatenating an array literal with NULL using the || operator returns a NULL of the array's type",
+      "preconditions": "A DuckDB instance (default settings) is available for querying via the CLI or a client library.",
+      "steps": [
+        "Open a DuckDB connection (CLI or client library).",
+        "Run: SELECT [1] || NULL AS result;",
+        "Inspect the returned column's declared type and value."
+      ],
+      "expectedResult": "The result column has an array type (INTEGER[]) holding a NULL array value -- the operator does not silently collapse the column to a scalar INTEGER type just because the NULL operand is untyped."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-12T14:59:47Z",
+      "testType": "API",
+      "tags": [
+        "sql",
+        "list",
+        "array",
+        "null-handling"
+      ],
+      "durationMs": null,
+      "feature": "list/array concatenation (|| and list_concat)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/duckdb/duckdb/pull/24729",
+        "issueUrl": "https://github.com/duckdb/duckdb/issues/14692",
+        "evidenceTestFile": null,
+        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0006",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "duckdb/duckdb",
+      "number": 24729,
+      "baseSha": "d1bcd3575e64eeb2d04e99de3e1339be3d56e558",
+      "headSha": "cd7bc9356553ec1937f58cc90364fdda295fd8a3",
+      "title": "Fix race condition in reclaiming file cache blocks",
+      "description": "There was a race condition in reclaiming external file cache blocks: when a cached file's metadata was found stale, the code reset cache blocks in place even though another reader might already have pinned the same blocks and still need their byte counts, leading to an internal error such as 'FileBufferHandleGroup::CopyTo: handles contain N bytes but M were requested'. Fixed by adding RetireBlocks(), which removes only the matching map entries (without mutating blocks in place) so existing readers keep valid data while future reads fetch fresh blocks.",
+      "diff": "diff --git a/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp b/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\nindex b2c2b0a47aca..46369afa7342 100644\n--- a/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\n+++ b/src/include/duckdb/storage/external_file_cache/external_file_cache.hpp\n@@ -81,6 +81,9 @@ class ExternalFileCache {\n \t//! Return the blocks cached for the given range.\n \tvector<shared_ptr<CacheBlock>> ReindexAndAcquireBlocks(CachedFile &cached_file, idx_t current_block_size,\n \t                                                       idx_t first_block, idx_t num_blocks);\n+\t//! Remove an acquired block range from the cache without mutating blocks that may still be used by readers.\n+\t//! A block is only removed when it is still the current entry for its index.\n+\tvoid RetireBlocks(CachedFile &cached_file, idx_t first_block, const vector<shared_ptr<CacheBlock>> &blocks);\n \n \tBufferManager &GetBufferManager() const;\n \t//! Gets the shared cached file for the given path, creating it if not yet present.\ndiff --git a/src/storage/external_file_cache/caching_file_system.cpp b/src/storage/external_file_cache/caching_file_system.cpp\nindex 34ddca4e5ffa..7e6f83c80f5a 100644\n--- a/src/storage/external_file_cache/caching_file_system.cpp\n+++ b/src/storage/external_file_cache/caching_file_system.cpp\n@@ -342,9 +342,10 @@ FileBufferHandleGroup CachingFileHandle::Read(const idx_t nr_bytes, const idx_t\n \t\tconst annotated_lock_guard<annotated_mutex> meta_guard(current_cached_file->meta_lock);\n \t\tif (!ExternalFileCache::IsValid(true, current_cached_file->version_tag, current_cached_file->last_modified,\n \t\t                                current_version_tag, current_last_modified)) {\n-\t\t\tfor (auto &block : blocks) {\n-\t\t\t\tblock->Reinit();\n-\t\t\t}\n+\t\t\t// Do not reset blocks in place: another reader may already have pinned the same blocks and still need their\n+\t\t\t// byte counts. Removing only the matching map entries preserves those readers while forcing future reads\n+\t\t\t// to fetch fresh blocks.\n+\t\t\texternal_file_cache.RetireBlocks(*current_cached_file, first_block, blocks);\n \t\t}\n \t}\n \ndiff --git a/src/storage/external_file_cache/external_file_cache.cpp b/src/storage/external_file_cache/external_file_cache.cpp\nindex a7384430f586..b91c66348499 100644\n--- a/src/storage/external_file_cache/external_file_cache.cpp\n+++ b/src/storage/external_file_cache/external_file_cache.cpp\n@@ -199,6 +199,19 @@ vector<shared_ptr<CacheBlock>> ExternalFileCache::ReindexAndAcquireBlocks(Cached\n \treturn blocks;\n }\n \n+void ExternalFileCache::RetireBlocks(CachedFile &cached_file, idx_t first_block,\n+                                     const vector<shared_ptr<CacheBlock>> &blocks) {\n+\tconst annotated_lock_guard<annotated_mutex> map_guard(cached_file.map_lock);\n+\tfor (idx_t idx = 0; idx < blocks.size(); idx++) {\n+\t\tconst auto block_idx = first_block + idx;\n+\t\tauto entry = cached_file.blocks.find(block_idx);\n+\t\tif (entry == cached_file.blocks.end() || entry->second != blocks[idx]) {\n+\t\t\tcontinue;\n+\t\t}\n+\t\tcached_file.blocks.erase(entry);\n+\t}\n+}\n+\n ExternalFileCache::CachedFile::CachedFile(string path_p, idx_t generation_p)\n     : path(std::move(path_p)), generation(generation_p) {\n }\ndiff --git a/test/common/test_external_file_cache.cpp b/test/common/test_external_file_cache.cpp\nindex 41ed3d364d4b..e45a82b0c414 100644\n--- a/test/common/test_external_file_cache.cpp\n+++ b/test/common/test_external_file_cache.cpp\n@@ -554,4 +554,49 @@ TEST_CASE(\"No-metadata file is not cached and always returns fresh content\", \"[e\n \tREQUIRE(CountCachedBlocks(cache) == 0);\n }\n \n+TEST_CASE(\"Retiring cache blocks preserves existing readers and cannot erase replacements\", \"[external_file_cache]\") {\n+\tDuckDB db = MakeCacheLocalFilesDB();\n+\tauto &cache = db.instance->GetExternalFileCache();\n+\tauto cached_file = cache.GetOrCreateCachedFile(\"retire-blocks-test\");\n+\n+\tconstexpr idx_t BLOCK_SIZE = 4096;\n+\tconstexpr idx_t FIRST_BLOCK = 7;\n+\tauto acquired = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[0]->mtx);\n+\t\tacquired[0]->state = CacheBlockState::LOADED;\n+\t\tacquired[0]->nr_bytes = BLOCK_SIZE;\n+\t}\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[1]->mtx);\n+\t\tacquired[1]->state = CacheBlockState::LOADED;\n+\t\tacquired[1]->nr_bytes = 123;\n+\t}\n+\n+\tcache.RetireBlocks(*cached_file, FIRST_BLOCK, acquired);\n+\n+\t// Existing readers retain the immutable block metadata needed to finish their reads.\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[0]->mtx);\n+\t\tREQUIRE(acquired[0]->state == CacheBlockState::LOADED);\n+\t\tREQUIRE(acquired[0]->nr_bytes == BLOCK_SIZE);\n+\t}\n+\t{\n+\t\tconst annotated_lock_guard<annotated_mutex> guard(acquired[1]->mtx);\n+\t\tREQUIRE(acquired[1]->state == CacheBlockState::LOADED);\n+\t\tREQUIRE(acquired[1]->nr_bytes == 123);\n+\t}\n+\n+\t// Future readers receive fresh cache blocks.\n+\tauto replacements = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\tREQUIRE(replacements[0] != acquired[0]);\n+\tREQUIRE(replacements[1] != acquired[1]);\n+\n+\t// A delayed retirement of the old range must not erase its replacements.\n+\tcache.RetireBlocks(*cached_file, FIRST_BLOCK, acquired);\n+\tauto reacquired = cache.ReindexAndAcquireBlocks(*cached_file, BLOCK_SIZE, FIRST_BLOCK, 2);\n+\tREQUIRE(reacquired[0] == replacements[0]);\n+\tREQUIRE(reacquired[1] == replacements[1]);\n+}\n+\n } // namespace duckdb\n",
+      "changedFiles": 4,
+      "addedLines": 65,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "C++",
+      "labels": [
+        "Ready To Merge",
+        "Member"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0006",
+      "title": "list_concat and the || operator agree on the result type when concatenating a list with NULL",
+      "preconditions": "A DuckDB instance (default settings) is available for querying via the CLI or a client library.",
+      "steps": [
+        "Open a DuckDB connection (CLI or client library).",
+        "Run: SELECT typeof([1] || NULL) AS pipe_type, typeof(list_concat([1], NULL)) AS func_type;"
+      ],
+      "expectedResult": "pipe_type and func_type are both list/array types (e.g. both INTEGER[]) and match each other, rather than pipe_type reporting a plain scalar INTEGER type while func_type reports an array type."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-12T14:59:47Z",
+      "testType": "API",
+      "tags": [
+        "sql",
+        "list",
+        "array",
+        "null-handling"
+      ],
+      "durationMs": null,
+      "feature": "list/array concatenation (|| and list_concat)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/duckdb/duckdb/pull/24729",
+        "issueUrl": "https://github.com/duckdb/duckdb/issues/14692",
+        "evidenceTestFile": null,
+        "note": "Issue #14692 ('list_concat([1], null) doesn't match [1] || null') opened 2024-11-04 and still OPEN as of 2026-08-16. DuckDB collaborator Mytherin confirmed in-thread: 'I agree this should not return a NULL type at all but rather return int32[]. I'll have a look at fixing this,' but no fix has landed. PR #24729 merged 2026-08-12 touches only the external file cache's block reclamation logic (src/storage/external_file_cache/*, its header, and its unit test) -- entirely unrelated to the list/array concatenation binder code, so the || / list_concat NULL type inconsistency is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "godotengine/godot",
+      "number": 122255,
+      "baseSha": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "headSha": "610a1f416cd71be3dc0c3789d045e04152098a01",
+      "title": "[ScrollBar] Fix drag scrolling interfering with mouse on touchscreen",
+      "description": "ScrollBar's drag-scrolling logic is specifically meant for touch input and should only apply on touchscreens, but it was implemented on top of generic InputEventMouseButton/InputEventMouseMotion handling gated by DisplayServer::is_touchscreen_available(), which let touch-emulated mouse events interfere with real mouse dragging. Updated the logic to key off InputEventScreenTouch/InputEventScreenDrag directly (and skip emulated-device events) so it no longer interferes with mouse events.",
+      "diff": "diff --git a/scene/gui/scroll_bar.cpp b/scene/gui/scroll_bar.cpp\nindex c4ab2ca82c39..1a97c9ecca2a 100644\n--- a/scene/gui/scroll_bar.cpp\n+++ b/scene/gui/scroll_bar.cpp\n@@ -583,19 +583,19 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {\n \t\treturn;\n \t}\n \n-\tRef<InputEventMouseButton> mb = p_input;\n+\tif (p_input->get_device() == InputEvent::DEVICE_ID_EMULATION) {\n+\t\treturn;\n+\t}\n \n-\tif (mb.is_valid()) {\n-\t\tif (mb->get_button_index() != MouseButton::LEFT) {\n-\t\t\treturn;\n-\t\t}\n+\tRef<InputEventScreenTouch> touch = p_input;\n \n-\t\tif (mb->is_pressed()) {\n+\tif (touch.is_valid()) {\n+\t\tif (touch->is_pressed()) {\n \t\t\tdrag_node_speed = Vector2();\n \t\t\tdrag_node_accum = Vector2();\n \t\t\tlast_drag_node_accum = Vector2();\n \t\t\tdrag_node_from = Vector2(orientation == HORIZONTAL ? get_value() : 0, orientation == VERTICAL ? get_value() : 0);\n-\t\t\tdrag_node_touching = DisplayServer::get_singleton()->is_touchscreen_available();\n+\t\t\tdrag_node_touching = true;\n \t\t\tdrag_node_touching_deaccel = false;\n \t\t\ttime_since_motion = 0;\n \n@@ -617,11 +617,11 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {\n \t\t}\n \t}\n \n-\tRef<InputEventMouseMotion> mm = p_input;\n+\tRef<InputEventScreenDrag> s_drag = p_input;\n \n-\tif (mm.is_valid()) {\n+\tif (s_drag.is_valid()) {\n \t\tif (drag_node_touching && !drag_node_touching_deaccel) {\n-\t\t\tVector2 motion = mm->get_relative();\n+\t\t\tVector2 motion = s_drag->get_relative();\n \n \t\t\tdrag_node_accum -= motion;\n \t\t\tVector2 diff = drag_node_from + drag_node_accum;\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "C++",
+      "labels": [
+        "bug",
+        "topic:input",
+        "topic:gui",
+        "cherrypick:4.7"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0007",
+      "title": "A RefCounted subclass overriding _notification receives NOTIFICATION_PREDELETE while it is still a valid object",
+      "preconditions": "A Godot project is open with a GDScript class defined that extends RefCounted and overrides _notification.",
+      "steps": [
+        "Create a GDScript class that extends RefCounted and overrides _notification(what).",
+        "In the override, when what == NOTIFICATION_PREDELETE, print a message and read one of the object's own member variables.",
+        "Instantiate the class and store the instance in a local variable.",
+        "Set the local variable to null (or let it go out of scope) so the reference count drops to zero and the object is released."
+      ],
+      "expectedResult": "The _notification override runs for NOTIFICATION_PREDELETE while `self` is still a valid, non-freed object, its member variable is read successfully, and the engine does not crash."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-10T16:14:37Z",
+      "testType": "API",
+      "tags": [
+        "refcounted",
+        "notification",
+        "lifecycle",
+        "gdscript"
+      ],
+      "durationMs": null,
+      "feature": "RefCounted NOTIFICATION_PREDELETE",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/godotengine/godot/pull/122255",
+        "issueUrl": "https://github.com/godotengine/godot/issues/6784",
+        "evidenceTestFile": null,
+        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "godotengine/godot",
+      "number": 122255,
+      "baseSha": "4173760fdf6c2c722e82e08cb58e55f34c9efd80",
+      "headSha": "610a1f416cd71be3dc0c3789d045e04152098a01",
+      "title": "[ScrollBar] Fix drag scrolling interfering with mouse on touchscreen",
+      "description": "ScrollBar's drag-scrolling logic is specifically meant for touch input and should only apply on touchscreens, but it was implemented on top of generic InputEventMouseButton/InputEventMouseMotion handling gated by DisplayServer::is_touchscreen_available(), which let touch-emulated mouse events interfere with real mouse dragging. Updated the logic to key off InputEventScreenTouch/InputEventScreenDrag directly (and skip emulated-device events) so it no longer interferes with mouse events.",
+      "diff": "diff --git a/scene/gui/scroll_bar.cpp b/scene/gui/scroll_bar.cpp\nindex c4ab2ca82c39..1a97c9ecca2a 100644\n--- a/scene/gui/scroll_bar.cpp\n+++ b/scene/gui/scroll_bar.cpp\n@@ -583,19 +583,19 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {\n \t\treturn;\n \t}\n \n-\tRef<InputEventMouseButton> mb = p_input;\n+\tif (p_input->get_device() == InputEvent::DEVICE_ID_EMULATION) {\n+\t\treturn;\n+\t}\n \n-\tif (mb.is_valid()) {\n-\t\tif (mb->get_button_index() != MouseButton::LEFT) {\n-\t\t\treturn;\n-\t\t}\n+\tRef<InputEventScreenTouch> touch = p_input;\n \n-\t\tif (mb->is_pressed()) {\n+\tif (touch.is_valid()) {\n+\t\tif (touch->is_pressed()) {\n \t\t\tdrag_node_speed = Vector2();\n \t\t\tdrag_node_accum = Vector2();\n \t\t\tlast_drag_node_accum = Vector2();\n \t\t\tdrag_node_from = Vector2(orientation == HORIZONTAL ? get_value() : 0, orientation == VERTICAL ? get_value() : 0);\n-\t\t\tdrag_node_touching = DisplayServer::get_singleton()->is_touchscreen_available();\n+\t\t\tdrag_node_touching = true;\n \t\t\tdrag_node_touching_deaccel = false;\n \t\t\ttime_since_motion = 0;\n \n@@ -617,11 +617,11 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {\n \t\t}\n \t}\n \n-\tRef<InputEventMouseMotion> mm = p_input;\n+\tRef<InputEventScreenDrag> s_drag = p_input;\n \n-\tif (mm.is_valid()) {\n+\tif (s_drag.is_valid()) {\n \t\tif (drag_node_touching && !drag_node_touching_deaccel) {\n-\t\t\tVector2 motion = mm->get_relative();\n+\t\t\tVector2 motion = s_drag->get_relative();\n \n \t\t\tdrag_node_accum -= motion;\n \t\t\tVector2 diff = drag_node_from + drag_node_accum;\n",
+      "changedFiles": 1,
+      "addedLines": 10,
+      "deletedLines": 10,
+      "commits": 1,
+      "language": "C++",
+      "labels": [
+        "bug",
+        "topic:input",
+        "topic:gui",
+        "cherrypick:4.7"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0008",
+      "title": "Releasing the last reference to a RefCounted subclass with a NOTIFICATION_PREDELETE handler does not crash the engine",
+      "preconditions": "A Godot project is open with a GDScript class defined that extends RefCounted and overrides _notification.",
+      "steps": [
+        "Define a RefCounted subclass with a member variable `data` set in its constructor, overriding _notification to print `data` when what == NOTIFICATION_PREDELETE.",
+        "Instantiate the object and assign a known value to `data`.",
+        "Release the last reference to the object (e.g. by reassigning the holding variable).",
+        "Observe the engine's output and exit status."
+      ],
+      "expectedResult": "The printed value of `data` during the notification matches the value that was assigned, and the engine continues running (or exits) cleanly with no crash or invalid-memory-access error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-10T16:14:37Z",
+      "testType": "API",
+      "tags": [
+        "refcounted",
+        "notification",
+        "lifecycle",
+        "gdscript"
+      ],
+      "durationMs": null,
+      "feature": "RefCounted NOTIFICATION_PREDELETE",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/godotengine/godot/pull/122255",
+        "issueUrl": "https://github.com/godotengine/godot/issues/6784",
+        "evidenceTestFile": null,
+        "note": "Issue #6784 ('Custom class instance extending Reference already freed when it receives NOTIFICATION_PREDELETE') opened 2016-10-11, labelled bug + confirmed, and still OPEN as of 2026-08-16 -- core team member KoBeWi and multiple other contributors discuss it as an unresolved, still-current limitation of RefCounted's predelete notification in the thread. PR #122255 merged 2026-08-10 touches only scene/gui/scroll_bar.cpp's touch-vs-mouse drag handling -- entirely unrelated to core/object.cpp or core/object/ref_counted.* where NOTIFICATION_PREDELETE is dispatched, so the predelete/freed-object issue is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "scikit-learn/scikit-learn",
+      "number": 34594,
+      "baseSha": "6f8b95aa2234102acc3804fc8c7a3e6bd0506bfb",
+      "headSha": "fac735dedd097b5b98bd1e6b1b5656dc86d1b4fb",
+      "title": "FIX Raise error for categorical features with criterion='absolute_error'",
+      "description": "The categorical split-finding algorithm used by DecisionTreeRegressor/DecisionTreeClassifier is not valid for criterion='absolute_error': it can produce splits that aren't actually optimal for MAE. Rather than silently returning a possibly suboptimal split, DecisionTreeRegressor now raises a clear ValueError when categorical_features is combined with criterion='absolute_error', matching the other categorical-features incompatibility checks.",
+      "diff": "diff --git a/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst b/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\nindex 5a1a9bc0ffe26..645380032be14 100644\n--- a/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\n+++ b/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\n@@ -1,6 +1,7 @@\n - :class:`tree.DecisionTreeRegressor`, :class:`tree.DecisionTreeClassifier`\n   now have native support for categorical features for binary classification and\n-  single-output regression. Categorical features can be specified with the\n-  `categorical_features` parameter. Up to 256 categories per features are supported.\n+  single-output regression. All criteria are supported except for `'absolute_error'`.\n+  Categorical features can be specified with the `categorical_features` parameter.\n+  Up to 256 categories per features are supported.\n   By `:user:`Adam Li <adam2392>`, `:user:`Arthur Lacote <cakedev0>`,\n   :user:`Adrin Jalali <adrinjalali>` and :user:`Christian Lorentzen <lorentzenchr>`\ndiff --git a/sklearn/tree/_classes.py b/sklearn/tree/_classes.py\nindex 862328768aa4b..80aed4f2f7be7 100644\n--- a/sklearn/tree/_classes.py\n+++ b/sklearn/tree/_classes.py\n@@ -510,6 +510,11 @@ def _fit(\n                 \"Categorical features are only supported for binary classification. \"\n                 f\"Found {self.n_classes_.max()} classes.\"\n             )\n+        if has_categorical and self.criterion == \"absolute_error\":\n+            raise ValueError(\n+                \"Categorical features are not supported with \"\n+                \"criterion='absolute_error'.\"\n+            )\n \n         SPLITTERS = SPARSE_SPLITTERS if issparse(X) else DENSE_SPLITTERS\n         splitter = SPLITTERS[self.splitter](\n@@ -1456,6 +1461,8 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):\n         represented by ``np.nan``; unknown categories at prediction time are\n         also treated as missing values.\n \n+        Categorical features are not supported with `criterion=\"absolute_error\"`.\n+\n         .. versionadded:: 1.10\n \n     Attributes\ndiff --git a/sklearn/tree/tests/test_split.py b/sklearn/tree/tests/test_split.py\nindex 0df7f38eded9b..feea56f3d2b0f 100644\n--- a/sklearn/tree/tests/test_split.py\n+++ b/sklearn/tree/tests/test_split.py\n@@ -247,6 +247,11 @@ def test_split_impurity(\n \n     if categorical and \"Extra\" in Tree.__name__:\n         pytest.skip(\"Categorical features not implemented for the random splitter\")\n+    if categorical and criterion == \"absolute_error\":\n+        pytest.skip(\n+            \"absolute_error is not supported with categorical features in \"\n+            \"DecisionTreeRegressor\"\n+        )\n     rng = np.random.default_rng(global_random_seed)\n \n     ns = [5] * 5 + [10] * 5 + [20, 30, 50, 100]\ndiff --git a/sklearn/tree/tests/test_tree.py b/sklearn/tree/tests/test_tree.py\nindex d7a3c395cd831..95c129797c550 100644\n--- a/sklearn/tree/tests/test_tree.py\n+++ b/sklearn/tree/tests/test_tree.py\n@@ -2469,6 +2469,11 @@ def test_missing_values_best_splitter_on_equal_nodes_no_missing(\n     criterion, categorical_features\n ):\n     \"\"\"Check missing values goes to correct node during predictions.\"\"\"\n+    if categorical_features is not None and criterion == \"absolute_error\":\n+        pytest.skip(\n+            \"absolute_error is not supported with categorical features in \"\n+            \"DecisionTreeRegressor\"\n+        )\n     X = np.array([[0, 1, 2, 3, 8, 9, 11, 12, 15]]).T\n     y = np.array([0.1, 0.2, 0.3, 0.2, 1.4, 1.4, 1.5, 1.6, 2.6])\n     node_value_func = np.median if criterion == \"absolute_error\" else np.mean\n@@ -3136,6 +3141,22 @@ def test_fit_categorical_with_monotonic_constraint(Tree):\n         Tree(categorical_features=[0], monotonic_cst=[1], random_state=0).fit(X, y)\n \n \n+def test_fit_categorical_with_absolute_error():\n+    # Non-regression test: the categorical split-finding algorithm is not\n+    # valid for criterion=\"absolute_error\" (see gh-34578), so it should be\n+    # rejected rather than silently return a possibly suboptimal split.\n+    X = np.array([[0.0], [1.0], [0.0], [1.0]], dtype=np.float64)\n+    y = np.array([0.0, 1.0, 0.0, 1.0])\n+\n+    with pytest.raises(\n+        ValueError,\n+        match=\"Categorical features are not supported with criterion='absolute_error'\",\n+    ):\n+        DecisionTreeRegressor(categorical_features=[0], criterion=\"absolute_error\").fit(\n+            X, y\n+        )\n+\n+\n def test_predict_sparse_int64_indices_raises():\n     X = np.array([[0.0], [1.0]], dtype=np.float64)\n     y = np.array([0, 1])\n",
+      "changedFiles": 4,
+      "addedLines": 36,
+      "deletedLines": 2,
+      "commits": 10,
+      "language": "Python",
+      "labels": [
+        "module:tree",
+        "No Changelog Needed"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0009",
+      "title": "f_regression returns a valid, finite F-score for a constant feature column instead of NaN",
+      "preconditions": "scikit-learn is installed and importable; a feature matrix and target vector are prepared in memory as described in the steps.",
+      "steps": [
+        "Construct a feature matrix X with one constant column (the same value in every row) and at least one column that varies, plus a numeric target vector y.",
+        "Call sklearn.feature_selection.f_regression(X, y).",
+        "Inspect the returned F-statistic and p-value for the constant column, and check for any warnings raised during the call."
+      ],
+      "expectedResult": "The function returns a finite F-statistic of 0.0 and a p-value of 1.0 for the constant column (it carries no linear information), with no RuntimeWarning about an invalid value encountered in sqrt and no NaN in the output."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-30T04:27:49Z",
+      "testType": "API",
+      "tags": [
+        "feature-selection",
+        "numerical-stability",
+        "regression"
+      ],
+      "durationMs": null,
+      "feature": "f_regression / r_regression univariate feature selection",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/scikit-learn/scikit-learn/pull/34594",
+        "issueUrl": "https://github.com/scikit-learn/scikit-learn/issues/11395",
+        "evidenceTestFile": null,
+        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "scikit-learn/scikit-learn",
+      "number": 34594,
+      "baseSha": "6f8b95aa2234102acc3804fc8c7a3e6bd0506bfb",
+      "headSha": "fac735dedd097b5b98bd1e6b1b5656dc86d1b4fb",
+      "title": "FIX Raise error for categorical features with criterion='absolute_error'",
+      "description": "The categorical split-finding algorithm used by DecisionTreeRegressor/DecisionTreeClassifier is not valid for criterion='absolute_error': it can produce splits that aren't actually optimal for MAE. Rather than silently returning a possibly suboptimal split, DecisionTreeRegressor now raises a clear ValueError when categorical_features is combined with criterion='absolute_error', matching the other categorical-features incompatibility checks.",
+      "diff": "diff --git a/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst b/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\nindex 5a1a9bc0ffe26..645380032be14 100644\n--- a/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\n+++ b/doc/whats_new/upcoming_changes/sklearn.tree/33354.major-feature.rst\n@@ -1,6 +1,7 @@\n - :class:`tree.DecisionTreeRegressor`, :class:`tree.DecisionTreeClassifier`\n   now have native support for categorical features for binary classification and\n-  single-output regression. Categorical features can be specified with the\n-  `categorical_features` parameter. Up to 256 categories per features are supported.\n+  single-output regression. All criteria are supported except for `'absolute_error'`.\n+  Categorical features can be specified with the `categorical_features` parameter.\n+  Up to 256 categories per features are supported.\n   By `:user:`Adam Li <adam2392>`, `:user:`Arthur Lacote <cakedev0>`,\n   :user:`Adrin Jalali <adrinjalali>` and :user:`Christian Lorentzen <lorentzenchr>`\ndiff --git a/sklearn/tree/_classes.py b/sklearn/tree/_classes.py\nindex 862328768aa4b..80aed4f2f7be7 100644\n--- a/sklearn/tree/_classes.py\n+++ b/sklearn/tree/_classes.py\n@@ -510,6 +510,11 @@ def _fit(\n                 \"Categorical features are only supported for binary classification. \"\n                 f\"Found {self.n_classes_.max()} classes.\"\n             )\n+        if has_categorical and self.criterion == \"absolute_error\":\n+            raise ValueError(\n+                \"Categorical features are not supported with \"\n+                \"criterion='absolute_error'.\"\n+            )\n \n         SPLITTERS = SPARSE_SPLITTERS if issparse(X) else DENSE_SPLITTERS\n         splitter = SPLITTERS[self.splitter](\n@@ -1456,6 +1461,8 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):\n         represented by ``np.nan``; unknown categories at prediction time are\n         also treated as missing values.\n \n+        Categorical features are not supported with `criterion=\"absolute_error\"`.\n+\n         .. versionadded:: 1.10\n \n     Attributes\ndiff --git a/sklearn/tree/tests/test_split.py b/sklearn/tree/tests/test_split.py\nindex 0df7f38eded9b..feea56f3d2b0f 100644\n--- a/sklearn/tree/tests/test_split.py\n+++ b/sklearn/tree/tests/test_split.py\n@@ -247,6 +247,11 @@ def test_split_impurity(\n \n     if categorical and \"Extra\" in Tree.__name__:\n         pytest.skip(\"Categorical features not implemented for the random splitter\")\n+    if categorical and criterion == \"absolute_error\":\n+        pytest.skip(\n+            \"absolute_error is not supported with categorical features in \"\n+            \"DecisionTreeRegressor\"\n+        )\n     rng = np.random.default_rng(global_random_seed)\n \n     ns = [5] * 5 + [10] * 5 + [20, 30, 50, 100]\ndiff --git a/sklearn/tree/tests/test_tree.py b/sklearn/tree/tests/test_tree.py\nindex d7a3c395cd831..95c129797c550 100644\n--- a/sklearn/tree/tests/test_tree.py\n+++ b/sklearn/tree/tests/test_tree.py\n@@ -2469,6 +2469,11 @@ def test_missing_values_best_splitter_on_equal_nodes_no_missing(\n     criterion, categorical_features\n ):\n     \"\"\"Check missing values goes to correct node during predictions.\"\"\"\n+    if categorical_features is not None and criterion == \"absolute_error\":\n+        pytest.skip(\n+            \"absolute_error is not supported with categorical features in \"\n+            \"DecisionTreeRegressor\"\n+        )\n     X = np.array([[0, 1, 2, 3, 8, 9, 11, 12, 15]]).T\n     y = np.array([0.1, 0.2, 0.3, 0.2, 1.4, 1.4, 1.5, 1.6, 2.6])\n     node_value_func = np.median if criterion == \"absolute_error\" else np.mean\n@@ -3136,6 +3141,22 @@ def test_fit_categorical_with_monotonic_constraint(Tree):\n         Tree(categorical_features=[0], monotonic_cst=[1], random_state=0).fit(X, y)\n \n \n+def test_fit_categorical_with_absolute_error():\n+    # Non-regression test: the categorical split-finding algorithm is not\n+    # valid for criterion=\"absolute_error\" (see gh-34578), so it should be\n+    # rejected rather than silently return a possibly suboptimal split.\n+    X = np.array([[0.0], [1.0], [0.0], [1.0]], dtype=np.float64)\n+    y = np.array([0.0, 1.0, 0.0, 1.0])\n+\n+    with pytest.raises(\n+        ValueError,\n+        match=\"Categorical features are not supported with criterion='absolute_error'\",\n+    ):\n+        DecisionTreeRegressor(categorical_features=[0], criterion=\"absolute_error\").fit(\n+            X, y\n+        )\n+\n+\n def test_predict_sparse_int64_indices_raises():\n     X = np.array([[0.0], [1.0]], dtype=np.float64)\n     y = np.array([0, 1])\n",
+      "changedFiles": 4,
+      "addedLines": 36,
+      "deletedLines": 2,
+      "commits": 10,
+      "language": "Python",
+      "labels": [
+        "module:tree",
+        "No Changelog Needed"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0010",
+      "title": "r_regression does not emit a sqrt-of-negative-number warning for a near-constant column",
+      "preconditions": "scikit-learn is installed and importable; a feature matrix and target vector are prepared in memory as described in the steps.",
+      "steps": [
+        "Construct a feature matrix X containing one column with extremely low variance (values differing only in the last few significant digits) alongside a normally varying column, plus a target vector y.",
+        "Call sklearn.feature_selection.r_regression(X, y) while capturing warnings.",
+        "Inspect the returned correlation value for the near-constant column."
+      ],
+      "expectedResult": "No RuntimeWarning is raised during the call, and the correlation value returned for the near-constant column is a valid finite number within [-1, 1] rather than NaN."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-30T04:27:49Z",
+      "testType": "API",
+      "tags": [
+        "feature-selection",
+        "numerical-stability",
+        "regression"
+      ],
+      "durationMs": null,
+      "feature": "f_regression / r_regression univariate feature selection",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/scikit-learn/scikit-learn/pull/34594",
+        "issueUrl": "https://github.com/scikit-learn/scikit-learn/issues/11395",
+        "evidenceTestFile": null,
+        "note": "Issue #11395 ('f_regression takes square root of negative values when constant columns are present') opened 2018-06-30 and still OPEN as of 2026-08-16. Maintainer agramfort acknowledged it in 2018 with a candidate fix commit that was never merged, and contributor Lawson-Darrow confirmed on 2026-06-03 (comment: 'This still reproduces on main') that r_regression's `sqrt(row_norms(X.T, squared=True) - n_samples * X_means**2)` still hits catastrophic cancellation for constant columns. PR #34594 merged 2026-07-30 touches only sklearn/tree/_classes.py (DecisionTreeRegressor's categorical-features validation) and its tests/changelog -- entirely unrelated to sklearn/feature_selection/_univariate_selection.py, so the f_regression/r_regression NaN-on-constant-column defect is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "hashicorp/vault",
+      "number": 31502,
+      "baseSha": "d79813a4af3da2652242e2eb73a19ec83a693c9a",
+      "headSha": "c317c8490fe0f0dbb19695512563311289ad5d7c",
+      "title": "UI: Swagger input fix",
+      "description": "The Open API explorer's swagger-ui component added a readonly attribute to disabled form fields to address an accessibility concern, but never removed it once a field became enabled again, leaving those inputs unable to accept input. Updated updateDisabledFields() to remove the readonly attribute once an element is no longer disabled, only applying it while the element is actually disabled.",
+      "diff": "diff --git a/ui/lib/open-api-explorer/addon/components/swagger-ui.js b/ui/lib/open-api-explorer/addon/components/swagger-ui.js\nindex ccda39b012c..ef5a92214ba 100644\n--- a/ui/lib/open-api-explorer/addon/components/swagger-ui.js\n+++ b/ui/lib/open-api-explorer/addon/components/swagger-ui.js\n@@ -165,9 +165,13 @@ export default class SwaggerUiComponent extends Component {\n   }\n \n   updateDisabledFields() {\n-    document.querySelectorAll('.parameters :disabled').forEach((el) => {\n-      el.removeAttribute('disabled');\n-      el.setAttribute('readonly', true);\n+    document.querySelectorAll('.parameters').forEach((el) => {\n+      if (!el.disabled) {\n+        el.removeAttribute('readonly');\n+      } else {\n+        el.removeAttribute('disabled');\n+        el.setAttribute('readonly', true);\n+      }\n     });\n   }\n \n",
+      "changedFiles": 1,
+      "addedLines": 7,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "ui",
+        "pr/no-changelog",
+        "hashicorp-contributed-pr"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0011",
+      "title": "Vault Agent's file sink applies the configured octal file mode to the token sink file",
+      "preconditions": "Vault Agent is installed and network-reachable to a Vault server; an auto_auth method (e.g. AppRole) is configured and its credentials are available on disk.",
+      "steps": [
+        "Configure vault-agent auto_auth with a file sink whose config sets path = \"/tmp/.vault-token\" and mode = \"0640\".",
+        "Start vault-agent so it authenticates and writes the token to the sink file.",
+        "Once the sink file exists, check its filesystem permission bits (e.g. via `stat -c \"%a\"`)."
+      ],
+      "expectedResult": "The sink file's permission bits are 640 (rw-r-----), matching the octal mode specified in the configuration."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-08-15T16:47:37Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "vault-agent",
+        "file-sink",
+        "permissions",
+        "configuration"
+      ],
+      "durationMs": null,
+      "feature": "Vault Agent file sink mode configuration",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/hashicorp/vault/pull/31502",
+        "issueUrl": "https://github.com/hashicorp/vault/issues/9404",
+        "evidenceTestFile": null,
+        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "hashicorp/vault",
+      "number": 31502,
+      "baseSha": "d79813a4af3da2652242e2eb73a19ec83a693c9a",
+      "headSha": "c317c8490fe0f0dbb19695512563311289ad5d7c",
+      "title": "UI: Swagger input fix",
+      "description": "The Open API explorer's swagger-ui component added a readonly attribute to disabled form fields to address an accessibility concern, but never removed it once a field became enabled again, leaving those inputs unable to accept input. Updated updateDisabledFields() to remove the readonly attribute once an element is no longer disabled, only applying it while the element is actually disabled.",
+      "diff": "diff --git a/ui/lib/open-api-explorer/addon/components/swagger-ui.js b/ui/lib/open-api-explorer/addon/components/swagger-ui.js\nindex ccda39b012c..ef5a92214ba 100644\n--- a/ui/lib/open-api-explorer/addon/components/swagger-ui.js\n+++ b/ui/lib/open-api-explorer/addon/components/swagger-ui.js\n@@ -165,9 +165,13 @@ export default class SwaggerUiComponent extends Component {\n   }\n \n   updateDisabledFields() {\n-    document.querySelectorAll('.parameters :disabled').forEach((el) => {\n-      el.removeAttribute('disabled');\n-      el.setAttribute('readonly', true);\n+    document.querySelectorAll('.parameters').forEach((el) => {\n+      if (!el.disabled) {\n+        el.removeAttribute('readonly');\n+      } else {\n+        el.removeAttribute('disabled');\n+        el.setAttribute('readonly', true);\n+      }\n     });\n   }\n \n",
+      "changedFiles": 1,
+      "addedLines": 7,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "ui",
+        "pr/no-changelog",
+        "hashicorp-contributed-pr"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0012",
+      "title": "A file sink mode of 600 restricts the Vault Agent token file to owner-only access",
+      "preconditions": "Vault Agent is installed and network-reachable to a Vault server; an auto_auth method (e.g. AppRole) is configured and its credentials are available on disk.",
+      "steps": [
+        "Configure vault-agent auto_auth with a file sink specifying mode = \"0600\" for the token output file.",
+        "Start vault-agent and let it complete authentication so the token file is written.",
+        "Inspect the resulting file's permission bits."
+      ],
+      "expectedResult": "The token file has permission bits 600 (rw-------), granting no read or write access to group members or other users."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-08-15T16:47:37Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "vault-agent",
+        "file-sink",
+        "permissions",
+        "configuration"
+      ],
+      "durationMs": null,
+      "feature": "Vault Agent file sink mode configuration",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/hashicorp/vault/pull/31502",
+        "issueUrl": "https://github.com/hashicorp/vault/issues/9404",
+        "evidenceTestFile": null,
+        "note": "Issue #9404 ('vault-agent file sink mode is parsed incorrectly') opened 2020-07-06, labelled bug, and still OPEN as of 2026-08-16. Collaborator ncabatoff engaged on the thread, and a user confirmed on 2025-11-19 (comment: 'still generates the error' with mode = \"0640\" on Vault 1.18.4) that the file sink's mode field is still not interpreted as octal. PR #31502 merged 2025-08-15 (before that most recent confirmation) touches only ui/lib/open-api-explorer/addon/components/swagger-ui.js, a browser-side Open API explorer widget -- entirely unrelated to the Go auto-auth file-sink code (command/agent/sink/file), so the octal-mode parsing defect is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0013",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "cockroachdb/cockroach",
+      "number": 171337,
+      "baseSha": "366f3ff0e95468a3667054520c3eb04fa96173b9",
+      "headSha": "e40eab308005379ab626dc773a640a6796d61add",
+      "title": "sql: fix FETCH FIRST on empty WITH HOLD cursor",
+      "description": "FETCH FIRST on a persisted WITH HOLD cursor over an empty result set returned an internal error ('decoding unset EncDatum') instead of zero rows. In fetchMoveNodeBase.nextInternal, the FetchFirst branch for curRow == 0 discarded the bool returned by sqlCursor.Next and unconditionally reported a row, so the caller tried to decode an unset EncDatum. Fixed by propagating Next's (more, err) directly from the case 0 branch, matching the FetchAbsolute path just below.",
+      "diff": "diff --git a/pkg/sql/logictest/testdata/logic_test/cursor b/pkg/sql/logictest/testdata/logic_test/cursor\nindex 896b07e5f0e2..dba02eca4620 100644\n--- a/pkg/sql/logictest/testdata/logic_test/cursor\n+++ b/pkg/sql/logictest/testdata/logic_test/cursor\n@@ -943,3 +943,20 @@ statement ok\n CLOSE foo;\n \n subtest end\n+\n+# Regression test for FETCH FIRST on a persisted WITH HOLD cursor over an\n+# empty result set returning an internal error instead of zero rows (#171238).\n+subtest regression_171238\n+\n+statement ok\n+BEGIN;\n+DECLARE foo_first CURSOR WITH HOLD FOR SELECT * FROM empty;\n+COMMIT;\n+\n+query empty\n+FETCH FIRST FROM foo_first;\n+\n+statement ok\n+CLOSE foo_first;\n+\n+subtest end\ndiff --git a/pkg/sql/sql_cursor.go b/pkg/sql/sql_cursor.go\nindex 4436ed3fdceb..1496e2b552c2 100644\n--- a/pkg/sql/sql_cursor.go\n+++ b/pkg/sql/sql_cursor.go\n@@ -288,8 +288,8 @@ func (b *fetchMoveNodeBase) nextInternal(ctx context.Context) (bool, error) {\n \t\tcase tree.FetchFirst:\n \t\t\tswitch b.cursor.curRow {\n \t\t\tcase 0:\n-\t\t\t\t_, err := b.cursor.Next(ctx)\n-\t\t\t\treturn true, err\n+\t\t\t\tmore, err := b.cursor.Next(ctx)\n+\t\t\t\treturn more, err\n \t\t\tcase 1:\n \t\t\t\treturn true, nil\n \t\t\t}\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "O-community",
+        "X-blathers-triaged",
+        "target-release-26.3.0"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0013",
+      "title": "Comparing an INET value against a set of subnets using <<= ANY succeeds",
+      "preconditions": "A CockroachDB cluster is running and reachable via the SQL shell; the session has no special settings that would restrict INET type usage.",
+      "steps": [
+        "Connect to a CockroachDB cluster's SQL shell.",
+        "Execute: SELECT INET '192.168.1.5' <<= ANY (SELECT INET '192.168.1.0/24');"
+      ],
+      "expectedResult": "The statement parses and executes without error, returning true (the address is contained within or equal to the subnet on the right-hand side)."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-06-10T14:34:51Z",
+      "testType": "API",
+      "tags": [
+        "sql",
+        "inet",
+        "subquery",
+        "parser"
+      ],
+      "durationMs": null,
+      "feature": "INET special operators with ANY/SOME/ALL subqueries",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/cockroachdb/cockroach/pull/171337",
+        "issueUrl": "https://github.com/cockroachdb/cockroach/issues/24495",
+        "evidenceTestFile": null,
+        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions."
+      }
+    }
+  },
+  {
+    "id": "kbd_0014",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "cockroachdb/cockroach",
+      "number": 171337,
+      "baseSha": "366f3ff0e95468a3667054520c3eb04fa96173b9",
+      "headSha": "e40eab308005379ab626dc773a640a6796d61add",
+      "title": "sql: fix FETCH FIRST on empty WITH HOLD cursor",
+      "description": "FETCH FIRST on a persisted WITH HOLD cursor over an empty result set returned an internal error ('decoding unset EncDatum') instead of zero rows. In fetchMoveNodeBase.nextInternal, the FetchFirst branch for curRow == 0 discarded the bool returned by sqlCursor.Next and unconditionally reported a row, so the caller tried to decode an unset EncDatum. Fixed by propagating Next's (more, err) directly from the case 0 branch, matching the FetchAbsolute path just below.",
+      "diff": "diff --git a/pkg/sql/logictest/testdata/logic_test/cursor b/pkg/sql/logictest/testdata/logic_test/cursor\nindex 896b07e5f0e2..dba02eca4620 100644\n--- a/pkg/sql/logictest/testdata/logic_test/cursor\n+++ b/pkg/sql/logictest/testdata/logic_test/cursor\n@@ -943,3 +943,20 @@ statement ok\n CLOSE foo;\n \n subtest end\n+\n+# Regression test for FETCH FIRST on a persisted WITH HOLD cursor over an\n+# empty result set returning an internal error instead of zero rows (#171238).\n+subtest regression_171238\n+\n+statement ok\n+BEGIN;\n+DECLARE foo_first CURSOR WITH HOLD FOR SELECT * FROM empty;\n+COMMIT;\n+\n+query empty\n+FETCH FIRST FROM foo_first;\n+\n+statement ok\n+CLOSE foo_first;\n+\n+subtest end\ndiff --git a/pkg/sql/sql_cursor.go b/pkg/sql/sql_cursor.go\nindex 4436ed3fdceb..1496e2b552c2 100644\n--- a/pkg/sql/sql_cursor.go\n+++ b/pkg/sql/sql_cursor.go\n@@ -288,8 +288,8 @@ func (b *fetchMoveNodeBase) nextInternal(ctx context.Context) (bool, error) {\n \t\tcase tree.FetchFirst:\n \t\t\tswitch b.cursor.curRow {\n \t\t\tcase 0:\n-\t\t\t\t_, err := b.cursor.Next(ctx)\n-\t\t\t\treturn true, err\n+\t\t\t\tmore, err := b.cursor.Next(ctx)\n+\t\t\t\treturn more, err\n \t\t\tcase 1:\n \t\t\t\treturn true, nil\n \t\t\t}\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "O-community",
+        "X-blathers-triaged",
+        "target-release-26.3.0"
+      ]
+    },
+    "testCase": {
+      "id": "kbd_tc_0014",
+      "title": "Checking whether an INET network contains any of several addresses using >>= ANY succeeds",
+      "preconditions": "A CockroachDB cluster is running and reachable via the SQL shell; the session has no special settings that would restrict INET type usage.",
+      "steps": [
+        "Connect to a CockroachDB cluster's SQL shell.",
+        "Execute: SELECT INET '10.0.0.0/8' >>= ANY (ARRAY['10.1.2.3', '192.168.1.1']::INET[]);"
+      ],
+      "expectedResult": "The statement parses and executes without error, returning true (since '10.0.0.0/8' contains '10.1.2.3'), with no 'syntax error at or near \"any\"' message."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-06-10T14:34:51Z",
+      "testType": "API",
+      "tags": [
+        "sql",
+        "inet",
+        "subquery",
+        "parser"
+      ],
+      "durationMs": null,
+      "feature": "INET special operators with ANY/SOME/ALL subqueries",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/cockroachdb/cockroach/pull/171337",
+        "issueUrl": "https://github.com/cockroachdb/cockroach/issues/24495",
+        "evidenceTestFile": null,
+        "note": "Issue #24495 ('sql: INET special operators do not work with ANY') opened 2018-04-05, labelled C-bug, and still OPEN as of 2026-08-16. Contributor knz confirmed in 2021 ('This is an outright syntax bug which is still present in 21.1') and a user reconfirmed in 2022 on CockroachDB 22.1.0; grepping the current pkg/sql/parser/sql.y grammar shows subquery_op's all_op production still omits INET_CONTAINS_OR_EQUALS/INET_CONTAINED_BY_OR_EQUALS, so `<<=`/`>>=` still cannot be combined with ANY/SOME/ALL. PR #171337 merged 2026-06-10 touches only pkg/sql/sql_cursor.go's FETCH FIRST cursor-advance logic and a cursor logic-test file -- entirely unrelated to the SQL grammar/parser, so the INET-operator-with-ANY syntax error is unchanged at both the PR's base and head revisions."
+      }
+    }
+  }
+]

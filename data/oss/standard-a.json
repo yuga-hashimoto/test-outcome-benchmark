@@ -1,0 +1,788 @@
+[
+  {
+    "id": "sa_0001",
+    "revision": "base",
+    "flipPairId": "sa_flip_0001",
+    "pr": {
+      "repository": "hashicorp/hcl",
+      "number": 335,
+      "baseSha": "cec773f974919d4b041122eabb972b4dbc2452df",
+      "headSha": "e3e49cc099efaabe9713f5602e42bb87d1c46670",
+      "title": "gohcl/decode.go: fix decoding value slices",
+      "description": "Decoding a configuration document into a struct field that is a slice of non-pointer nested block values could panic with a slice index out of range error when the target slice's initial length was shorter than the number of matching blocks found in the document. The decoder now grows the destination slice as needed instead of assuming it is already large enough.",
+      "diff": "diff --git a/gohcl/decode.go b/gohcl/decode.go\nindex f0d589d77..6079a01e2 100644\n--- a/gohcl/decode.go\n+++ b/gohcl/decode.go\n@@ -185,6 +185,9 @@ func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value)\n \t\t\t\t\tdiags = append(diags, decodeBlockToValue(block, ctx, v.Elem())...)\n \t\t\t\t\tsli.Index(i).Set(v)\n \t\t\t\t} else {\n+\t\t\t\t\tif i >= sli.Len() {\n+\t\t\t\t\t\tsli = reflect.Append(sli, reflect.Indirect(reflect.New(ty)))\n+\t\t\t\t\t}\n \t\t\t\t\tdiags = append(diags, decodeBlockToValue(block, ctx, sli.Index(i))...)\n \t\t\t\t}\n \t\t\t}\ndiff --git a/gohcl/decode_test.go b/gohcl/decode_test.go\nindex 8f065c468..5260a0e42 100644\n--- a/gohcl/decode_test.go\n+++ b/gohcl/decode_test.go\n@@ -37,6 +37,10 @@ func TestDecodeBody(t *testing.T) {\n \t\tNested []*withTwoAttributes `hcl:\"nested,block\"`\n \t}\n \n+\ttype withListofNestedBlocksNoPointers struct {\n+\t\tNested []withTwoAttributes `hcl:\"nested,block\"`\n+\t}\n+\n \ttests := []struct {\n \t\tBody      map[string]interface{}\n \t\tTarget    func() interface{}\n@@ -623,6 +627,33 @@ func TestDecodeBody(t *testing.T) {\n \t\t\t},\n \t\t\t0,\n \t\t},\n+\t\t{\n+\t\t\t// Make sure decoding value slices works the same as pointer slices.\n+\t\t\tmap[string]interface{}{\n+\t\t\t\t\"nested\": []map[string]interface{}{\n+\t\t\t\t\t{\n+\t\t\t\t\t\t\"b\": \"bar\",\n+\t\t\t\t\t},\n+\t\t\t\t\t{\n+\t\t\t\t\t\t\"b\": \"baz\",\n+\t\t\t\t\t},\n+\t\t\t\t},\n+\t\t\t},\n+\t\t\tfunc() interface{} {\n+\t\t\t\treturn &withListofNestedBlocksNoPointers{\n+\t\t\t\t\tNested: []withTwoAttributes{\n+\t\t\t\t\t\t{\n+\t\t\t\t\t\t\tB: \"foo\",\n+\t\t\t\t\t\t},\n+\t\t\t\t\t},\n+\t\t\t\t}\n+\t\t\t},\n+\t\t\tfunc(gotI interface{}) bool {\n+\t\t\t\tn := gotI.(withListofNestedBlocksNoPointers)\n+\t\t\t\treturn n.Nested[0].B == \"bar\" && len(n.Nested) == 2\n+\t\t\t},\n+\t\t\t0,\n+\t\t},\n \t}\n \n \tfor i, test := range tests {\n",
+      "changedFiles": 2,
+      "addedLines": 34,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "bug",
+        "v2",
+        "gohcl"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0001",
+      "title": "Decoding a config file with two repeated nested blocks into a pre-populated list field",
+      "preconditions": "A target struct has a field representing a list of nested configuration block values (not pointers), and that field already holds one placeholder entry before decoding starts.",
+      "steps": [
+        "Prepare a struct instance whose nested-block list field contains a single placeholder entry.",
+        "Author a configuration document containing two occurrences of the same nested block type, each with different attribute values.",
+        "Run the configuration decoder against the document, targeting the prepared struct.",
+        "Inspect the resulting list field on the struct after decoding completes."
+      ],
+      "expectedResult": "Decoding finishes without error or panic, and the list field ends up containing exactly two entries whose attribute values match the two blocks in the document (the original placeholder entry is overwritten)."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2020-11-19T16:35:56Z",
+      "testType": "API",
+      "tags": [
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "HCL nested block decoding into struct slices",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/hashicorp/hcl/pull/335",
+        "issueUrl": null,
+        "evidenceTestFile": "gohcl/decode_test.go",
+        "note": "At base, decoding two blocks into a value-typed slice field that starts with fewer elements than blocks found indexes past the slice bounds; the PR's own added test case exercises exactly this scenario."
+      }
+    }
+  },
+  {
+    "id": "sa_0002",
+    "revision": "head",
+    "flipPairId": "sa_flip_0001",
+    "pr": {
+      "repository": "hashicorp/hcl",
+      "number": 335,
+      "baseSha": "cec773f974919d4b041122eabb972b4dbc2452df",
+      "headSha": "e3e49cc099efaabe9713f5602e42bb87d1c46670",
+      "title": "gohcl/decode.go: fix decoding value slices",
+      "description": "Decoding a configuration document into a struct field that is a slice of non-pointer nested block values could panic with a slice index out of range error when the target slice's initial length was shorter than the number of matching blocks found in the document. The decoder now grows the destination slice as needed instead of assuming it is already large enough.",
+      "diff": "diff --git a/gohcl/decode.go b/gohcl/decode.go\nindex f0d589d77..6079a01e2 100644\n--- a/gohcl/decode.go\n+++ b/gohcl/decode.go\n@@ -185,6 +185,9 @@ func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value)\n \t\t\t\t\tdiags = append(diags, decodeBlockToValue(block, ctx, v.Elem())...)\n \t\t\t\t\tsli.Index(i).Set(v)\n \t\t\t\t} else {\n+\t\t\t\t\tif i >= sli.Len() {\n+\t\t\t\t\t\tsli = reflect.Append(sli, reflect.Indirect(reflect.New(ty)))\n+\t\t\t\t\t}\n \t\t\t\t\tdiags = append(diags, decodeBlockToValue(block, ctx, sli.Index(i))...)\n \t\t\t\t}\n \t\t\t}\ndiff --git a/gohcl/decode_test.go b/gohcl/decode_test.go\nindex 8f065c468..5260a0e42 100644\n--- a/gohcl/decode_test.go\n+++ b/gohcl/decode_test.go\n@@ -37,6 +37,10 @@ func TestDecodeBody(t *testing.T) {\n \t\tNested []*withTwoAttributes `hcl:\"nested,block\"`\n \t}\n \n+\ttype withListofNestedBlocksNoPointers struct {\n+\t\tNested []withTwoAttributes `hcl:\"nested,block\"`\n+\t}\n+\n \ttests := []struct {\n \t\tBody      map[string]interface{}\n \t\tTarget    func() interface{}\n@@ -623,6 +627,33 @@ func TestDecodeBody(t *testing.T) {\n \t\t\t},\n \t\t\t0,\n \t\t},\n+\t\t{\n+\t\t\t// Make sure decoding value slices works the same as pointer slices.\n+\t\t\tmap[string]interface{}{\n+\t\t\t\t\"nested\": []map[string]interface{}{\n+\t\t\t\t\t{\n+\t\t\t\t\t\t\"b\": \"bar\",\n+\t\t\t\t\t},\n+\t\t\t\t\t{\n+\t\t\t\t\t\t\"b\": \"baz\",\n+\t\t\t\t\t},\n+\t\t\t\t},\n+\t\t\t},\n+\t\t\tfunc() interface{} {\n+\t\t\t\treturn &withListofNestedBlocksNoPointers{\n+\t\t\t\t\tNested: []withTwoAttributes{\n+\t\t\t\t\t\t{\n+\t\t\t\t\t\t\tB: \"foo\",\n+\t\t\t\t\t\t},\n+\t\t\t\t\t},\n+\t\t\t\t}\n+\t\t\t},\n+\t\t\tfunc(gotI interface{}) bool {\n+\t\t\t\tn := gotI.(withListofNestedBlocksNoPointers)\n+\t\t\t\treturn n.Nested[0].B == \"bar\" && len(n.Nested) == 2\n+\t\t\t},\n+\t\t\t0,\n+\t\t},\n \t}\n \n \tfor i, test := range tests {\n",
+      "changedFiles": 2,
+      "addedLines": 34,
+      "deletedLines": 0,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "bug",
+        "v2",
+        "gohcl"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0002",
+      "title": "Decoding a config file with two repeated nested blocks into a pre-populated list field",
+      "preconditions": "A target struct has a field representing a list of nested configuration block values (not pointers), and that field already holds one placeholder entry before decoding starts.",
+      "steps": [
+        "Prepare a struct instance whose nested-block list field contains a single placeholder entry.",
+        "Author a configuration document containing two occurrences of the same nested block type, each with different attribute values.",
+        "Run the configuration decoder against the document, targeting the prepared struct.",
+        "Inspect the resulting list field on the struct after decoding completes."
+      ],
+      "expectedResult": "Decoding finishes without error or panic, and the list field ends up containing exactly two entries whose attribute values match the two blocks in the document (the original placeholder entry is overwritten)."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2020-11-19T16:35:56Z",
+      "testType": "API",
+      "tags": [
+        "boundary"
+      ],
+      "durationMs": null,
+      "feature": "HCL nested block decoding into struct slices",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/hashicorp/hcl/pull/335",
+        "issueUrl": null,
+        "evidenceTestFile": "gohcl/decode_test.go",
+        "note": "At head, the destination slice is grown as needed while decoding blocks, so decoding two blocks into a shorter pre-populated slice succeeds and yields two correct entries."
+      }
+    }
+  },
+  {
+    "id": "sa_0003",
+    "revision": "base",
+    "flipPairId": "sa_flip_0002",
+    "pr": {
+      "repository": "briannesbitt/Carbon",
+      "number": 3014,
+      "baseSha": "3daf68d33639452266063ac0b33b1078f75329aa",
+      "headSha": "e89692af28eab3c7829a9d5fc855bd03ae2cfd68",
+      "title": "Fallback to default timezone for mocked now",
+      "description": "When the library's 'current time' is mocked using a moment expressed in a specific timezone (without explicitly requesting that the mock also pin the timezone), reading the current time back without specifying a timezone should present it using the application's default timezone, not the timezone the mocked moment happened to carry.",
+      "diff": "diff --git a/src/Carbon/Traits/Test.php b/src/Carbon/Traits/Test.php\nindex 8290032c97..c642dbdbf6 100644\n--- a/src/Carbon/Traits/Test.php\n+++ b/src/Carbon/Traits/Test.php\n@@ -148,8 +148,8 @@ private function mockConstructorParameters(&$time, ?CarbonTimeZone $timezone): v\n             return;\n         }\n \n-        if ($timezone) {\n-            $testInstance = $testInstance->setTimezone($timezone);\n+        if ($testInstance instanceof DateTimeInterface) {\n+            $testInstance = $testInstance->setTimezone($timezone ?? date_default_timezone_get());\n         }\n \n         if (static::hasRelativeKeywords($time)) {\ndiff --git a/tests/Carbon/TestingAidsTest.php b/tests/Carbon/TestingAidsTest.php\nindex 3e3a92fb7c..29d04bec66 100644\n--- a/tests/Carbon/TestingAidsTest.php\n+++ b/tests/Carbon/TestingAidsTest.php\n@@ -391,6 +391,23 @@ public function modify($modify)\n         $this->assertSame('2000-01-02 00:00:00 UTC', $currentTime->format('Y-m-d H:i:s e'));\n     }\n \n+    public function testTimezoneConsistency()\n+    {\n+        Carbon::setTestNow();\n+        date_default_timezone_set('UTC');\n+        $currentDate = Carbon::now()->setTimezone('America/Los_Angeles');\n+        $laDate = $currentDate->format('Y-m-d H:i:s e');\n+        $utcDate = $currentDate->copy()->utc()->format('Y-m-d H:i:s e');\n+\n+        Carbon::setTestNow($currentDate);\n+        $this->assertSame($utcDate, Carbon::now()->format('Y-m-d H:i:s e'));\n+        $this->assertSame($utcDate, Carbon::now('UTC')->format('Y-m-d H:i:s e'));\n+\n+        Carbon::setTestNowAndTimezone($currentDate);\n+        $this->assertSame($laDate, Carbon::now()->format('Y-m-d H:i:s e'));\n+        $this->assertSame($utcDate, Carbon::now('UTC')->format('Y-m-d H:i:s e'));\n+    }\n+\n     public function testSleep()\n     {\n         $initial = Carbon::now('UTC');\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "PHP",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0003",
+      "title": "Mocked 'current time' should honor the application's default timezone",
+      "preconditions": "The application's default timezone is configured as UTC. A specific moment in time has been created and is currently represented in the America/Los_Angeles timezone.",
+      "steps": [
+        "Set the application's default timezone to UTC.",
+        "Create a fixed reference moment in time, represented using the America/Los_Angeles timezone.",
+        "Instruct the date/time library to treat that reference moment as 'now', without explicitly pinning a timezone for the mock.",
+        "Ask the library for the current date/time without specifying any timezone parameter, and format the result as a timestamp with timezone abbreviation.",
+        "Separately, format the original reference moment converted to UTC, as a timestamp with timezone abbreviation."
+      ],
+      "expectedResult": "The formatted 'current' date/time returned by the library matches the reference moment's UTC representation (the application's default timezone), rather than matching its original America/Los_Angeles representation."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2024-05-01T06:54:22Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "timezone"
+      ],
+      "durationMs": null,
+      "feature": "Test-time mocking of the current date/time",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/briannesbitt/Carbon/pull/3014",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/Carbon/TestingAidsTest.php",
+        "note": "At base, querying the current time after mocking with an America/Los_Angeles moment returns the LA-timezone representation instead of falling back to the configured UTC default, as shown by the PR's added testTimezoneConsistency case."
+      }
+    }
+  },
+  {
+    "id": "sa_0004",
+    "revision": "head",
+    "flipPairId": "sa_flip_0002",
+    "pr": {
+      "repository": "briannesbitt/Carbon",
+      "number": 3014,
+      "baseSha": "3daf68d33639452266063ac0b33b1078f75329aa",
+      "headSha": "e89692af28eab3c7829a9d5fc855bd03ae2cfd68",
+      "title": "Fallback to default timezone for mocked now",
+      "description": "When the library's 'current time' is mocked using a moment expressed in a specific timezone (without explicitly requesting that the mock also pin the timezone), reading the current time back without specifying a timezone should present it using the application's default timezone, not the timezone the mocked moment happened to carry.",
+      "diff": "diff --git a/src/Carbon/Traits/Test.php b/src/Carbon/Traits/Test.php\nindex 8290032c97..c642dbdbf6 100644\n--- a/src/Carbon/Traits/Test.php\n+++ b/src/Carbon/Traits/Test.php\n@@ -148,8 +148,8 @@ private function mockConstructorParameters(&$time, ?CarbonTimeZone $timezone): v\n             return;\n         }\n \n-        if ($timezone) {\n-            $testInstance = $testInstance->setTimezone($timezone);\n+        if ($testInstance instanceof DateTimeInterface) {\n+            $testInstance = $testInstance->setTimezone($timezone ?? date_default_timezone_get());\n         }\n \n         if (static::hasRelativeKeywords($time)) {\ndiff --git a/tests/Carbon/TestingAidsTest.php b/tests/Carbon/TestingAidsTest.php\nindex 3e3a92fb7c..29d04bec66 100644\n--- a/tests/Carbon/TestingAidsTest.php\n+++ b/tests/Carbon/TestingAidsTest.php\n@@ -391,6 +391,23 @@ public function modify($modify)\n         $this->assertSame('2000-01-02 00:00:00 UTC', $currentTime->format('Y-m-d H:i:s e'));\n     }\n \n+    public function testTimezoneConsistency()\n+    {\n+        Carbon::setTestNow();\n+        date_default_timezone_set('UTC');\n+        $currentDate = Carbon::now()->setTimezone('America/Los_Angeles');\n+        $laDate = $currentDate->format('Y-m-d H:i:s e');\n+        $utcDate = $currentDate->copy()->utc()->format('Y-m-d H:i:s e');\n+\n+        Carbon::setTestNow($currentDate);\n+        $this->assertSame($utcDate, Carbon::now()->format('Y-m-d H:i:s e'));\n+        $this->assertSame($utcDate, Carbon::now('UTC')->format('Y-m-d H:i:s e'));\n+\n+        Carbon::setTestNowAndTimezone($currentDate);\n+        $this->assertSame($laDate, Carbon::now()->format('Y-m-d H:i:s e'));\n+        $this->assertSame($utcDate, Carbon::now('UTC')->format('Y-m-d H:i:s e'));\n+    }\n+\n     public function testSleep()\n     {\n         $initial = Carbon::now('UTC');\n",
+      "changedFiles": 2,
+      "addedLines": 19,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "PHP",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0004",
+      "title": "Mocked 'current time' should honor the application's default timezone",
+      "preconditions": "The application's default timezone is configured as UTC. A specific moment in time has been created and is currently represented in the America/Los_Angeles timezone.",
+      "steps": [
+        "Set the application's default timezone to UTC.",
+        "Create a fixed reference moment in time, represented using the America/Los_Angeles timezone.",
+        "Instruct the date/time library to treat that reference moment as 'now', without explicitly pinning a timezone for the mock.",
+        "Ask the library for the current date/time without specifying any timezone parameter, and format the result as a timestamp with timezone abbreviation.",
+        "Separately, format the original reference moment converted to UTC, as a timestamp with timezone abbreviation."
+      ],
+      "expectedResult": "The formatted 'current' date/time returned by the library matches the reference moment's UTC representation (the application's default timezone), rather than matching its original America/Los_Angeles representation."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2024-05-01T06:54:22Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "timezone"
+      ],
+      "durationMs": null,
+      "feature": "Test-time mocking of the current date/time",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/briannesbitt/Carbon/pull/3014",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/Carbon/TestingAidsTest.php",
+        "note": "At head, the mocked 'now' falls back to the application's default timezone when no explicit timezone override is requested, so the current time matches the UTC representation as expected."
+      }
+    }
+  },
+  {
+    "id": "sa_0005",
+    "revision": "base",
+    "flipPairId": "sa_flip_0003",
+    "pr": {
+      "repository": "unjs/ufo",
+      "number": 126,
+      "baseSha": "a30a3ed7a58317dc7e1217985a6be3bcfa491cfb",
+      "headSha": "d105b1cd7f130ddc4cd35a92279c3a4e0306cc22",
+      "title": "fix(hasProtocol): expand protocol relative url regexp",
+      "description": "A URL-classification utility that reports whether a string starts with an explicit protocol, or is instead a protocol-relative address (like '//example.com'), failed to recognize several valid protocol-relative forms: addresses with three or more leading slashes, addresses with whitespace between the leading slashes, and addresses mixing forward and backward slashes at the start.",
+      "diff": "diff --git a/src/utils.ts b/src/utils.ts\nindex cbd8b22d..3c8f7f93 100644\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -9,7 +9,7 @@ export function isRelative(inputString: string) {\n \n const PROTOCOL_STRICT_REGEX = /^\\w{2,}:([/\\\\]{1,2})/;\n const PROTOCOL_REGEX = /^\\w{2,}:([/\\\\]{2})?/;\n-const PROTOCOL_RELATIVE_REGEX = /^[/\\\\]{2}[^/\\\\]+/;\n+const PROTOCOL_RELATIVE_REGEX = /^([/\\\\]\\s*){2,}[^/\\\\]/;\n \n export interface HasProtocolOptions {\n   acceptRelative?: boolean;\ndiff --git a/test/utilities.test.ts b/test/utilities.test.ts\nindex 54d57eb1..af77dbbf 100644\n--- a/test/utilities.test.ts\n+++ b/test/utilities.test.ts\n@@ -33,6 +33,9 @@ describe(\"hasProtocol\", () => {\n \n     // Relative\n     { input: \"//test.com\", out: [false, false, true] },\n+    { input: \"///test.com\", out: [false, false, true] },\n+    { input: \"/\\t//test.com\", out: [false, false, true] },\n+    { input: \"/\\\\/test.com\", out: [false, false, true] },\n     { input: \"/\\\\localhost//\", out: [false, false, true] },\n   ];\n \n",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 1,
+      "commits": 2,
+      "language": "TypeScript",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0005",
+      "title": "Classifying protocol-relative addresses that have unusual leading slash patterns",
+      "preconditions": "A URL classification utility is available that, given a string and an option to accept relative addresses, reports whether the string has a strict explicit protocol, an accepted explicit protocol, and whether it should be treated as protocol-relative.",
+      "steps": [
+        "Call the utility on the string '///test.com' (three leading slashes, no scheme) with relative-address acceptance enabled.",
+        "Call the utility on a string that begins with a slash, then a tab character, then two more slashes and a host, e.g. '/<TAB>//test.com', with relative-address acceptance enabled.",
+        "Call the utility on a string that begins with a forward slash immediately followed by a backslash and then a host, e.g. '/\\/test.com', with relative-address acceptance enabled.",
+        "For each call, record whether the string is classified as protocol-relative."
+      ],
+      "expectedResult": "In all three cases, the utility reports no strict or accepted explicit protocol was found, but classifies the string as protocol-relative when relative addresses are accepted."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2023-02-20T10:59:25Z",
+      "testType": "API",
+      "tags": [
+        "regex"
+      ],
+      "durationMs": null,
+      "feature": "URL protocol detection utility",
+      "platform": "server",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/unjs/ufo/pull/126",
+        "issueUrl": null,
+        "evidenceTestFile": "test/utilities.test.ts",
+        "note": "At base, the underlying pattern only matches exactly two leading slashes with no whitespace, so '///test.com', the tab-separated variant, and the mixed-slash variant are all misclassified as not protocol-relative; the PR adds exactly these cases to the test table."
+      }
+    }
+  },
+  {
+    "id": "sa_0006",
+    "revision": "head",
+    "flipPairId": "sa_flip_0003",
+    "pr": {
+      "repository": "unjs/ufo",
+      "number": 126,
+      "baseSha": "a30a3ed7a58317dc7e1217985a6be3bcfa491cfb",
+      "headSha": "d105b1cd7f130ddc4cd35a92279c3a4e0306cc22",
+      "title": "fix(hasProtocol): expand protocol relative url regexp",
+      "description": "A URL-classification utility that reports whether a string starts with an explicit protocol, or is instead a protocol-relative address (like '//example.com'), failed to recognize several valid protocol-relative forms: addresses with three or more leading slashes, addresses with whitespace between the leading slashes, and addresses mixing forward and backward slashes at the start.",
+      "diff": "diff --git a/src/utils.ts b/src/utils.ts\nindex cbd8b22d..3c8f7f93 100644\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -9,7 +9,7 @@ export function isRelative(inputString: string) {\n \n const PROTOCOL_STRICT_REGEX = /^\\w{2,}:([/\\\\]{1,2})/;\n const PROTOCOL_REGEX = /^\\w{2,}:([/\\\\]{2})?/;\n-const PROTOCOL_RELATIVE_REGEX = /^[/\\\\]{2}[^/\\\\]+/;\n+const PROTOCOL_RELATIVE_REGEX = /^([/\\\\]\\s*){2,}[^/\\\\]/;\n \n export interface HasProtocolOptions {\n   acceptRelative?: boolean;\ndiff --git a/test/utilities.test.ts b/test/utilities.test.ts\nindex 54d57eb1..af77dbbf 100644\n--- a/test/utilities.test.ts\n+++ b/test/utilities.test.ts\n@@ -33,6 +33,9 @@ describe(\"hasProtocol\", () => {\n \n     // Relative\n     { input: \"//test.com\", out: [false, false, true] },\n+    { input: \"///test.com\", out: [false, false, true] },\n+    { input: \"/\\t//test.com\", out: [false, false, true] },\n+    { input: \"/\\\\/test.com\", out: [false, false, true] },\n     { input: \"/\\\\localhost//\", out: [false, false, true] },\n   ];\n \n",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 1,
+      "commits": 2,
+      "language": "TypeScript",
+      "labels": [
+        "bug"
+      ]
+    },
+    "testCase": {
+      "id": "sa_tc_0006",
+      "title": "Classifying protocol-relative addresses that have unusual leading slash patterns",
+      "preconditions": "A URL classification utility is available that, given a string and an option to accept relative addresses, reports whether the string has a strict explicit protocol, an accepted explicit protocol, and whether it should be treated as protocol-relative.",
+      "steps": [
+        "Call the utility on the string '///test.com' (three leading slashes, no scheme) with relative-address acceptance enabled.",
+        "Call the utility on a string that begins with a slash, then a tab character, then two more slashes and a host, e.g. '/<TAB>//test.com', with relative-address acceptance enabled.",
+        "Call the utility on a string that begins with a forward slash immediately followed by a backslash and then a host, e.g. '/\\/test.com', with relative-address acceptance enabled.",
+        "For each call, record whether the string is classified as protocol-relative."
+      ],
+      "expectedResult": "In all three cases, the utility reports no strict or accepted explicit protocol was found, but classifies the string as protocol-relative when relative addresses are accepted."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2023-02-20T10:59:25Z",
+      "testType": "API",
+      "tags": [
+        "regex"
+      ],
+      "durationMs": null,
+      "feature": "URL protocol detection utility",
+      "platform": "server",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "BUG_FIX",
+      "provenance": {
+        "prUrl": "https://github.com/unjs/ufo/pull/126",
+        "issueUrl": null,
+        "evidenceTestFile": "test/utilities.test.ts",
+        "note": "At head, the widened pattern accepts two or more leading slashes with optional whitespace between them, so all three inputs are correctly classified as protocol-relative."
+      }
+    }
+  },
+  {
+    "id": "sa_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "elixir-ecto/ecto",
+      "number": 4779,
+      "baseSha": "6c0c457be65d907df9fccbe11fb73a779662979e",
+      "headSha": "05758917329879da4b814e4786a9763d0c299432",
+      "title": "avoid compile-time dependency on modules named in derive",
+      "description": "When a schema module has redacted fields and derives an Inspect implementation, reading its @derive attribute at compile time was adding a compile-time dependency on every module named inside the @derive options, even when nothing about those modules is actually needed. This PR reorders internal checks so the attribute is only read when a redacted field actually requires deriving Inspect, reducing unnecessary compile-time coupling reported via mix xref trace.",
+      "diff": "diff --git a/lib/ecto/schema.ex b/lib/ecto/schema.ex\nindex 7e52f245c5..f91a86c217 100644\n--- a/lib/ecto/schema.ex\n+++ b/lib/ecto/schema.ex\n@@ -2390,10 +2390,12 @@ defmodule Ecto.Schema do\n     on_writable_violation_default = Module.get_attribute(module, :on_writable_violation, :nothing)\n \n     struct_fields = Module.get_attribute(module, :ecto_struct_fields) |> Enum.reverse()\n-    derive = Module.get_attribute(module, :derive)\n \n-    if redacted_fields != [] and not List.keymember?(derive, Inspect, 0) and\n-         derive_inspect?(module) do\n+    # Reading @derive makes every module named in its options a compile-time\n+    # dependency of the schema. Keep the read last so it is skipped unless a\n+    # redacted field actually requires deriving Inspect.\n+    if redacted_fields != [] and derive_inspect?(module) and\n+         not List.keymember?(Module.get_attribute(module, :derive), Inspect, 0) do\n       Module.put_attribute(module, :derive, {Inspect, except: redacted_fields})\n     end\n \n",
+      "changedFiles": 1,
+      "addedLines": 5,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0007",
+      "title": "Required field validation flags a changeset invalid when a mandatory field is left blank",
+      "preconditions": "A schema-backed struct has a required text field. An update payload is prepared that omits this field entirely.",
+      "steps": [
+        "Build a changeset by casting the update payload (which omits the required field) onto the existing struct.",
+        "Apply required-field validation for that field to the changeset.",
+        "Check whether the changeset is reported as valid or invalid.",
+        "Inspect the changeset's errors for the field in question."
+      ],
+      "expectedResult": "The changeset is reported as invalid, and its errors include a 'can't be blank' style message for the omitted required field."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-09T15:14:11Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "validation"
+      ],
+      "durationMs": null,
+      "feature": "Changeset required-field validation",
+      "platform": "server",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-ecto/ecto/pull/4779",
+        "issueUrl": null,
+        "evidenceTestFile": "test/ecto/changeset_test.exs",
+        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite."
+      }
+    }
+  },
+  {
+    "id": "sa_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "elixir-ecto/ecto",
+      "number": 4779,
+      "baseSha": "6c0c457be65d907df9fccbe11fb73a779662979e",
+      "headSha": "05758917329879da4b814e4786a9763d0c299432",
+      "title": "avoid compile-time dependency on modules named in derive",
+      "description": "When a schema module has redacted fields and derives an Inspect implementation, reading its @derive attribute at compile time was adding a compile-time dependency on every module named inside the @derive options, even when nothing about those modules is actually needed. This PR reorders internal checks so the attribute is only read when a redacted field actually requires deriving Inspect, reducing unnecessary compile-time coupling reported via mix xref trace.",
+      "diff": "diff --git a/lib/ecto/schema.ex b/lib/ecto/schema.ex\nindex 7e52f245c5..f91a86c217 100644\n--- a/lib/ecto/schema.ex\n+++ b/lib/ecto/schema.ex\n@@ -2390,10 +2390,12 @@ defmodule Ecto.Schema do\n     on_writable_violation_default = Module.get_attribute(module, :on_writable_violation, :nothing)\n \n     struct_fields = Module.get_attribute(module, :ecto_struct_fields) |> Enum.reverse()\n-    derive = Module.get_attribute(module, :derive)\n \n-    if redacted_fields != [] and not List.keymember?(derive, Inspect, 0) and\n-         derive_inspect?(module) do\n+    # Reading @derive makes every module named in its options a compile-time\n+    # dependency of the schema. Keep the read last so it is skipped unless a\n+    # redacted field actually requires deriving Inspect.\n+    if redacted_fields != [] and derive_inspect?(module) and\n+         not List.keymember?(Module.get_attribute(module, :derive), Inspect, 0) do\n       Module.put_attribute(module, :derive, {Inspect, except: redacted_fields})\n     end\n \n",
+      "changedFiles": 1,
+      "addedLines": 5,
+      "deletedLines": 3,
+      "commits": 1,
+      "language": "Elixir",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0008",
+      "title": "Required field validation flags a changeset invalid when a mandatory field is left blank",
+      "preconditions": "A schema-backed struct has a required text field. An update payload is prepared that omits this field entirely.",
+      "steps": [
+        "Build a changeset by casting the update payload (which omits the required field) onto the existing struct.",
+        "Apply required-field validation for that field to the changeset.",
+        "Check whether the changeset is reported as valid or invalid.",
+        "Inspect the changeset's errors for the field in question."
+      ],
+      "expectedResult": "The changeset is reported as invalid, and its errors include a 'can't be blank' style message for the omitted required field."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-09T15:14:11Z",
+      "testType": "BUSINESS_LOGIC",
+      "tags": [
+        "validation"
+      ],
+      "durationMs": null,
+      "feature": "Changeset required-field validation",
+      "platform": "server",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/elixir-ecto/ecto/pull/4779",
+        "issueUrl": null,
+        "evidenceTestFile": "test/ecto/changeset_test.exs",
+        "note": "The PR only reorders how the @derive attribute on redacted schemas is read at compile time to avoid unnecessary compile-time module dependencies; Ecto.Changeset's validate_required behavior is untouched and long covered by its own test suite."
+      }
+    }
+  },
+  {
+    "id": "sa_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "google/guava",
+      "number": 8610,
+      "baseSha": "94f39958baf7ad51ddf9c70e406ed6b188194daa",
+      "headSha": "a8adf77c0eddafde7e3646c6fa0083d72a6b6f64",
+      "title": "Use `HashCode.getBytesInternal` in `combinedOrdered` and `combineUnordered`.",
+      "description": "The internal implementation of the hash-combining helper functions combineOrdered and combineUnordered switched from calling the public asBytes() accessor (which defensively copies the backing byte array) to an internal accessor that avoids the extra copy, as a performance micro-optimization with no change in the values these functions produce.",
+      "diff": "diff --git a/android/guava/src/com/google/common/hash/Hashing.java b/android/guava/src/com/google/common/hash/Hashing.java\nindex f7406b38d144..262fefae9975 100644\n--- a/android/guava/src/com/google/common/hash/Hashing.java\n+++ b/android/guava/src/com/google/common/hash/Hashing.java\n@@ -635,7 +635,7 @@ public static HashCode combineOrdered(Iterable<HashCode> hashCodes) {\n     int bits = iterator.next().bits();\n     byte[] resultBytes = new byte[bits / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n@@ -660,7 +660,7 @@ public static HashCode combineUnordered(Iterable<HashCode> hashCodes) {\n     checkArgument(iterator.hasNext(), \"Must be at least 1 hash code to combine.\");\n     byte[] resultBytes = new byte[iterator.next().bits() / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\ndiff --git a/guava/src/com/google/common/hash/Hashing.java b/guava/src/com/google/common/hash/Hashing.java\nindex 9ebd4e9e5746..90b42d6a2471 100644\n--- a/guava/src/com/google/common/hash/Hashing.java\n+++ b/guava/src/com/google/common/hash/Hashing.java\n@@ -686,7 +686,7 @@ public static HashCode combineOrdered(Iterable<HashCode> hashCodes) {\n     int bits = iterator.next().bits();\n     byte[] resultBytes = new byte[bits / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n@@ -711,7 +711,7 @@ public static HashCode combineUnordered(Iterable<HashCode> hashCodes) {\n     checkArgument(iterator.hasNext(), \"Must be at least 1 hash code to combine.\");\n     byte[] resultBytes = new byte[iterator.next().bits() / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0009",
+      "title": "Computing the MD5 digest of a well-known short input",
+      "preconditions": "A general-purpose hashing utility exposes a standard MD5 hash function that can hash a string using a given character encoding.",
+      "steps": [
+        "Take the ASCII string \"abc\".",
+        "Compute its hash using the utility's MD5 hash function with UTF-8 encoding.",
+        "Convert the resulting hash value to a lowercase hexadecimal string."
+      ],
+      "expectedResult": "The hexadecimal digest equals \"900150983cd24fb0d6963f7d28e17f72\", the standard MD5 digest for the input \"abc\"."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-14T17:20:36Z",
+      "testType": "API",
+      "tags": [
+        "hashing"
+      ],
+      "durationMs": null,
+      "feature": "MD5 hash computation",
+      "platform": "jvm",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/google/guava/pull/8610",
+        "issueUrl": null,
+        "evidenceTestFile": "guava-tests/test/com/google/common/hash/HashingTest.java",
+        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected."
+      }
+    }
+  },
+  {
+    "id": "sa_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "google/guava",
+      "number": 8610,
+      "baseSha": "94f39958baf7ad51ddf9c70e406ed6b188194daa",
+      "headSha": "a8adf77c0eddafde7e3646c6fa0083d72a6b6f64",
+      "title": "Use `HashCode.getBytesInternal` in `combinedOrdered` and `combineUnordered`.",
+      "description": "The internal implementation of the hash-combining helper functions combineOrdered and combineUnordered switched from calling the public asBytes() accessor (which defensively copies the backing byte array) to an internal accessor that avoids the extra copy, as a performance micro-optimization with no change in the values these functions produce.",
+      "diff": "diff --git a/android/guava/src/com/google/common/hash/Hashing.java b/android/guava/src/com/google/common/hash/Hashing.java\nindex f7406b38d144..262fefae9975 100644\n--- a/android/guava/src/com/google/common/hash/Hashing.java\n+++ b/android/guava/src/com/google/common/hash/Hashing.java\n@@ -635,7 +635,7 @@ public static HashCode combineOrdered(Iterable<HashCode> hashCodes) {\n     int bits = iterator.next().bits();\n     byte[] resultBytes = new byte[bits / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n@@ -660,7 +660,7 @@ public static HashCode combineUnordered(Iterable<HashCode> hashCodes) {\n     checkArgument(iterator.hasNext(), \"Must be at least 1 hash code to combine.\");\n     byte[] resultBytes = new byte[iterator.next().bits() / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\ndiff --git a/guava/src/com/google/common/hash/Hashing.java b/guava/src/com/google/common/hash/Hashing.java\nindex 9ebd4e9e5746..90b42d6a2471 100644\n--- a/guava/src/com/google/common/hash/Hashing.java\n+++ b/guava/src/com/google/common/hash/Hashing.java\n@@ -686,7 +686,7 @@ public static HashCode combineOrdered(Iterable<HashCode> hashCodes) {\n     int bits = iterator.next().bits();\n     byte[] resultBytes = new byte[bits / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n@@ -711,7 +711,7 @@ public static HashCode combineUnordered(Iterable<HashCode> hashCodes) {\n     checkArgument(iterator.hasNext(), \"Must be at least 1 hash code to combine.\");\n     byte[] resultBytes = new byte[iterator.next().bits() / 8];\n     for (HashCode hashCode : hashCodes) {\n-      byte[] nextBytes = hashCode.asBytes();\n+      byte[] nextBytes = hashCode.getBytesInternal();\n       checkArgument(\n           nextBytes.length == resultBytes.length, \"All hashcodes must have the same bit length.\");\n       for (int i = 0; i < nextBytes.length; i++) {\n",
+      "changedFiles": 2,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 1,
+      "language": "Java",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0010",
+      "title": "Computing the MD5 digest of a well-known short input",
+      "preconditions": "A general-purpose hashing utility exposes a standard MD5 hash function that can hash a string using a given character encoding.",
+      "steps": [
+        "Take the ASCII string \"abc\".",
+        "Compute its hash using the utility's MD5 hash function with UTF-8 encoding.",
+        "Convert the resulting hash value to a lowercase hexadecimal string."
+      ],
+      "expectedResult": "The hexadecimal digest equals \"900150983cd24fb0d6963f7d28e17f72\", the standard MD5 digest for the input \"abc\"."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-14T17:20:36Z",
+      "testType": "API",
+      "tags": [
+        "hashing"
+      ],
+      "durationMs": null,
+      "feature": "MD5 hash computation",
+      "platform": "jvm",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "UNRELATED",
+      "provenance": {
+        "prUrl": "https://github.com/google/guava/pull/8610",
+        "issueUrl": null,
+        "evidenceTestFile": "guava-tests/test/com/google/common/hash/HashingTest.java",
+        "note": "The PR only changes how combineOrdered/combineUnordered read bytes out of an existing HashCode internally; the standalone MD5 hash function and its long-standing test coverage in HashingTest are unaffected."
+      }
+    }
+  },
+  {
+    "id": "sa_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "reactiveui/refit",
+      "number": 1842,
+      "baseSha": "fd0dd6508a5ea87f7436018e7ec16a7922216eca",
+      "headSha": "1e9936088946318d20ad289d0ff67027ff1d13a4",
+      "title": "refactor: move diagnostics to dedicated class",
+      "description": "The compiler-diagnostic descriptors used by the client interface source generator (for cases like a missing HTTP-method attribute, or the client library not being referenced) are moved out of the generator class and into their own dedicated internal class, so they can be reused elsewhere. The diagnostic codes, messages, and severities are unchanged.",
+      "diff": "diff --git a/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs b/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs\nnew file mode 100644\nindex 000000000..3052ff8cb\n--- /dev/null\n+++ b/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs\n@@ -0,0 +1,29 @@\n+﻿using Microsoft.CodeAnalysis;\n+\n+namespace Refit.Generator;\n+\n+internal static class DiagnosticDescriptors\n+{\n+#pragma warning disable RS2008 // Enable analyzer release tracking\n+    public static readonly DiagnosticDescriptor InvalidRefitMember =\n+        new(\n+            \"RF001\",\n+            \"Refit types must have Refit HTTP method attributes\",\n+            \"Method {0}.{1} either has no Refit HTTP method attribute or you've used something other than a string literal for the 'path' argument\",\n+            \"Refit\",\n+            DiagnosticSeverity.Warning,\n+            true\n+        );\n+\n+    public static readonly DiagnosticDescriptor RefitNotReferenced =\n+        new(\n+            \"RF002\",\n+            \"Refit must be referenced\",\n+            \"Refit is not referenced. Add a reference to Refit.\",\n+            \"Refit\",\n+            DiagnosticSeverity.Error,\n+            true\n+        );\n+#pragma warning restore RS2008 // Enable analyzer release tracking\n+}\n+\ndiff --git a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\nindex 5589f69c2..7b3b9302c 100644\n--- a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\n+++ b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\n@@ -9,6 +9,7 @@\n     <Import_RootNamespace>InterfaceStubGenerator.Shared</Import_RootNamespace>\n   </PropertyGroup>\n   <ItemGroup>\n+    <Compile Include=\"$(MSBuildThisFileDirectory)DiagnosticDescriptors.cs\" />\n     <Compile Include=\"$(MSBuildThisFileDirectory)InterfaceStubGenerator.cs\" />\n     <Compile Include=\"$(MSBuildThisFileDirectory)ITypeSymbolExtensions.cs\" />\n   </ItemGroup>\ndiff --git a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\nindex 6b0a236c9..2995c7c31 100644\n--- a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\n+++ b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\n@@ -27,28 +27,6 @@ public class InterfaceStubGenerator : ISourceGenerator\n     {\n         private const string TypeParameterVariableName = \"______typeParameters\";\n \n-#pragma warning disable RS2008 // Enable analyzer release tracking\n-        static readonly DiagnosticDescriptor InvalidRefitMember =\n-            new(\n-                \"RF001\",\n-                \"Refit types must have Refit HTTP method attributes\",\n-                \"Method {0}.{1} either has no Refit HTTP method attribute or you've used something other than a string literal for the 'path' argument\",\n-                \"Refit\",\n-                DiagnosticSeverity.Warning,\n-                true\n-            );\n-\n-        static readonly DiagnosticDescriptor RefitNotReferenced =\n-            new(\n-                \"RF002\",\n-                \"Refit must be referenced\",\n-                \"Refit is not referenced. Add a reference to Refit.\",\n-                \"Refit\",\n-                DiagnosticSeverity.Error,\n-                true\n-            );\n-#pragma warning restore RS2008 // Enable analyzer release tracking\n-\n #if !ROSLYN_4\n \n         /// <summary>\n@@ -115,7 +93,7 @@ ImmutableArray<InterfaceDeclarationSyntax> candidateInterfaces\n \n             if (httpMethodBaseAttributeSymbol == null)\n             {\n-                reportDiagnostic(context, Diagnostic.Create(RefitNotReferenced, null));\n+                reportDiagnostic(context, Diagnostic.Create(DiagnosticDescriptors.RefitNotReferenced, null));\n                 return;\n             }\n \n@@ -640,7 +618,7 @@ IMethodSymbol methodSymbol\n             foreach (var location in methodSymbol.Locations)\n             {\n                 var diagnostic = Diagnostic.Create(\n-                    InvalidRefitMember,\n+                    DiagnosticDescriptors.InvalidRefitMember,\n                     location,\n                     methodSymbol.ContainingType.Name,\n                     methodSymbol.Name\n",
+      "changedFiles": 3,
+      "addedLines": 32,
+      "deletedLines": 24,
+      "commits": 2,
+      "language": "C#",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0011",
+      "title": "Generating a working client method for an interface annotated with a supported HTTP verb",
+      "preconditions": "A service interface defines a single method decorated with a supported GET-style HTTP attribute pointing at a fixed relative route.",
+      "steps": [
+        "Run the interface through the client source-generation tooling to produce a concrete implementation.",
+        "Instantiate the generated client against a known base address.",
+        "Invoke the generated method.",
+        "Capture the HTTP request that was actually issued by the generated client."
+      ],
+      "expectedResult": "Source generation completes without error, and the generated client issues a GET request to the expected route derived from the interface method."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2024-09-24T22:04:00Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "codegen"
+      ],
+      "durationMs": null,
+      "feature": "HTTP client interface source generation",
+      "platform": "dotnet",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/reactiveui/refit/pull/1842",
+        "issueUrl": null,
+        "evidenceTestFile": "Refit.Tests/RequestBuilder.cs",
+        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected."
+      }
+    }
+  },
+  {
+    "id": "sa_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "reactiveui/refit",
+      "number": 1842,
+      "baseSha": "fd0dd6508a5ea87f7436018e7ec16a7922216eca",
+      "headSha": "1e9936088946318d20ad289d0ff67027ff1d13a4",
+      "title": "refactor: move diagnostics to dedicated class",
+      "description": "The compiler-diagnostic descriptors used by the client interface source generator (for cases like a missing HTTP-method attribute, or the client library not being referenced) are moved out of the generator class and into their own dedicated internal class, so they can be reused elsewhere. The diagnostic codes, messages, and severities are unchanged.",
+      "diff": "diff --git a/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs b/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs\nnew file mode 100644\nindex 000000000..3052ff8cb\n--- /dev/null\n+++ b/InterfaceStubGenerator.Shared/DiagnosticDescriptors.cs\n@@ -0,0 +1,29 @@\n+﻿using Microsoft.CodeAnalysis;\n+\n+namespace Refit.Generator;\n+\n+internal static class DiagnosticDescriptors\n+{\n+#pragma warning disable RS2008 // Enable analyzer release tracking\n+    public static readonly DiagnosticDescriptor InvalidRefitMember =\n+        new(\n+            \"RF001\",\n+            \"Refit types must have Refit HTTP method attributes\",\n+            \"Method {0}.{1} either has no Refit HTTP method attribute or you've used something other than a string literal for the 'path' argument\",\n+            \"Refit\",\n+            DiagnosticSeverity.Warning,\n+            true\n+        );\n+\n+    public static readonly DiagnosticDescriptor RefitNotReferenced =\n+        new(\n+            \"RF002\",\n+            \"Refit must be referenced\",\n+            \"Refit is not referenced. Add a reference to Refit.\",\n+            \"Refit\",\n+            DiagnosticSeverity.Error,\n+            true\n+        );\n+#pragma warning restore RS2008 // Enable analyzer release tracking\n+}\n+\ndiff --git a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\nindex 5589f69c2..7b3b9302c 100644\n--- a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\n+++ b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.Shared.projitems\n@@ -9,6 +9,7 @@\n     <Import_RootNamespace>InterfaceStubGenerator.Shared</Import_RootNamespace>\n   </PropertyGroup>\n   <ItemGroup>\n+    <Compile Include=\"$(MSBuildThisFileDirectory)DiagnosticDescriptors.cs\" />\n     <Compile Include=\"$(MSBuildThisFileDirectory)InterfaceStubGenerator.cs\" />\n     <Compile Include=\"$(MSBuildThisFileDirectory)ITypeSymbolExtensions.cs\" />\n   </ItemGroup>\ndiff --git a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\nindex 6b0a236c9..2995c7c31 100644\n--- a/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\n+++ b/InterfaceStubGenerator.Shared/InterfaceStubGenerator.cs\n@@ -27,28 +27,6 @@ public class InterfaceStubGenerator : ISourceGenerator\n     {\n         private const string TypeParameterVariableName = \"______typeParameters\";\n \n-#pragma warning disable RS2008 // Enable analyzer release tracking\n-        static readonly DiagnosticDescriptor InvalidRefitMember =\n-            new(\n-                \"RF001\",\n-                \"Refit types must have Refit HTTP method attributes\",\n-                \"Method {0}.{1} either has no Refit HTTP method attribute or you've used something other than a string literal for the 'path' argument\",\n-                \"Refit\",\n-                DiagnosticSeverity.Warning,\n-                true\n-            );\n-\n-        static readonly DiagnosticDescriptor RefitNotReferenced =\n-            new(\n-                \"RF002\",\n-                \"Refit must be referenced\",\n-                \"Refit is not referenced. Add a reference to Refit.\",\n-                \"Refit\",\n-                DiagnosticSeverity.Error,\n-                true\n-            );\n-#pragma warning restore RS2008 // Enable analyzer release tracking\n-\n #if !ROSLYN_4\n \n         /// <summary>\n@@ -115,7 +93,7 @@ ImmutableArray<InterfaceDeclarationSyntax> candidateInterfaces\n \n             if (httpMethodBaseAttributeSymbol == null)\n             {\n-                reportDiagnostic(context, Diagnostic.Create(RefitNotReferenced, null));\n+                reportDiagnostic(context, Diagnostic.Create(DiagnosticDescriptors.RefitNotReferenced, null));\n                 return;\n             }\n \n@@ -640,7 +618,7 @@ IMethodSymbol methodSymbol\n             foreach (var location in methodSymbol.Locations)\n             {\n                 var diagnostic = Diagnostic.Create(\n-                    InvalidRefitMember,\n+                    DiagnosticDescriptors.InvalidRefitMember,\n                     location,\n                     methodSymbol.ContainingType.Name,\n                     methodSymbol.Name\n",
+      "changedFiles": 3,
+      "addedLines": 32,
+      "deletedLines": 24,
+      "commits": 2,
+      "language": "C#",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0012",
+      "title": "Generating a working client method for an interface annotated with a supported HTTP verb",
+      "preconditions": "A service interface defines a single method decorated with a supported GET-style HTTP attribute pointing at a fixed relative route.",
+      "steps": [
+        "Run the interface through the client source-generation tooling to produce a concrete implementation.",
+        "Instantiate the generated client against a known base address.",
+        "Invoke the generated method.",
+        "Capture the HTTP request that was actually issued by the generated client."
+      ],
+      "expectedResult": "Source generation completes without error, and the generated client issues a GET request to the expected route derived from the interface method."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2024-09-24T22:04:00Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "codegen"
+      ],
+      "durationMs": null,
+      "feature": "HTTP client interface source generation",
+      "platform": "dotnet",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/reactiveui/refit/pull/1842",
+        "issueUrl": null,
+        "evidenceTestFile": "Refit.Tests/RequestBuilder.cs",
+        "note": "The PR only relocates diagnostic descriptor definitions into a separate class, keeping the same diagnostic ids, messages, and severities; ordinary source generation for a valid, correctly-annotated interface method is unaffected."
+      }
+    }
+  },
+  {
+    "id": "sa_0013",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "hyperium/hyper",
+      "number": 4157,
+      "baseSha": "fca07bd3937d4a3a4822372acdf766d0640796af",
+      "headSha": "df9f106d5ba2d5bd029e80d128cc385b10b0c9df",
+      "title": "refactor: drop redundant `continue` and remove needless_continue allow",
+      "description": "Several loop bodies in the HTTP/1 frame-dispatch code, the HTTP/2 client body-piping code, and the HTTP/2 upgraded-stream reader ended their final branch with an explicit `continue` statement that was already the last thing the loop would do anyway. These redundant statements are removed, along with the linter allowance that had been suppressing a warning about them, with no change in control flow.",
+      "diff": "diff --git a/Cargo.toml b/Cargo.toml\nindex 150b030a75..5a02a7215b 100644\n--- a/Cargo.toml\n+++ b/Cargo.toml\n@@ -134,7 +134,6 @@ missing_fields_in_debug = \"allow\" # TODO: use finish_non_exhaustive\n missing_panics_doc = \"allow\" # TODO: might be false\n multiple_inherent_impl = \"allow\"\n multiple_unsafe_ops_per_block = \"allow\"\n-needless_continue = \"allow\"\n needless_pass_by_value = \"allow\"\n panic = \"allow\"\n pattern_type_mismatch = \"allow\"\ndiff --git a/src/proto/h1/dispatch.rs b/src/proto/h1/dispatch.rs\nindex 03aaba1a9e..f250f55863 100644\n--- a/src/proto/h1/dispatch.rs\n+++ b/src/proto/h1/dispatch.rs\n@@ -430,7 +430,6 @@ where\n                             );\n                         } else {\n                             trace!(\"discarding unknown frame\");\n-                            continue;\n                         }\n                     } else {\n                         *clear_body = true;\ndiff --git a/src/proto/h2/client.rs b/src/proto/h2/client.rs\nindex 4803dba0f1..eb768baa76 100644\n--- a/src/proto/h2/client.rs\n+++ b/src/proto/h2/client.rs\n@@ -772,7 +772,6 @@ where\n                         }\n                     }\n                     self.poll_pipe(f, cx);\n-                    continue;\n                 }\n \n                 Poll::Ready(None) => {\ndiff --git a/src/proto/h2/upgrade.rs b/src/proto/h2/upgrade.rs\nindex f4e65466a2..217aa27e88 100644\n--- a/src/proto/h2/upgrade.rs\n+++ b/src/proto/h2/upgrade.rs\n@@ -236,9 +236,7 @@ impl Read for H2Upgraded {\n             self.buf = loop {\n                 match ready!(self.recv_stream.poll_data(cx)) {\n                     None => return Poll::Ready(Ok(())),\n-                    Some(Ok(buf)) if buf.is_empty() && !self.recv_stream.is_end_stream() => {\n-                        continue\n-                    }\n+                    Some(Ok(buf)) if buf.is_empty() && !self.recv_stream.is_end_stream() => {}\n                     Some(Ok(buf)) => {\n                         self.ping.record_data(buf.len());\n                         break buf;\n",
+      "changedFiles": 4,
+      "addedLines": 1,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0013",
+      "title": "Fetching a plain response body over a fresh HTTP/1.1 connection",
+      "preconditions": "A minimal HTTP/1.1 test server is listening and will reply to any request with a fixed 200 OK response carrying a short, known body and a matching Content-Length header.",
+      "steps": [
+        "Open a client connection to the test server.",
+        "Send a simple GET request for the root path with no request body.",
+        "Await the response headers and confirm the status code.",
+        "Read the full response body to completion."
+      ],
+      "expectedResult": "The response status is 200 OK, the reported content length matches the body actually returned, and the fully-read body bytes exactly equal the fixed content the server was configured to send."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-15T11:53:09Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "http-client"
+      ],
+      "durationMs": null,
+      "feature": "Basic HTTP/1.1 request/response handling",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/hyperium/hyper/pull/4157",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/client.rs",
+        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected."
+      }
+    }
+  },
+  {
+    "id": "sa_0014",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "hyperium/hyper",
+      "number": 4157,
+      "baseSha": "fca07bd3937d4a3a4822372acdf766d0640796af",
+      "headSha": "df9f106d5ba2d5bd029e80d128cc385b10b0c9df",
+      "title": "refactor: drop redundant `continue` and remove needless_continue allow",
+      "description": "Several loop bodies in the HTTP/1 frame-dispatch code, the HTTP/2 client body-piping code, and the HTTP/2 upgraded-stream reader ended their final branch with an explicit `continue` statement that was already the last thing the loop would do anyway. These redundant statements are removed, along with the linter allowance that had been suppressing a warning about them, with no change in control flow.",
+      "diff": "diff --git a/Cargo.toml b/Cargo.toml\nindex 150b030a75..5a02a7215b 100644\n--- a/Cargo.toml\n+++ b/Cargo.toml\n@@ -134,7 +134,6 @@ missing_fields_in_debug = \"allow\" # TODO: use finish_non_exhaustive\n missing_panics_doc = \"allow\" # TODO: might be false\n multiple_inherent_impl = \"allow\"\n multiple_unsafe_ops_per_block = \"allow\"\n-needless_continue = \"allow\"\n needless_pass_by_value = \"allow\"\n panic = \"allow\"\n pattern_type_mismatch = \"allow\"\ndiff --git a/src/proto/h1/dispatch.rs b/src/proto/h1/dispatch.rs\nindex 03aaba1a9e..f250f55863 100644\n--- a/src/proto/h1/dispatch.rs\n+++ b/src/proto/h1/dispatch.rs\n@@ -430,7 +430,6 @@ where\n                             );\n                         } else {\n                             trace!(\"discarding unknown frame\");\n-                            continue;\n                         }\n                     } else {\n                         *clear_body = true;\ndiff --git a/src/proto/h2/client.rs b/src/proto/h2/client.rs\nindex 4803dba0f1..eb768baa76 100644\n--- a/src/proto/h2/client.rs\n+++ b/src/proto/h2/client.rs\n@@ -772,7 +772,6 @@ where\n                         }\n                     }\n                     self.poll_pipe(f, cx);\n-                    continue;\n                 }\n \n                 Poll::Ready(None) => {\ndiff --git a/src/proto/h2/upgrade.rs b/src/proto/h2/upgrade.rs\nindex f4e65466a2..217aa27e88 100644\n--- a/src/proto/h2/upgrade.rs\n+++ b/src/proto/h2/upgrade.rs\n@@ -236,9 +236,7 @@ impl Read for H2Upgraded {\n             self.buf = loop {\n                 match ready!(self.recv_stream.poll_data(cx)) {\n                     None => return Poll::Ready(Ok(())),\n-                    Some(Ok(buf)) if buf.is_empty() && !self.recv_stream.is_end_stream() => {\n-                        continue\n-                    }\n+                    Some(Ok(buf)) if buf.is_empty() && !self.recv_stream.is_end_stream() => {}\n                     Some(Ok(buf)) => {\n                         self.ping.record_data(buf.len());\n                         break buf;\n",
+      "changedFiles": 4,
+      "addedLines": 1,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "Rust",
+      "labels": []
+    },
+    "testCase": {
+      "id": "sa_tc_0014",
+      "title": "Fetching a plain response body over a fresh HTTP/1.1 connection",
+      "preconditions": "A minimal HTTP/1.1 test server is listening and will reply to any request with a fixed 200 OK response carrying a short, known body and a matching Content-Length header.",
+      "steps": [
+        "Open a client connection to the test server.",
+        "Send a simple GET request for the root path with no request body.",
+        "Await the response headers and confirm the status code.",
+        "Read the full response body to completion."
+      ],
+      "expectedResult": "The response status is 200 OK, the reported content length matches the body actually returned, and the fully-read body bytes exactly equal the fixed content the server was configured to send."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-08-15T11:53:09Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "http-client"
+      ],
+      "durationMs": null,
+      "feature": "Basic HTTP/1.1 request/response handling",
+      "platform": "linux",
+      "specificity": "MEDIUM",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REFACTOR",
+      "provenance": {
+        "prUrl": "https://github.com/hyperium/hyper/pull/4157",
+        "issueUrl": null,
+        "evidenceTestFile": "tests/client.rs",
+        "note": "The PR removes control-flow statements that were already the final action in their loop iteration, so behavior is identical before and after; a basic request/response exchange (covered by existing integration tests such as incoming_content_length) is unaffected."
+      }
+    }
+  }
+]

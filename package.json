@@ -17,7 +17,9 @@
     "db:migrate": "tsx packages/cli/src/bin.ts db migrate",
     "dev": "pnpm --filter @tob/web dev",
     "build": "pnpm --filter @tob/web build",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "site": "TOB_STATIC=1 pnpm --filter @tob/web build && touch apps/web/out/.nojekyll",
+    "site:serve": "npx --yes serve apps/web/out"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

@@ -26,6 +26,9 @@ import {
 } from '@tob/db';
 import { compareRuns, recomputeRunMetrics, resumeRun, startRun } from '@tob/runner';
 import { fail, withDatabase } from './context';
+import { registerExternalCommands } from './commands/external';
+import { registerHumanCommand } from './commands/human';
+import { registerSweepCommand } from './commands/sweep';
 import { heading, interval, percent, score, table } from './format';
 import { loadCaseFiles, seedDatabase } from './seed';
 import { renderRunReport } from './report';
@@ -497,6 +500,10 @@ program
       );
     });
   });
+
+registerSweepCommand(program, dbPath);
+registerExternalCommands(program, dbPath);
+registerHumanCommand(program, dbPath);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   fail(error instanceof Error ? error.message : String(error));

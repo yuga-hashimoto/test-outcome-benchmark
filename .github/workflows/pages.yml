@@ -1,0 +1,66 @@
+# Publishes the benchmark dashboard as a static site on GitHub Pages.
+#
+# The site is a snapshot: it renders whatever `data/benchmark.sqlite` contains
+# when the workflow runs. Commit the database (or regenerate it in this job with
+# `pnpm seed && pnpm benchmark run ...`) so the published pages have runs to show.
+name: Publish dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # No database committed? Produce one so the site is not empty.
+      - name: Seed and run the mock benchmark if no database exists
+        run: |
+          if [ ! -f data/benchmark.sqlite ]; then
+            pnpm seed
+            pnpm benchmark sweep \
+              --models mock-thorough,mock-lean,mock-overconfident,mock-cautious \
+              --prompts reasoning-v1,concise-v1,evidence-first-v1 \
+              --repetitions 3
+          fi
+
+      - name: Build the static site
+        env:
+          TOB_STATIC: '1'
+          # A GitHub project site lives under /<repo>.
+          TOB_BASE_PATH: ${{ github.event.repository.name != github.event.repository.owner.login && format('/{0}', github.event.repository.name) || '' }}
+        run: pnpm site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -3,7 +3,7 @@ import { listPrompts } from '@tob/db';
 import { Empty, Note } from '@/components/Stat';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 
 export default function PromptsPage() {
   const prompts = listPrompts(db());

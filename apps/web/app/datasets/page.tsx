@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { count, percent } from '@/lib/format';
 import type { BenchmarkCase } from '@tob/core';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 
 const tally = <K extends string>(
   cases: readonly BenchmarkCase[],

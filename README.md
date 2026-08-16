@@ -72,6 +72,8 @@ apps/web            Next.js ダッシュボード。CLIと同じサービス層�
 
 ## CLI
 
+実行はCLI、閲覧はWeb、という分担です。
+
 ```bash
 pnpm benchmark seed [--force]
 pnpm benchmark dataset list
@@ -86,6 +88,37 @@ pnpm benchmark runs | show <runId>
 pnpm benchmark compare <baselineRunId> <candidateRunId>
 pnpm benchmark leaderboard [--metric accuracy|failRecall|flipPairAccuracy|costPerTest|...]
 ```
+
+### 行列を一発で回す
+
+```bash
+pnpm benchmark sweep --models mock-thorough,mock-lean --prompts reasoning-v1,concise-v1 \
+                     --strategies TEST_ONLY,TEST_PLUS_DIFF --repetitions 3
+```
+
+セルは1つずつ順番に実行します。各runがすでにプロバイダの並列上限まで使うので、セルを並列化してもレート制限とレイテンシ計測の汚染しか起きません。途中のセルが失敗しても記録して続行します。
+
+### アダプタが届かないモデルを測る
+
+`export-cases` は**アダプタが送るのと同一の入力**（goldは除去済み）をJSONLに書き出し、`import-run` はその回答をrunとして取り込みます。取り込んだrunはネイティブなrunと同じスコアリング・区間・比較の対象になります。
+
+```bash
+pnpm benchmark export-cases --prompt reasoning-v1 --split dev --out /tmp/cases.jsonl
+# 何らかのハーネスで回答し、{"caseId":"...","verdict":"PASS","confidence":0.8,"reason":"..."} をJSONLで用意
+pnpm benchmark import-run --model my-model --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl
+```
+
+未回答のケースは黙って捨てず件数を報告します（難しいケースを飛ばしたハーネスが、全問正解したハーネスに見えないように）。
+
+### 人間ベンチマーク
+
+```bash
+pnpm benchmark human run --participant alice --limit 10
+pnpm benchmark human score
+pnpm benchmark human sessions
+```
+
+モデルとまったく同じ入力を人間に提示し、PASS/FAIL・確信度・所要時間を記録します。
 
 ## Metrics
 
@@ -107,6 +140,24 @@ pnpm benchmark run --model claude --prompt reasoning-v1
 ```
 
 `--stream` を付けるとTTFTが計測できます。付けない場合、およびGeminiアダプタ（V1では非ストリーミング）ではTTFTは `null` になり、0として集計されるのではなく母数から除外されます。
+
+## Publishing the dashboard
+
+ダッシュボードは確定した結果のスナップショットなので、静的サイトとして書き出せます。
+
+```bash
+pnpm site          # apps/web/out に全ページを事前レンダリング
+pnpm site:serve    # 出力をローカルで確認
+```
+
+`out/` は完全に自己完結（サーバー不要、DB不要）なので、無料の静的ホストにそのまま置けます。
+
+- **GitHub Pages** — `.github/workflows/pages.yml` を同梱しています。リポジトリの Settings → Pages で Source を GitHub Actions にすれば、main への push で自動公開されます。プロジェクトサイトは `/<repo>` 配下に出るため、ワークフローが `TOB_BASE_PATH` を自動設定します。
+- **Netlify / Cloudflare Pages** — `netlify.toml` の通り。ビルドコマンド `pnpm install && pnpm site`、公開ディレクトリ `apps/web/out`。
+
+公開されるのは結果とデータセットです。データセットは公開PR由来で、各ケースが provenance（PR URL・Issue URL・根拠テストファイル）を持つので、第三者がラベルを検証できます。APIキーはDBにもrun snapshotにも保存されないため、書き出しに含まれることはありません。
+
+サイトはビルド時点のDBのスナップショットです。新しいrunを反映するには再ビルドしてください。ローカルで `pnpm dev` を使う場合は常に最新のDBを読みます。
 
 ## Testing
 

@@ -1,0 +1,806 @@
+[
+  {
+    "id": "kbc_0001",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "eslint/eslint",
+      "number": 21207,
+      "baseSha": "f3993b0547bace7370e9728ee7408af49d367d76",
+      "headSha": "89a27600e4d6fc68a08228ea33ff8c2c5ec74511",
+      "title": "fix: prevent ASI hazard in prefer-template autofix",
+      "description": "Fixes prefer-template's autofix so that when the string-concatenation expression being converted to a template literal is at the start of an expression statement and the preceding statement has no semicolon, a semicolon is inserted first. Without it, the leading backtick of the new template literal could continue the previous statement as a tagged template call instead of starting a new statement.",
+      "changedFiles": 2,
+      "addedLines": 56,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "bug",
+        "rule",
+        "accepted",
+        "autofix"
+      ],
+      "diff": "diff --git a/lib/rules/prefer-template.js b/lib/rules/prefer-template.js\nindex 99e652ef2326..0d4aa69fa44e 100644\n--- a/lib/rules/prefer-template.js\n+++ b/lib/rules/prefer-template.js\n@@ -299,9 +299,15 @@ module.exports = {\n \t\t\t\treturn null;\n \t\t\t}\n \n+\t\t\tconst prefix =\n+\t\t\t\tastUtils.isStartOfExpressionStatement(topBinaryExpr) &&\n+\t\t\t\tastUtils.needsPrecedingSemicolon(sourceCode, topBinaryExpr)\n+\t\t\t\t\t? \";\"\n+\t\t\t\t\t: \"\";\n+\n \t\t\treturn fixer.replaceText(\n \t\t\t\ttopBinaryExpr,\n-\t\t\t\tgetTemplateLiteral(topBinaryExpr, null, null),\n+\t\t\t\t`${prefix}${getTemplateLiteral(topBinaryExpr, null, null)}`,\n \t\t\t);\n \t\t}\n \ndiff --git a/tests/lib/rules/prefer-template.js b/tests/lib/rules/prefer-template.js\nindex ef7ff200c552..156092aa41df 100644\n--- a/tests/lib/rules/prefer-template.js\n+++ b/tests/lib/rules/prefer-template.js\n@@ -419,5 +419,54 @@ ruleTester.run(\"prefer-template\", rule, {\n \t\t\toutput: `\\`${\"\\\\\".repeat(1_000_000)}\\${  test}\\``,\n \t\t\terrors,\n \t\t},\n+\n+\t\t// preceding semicolon needed\n+\t\t{\n+\t\t\tcode: \"foo\\n'bar' + baz\",\n+\t\t\toutput: \"foo\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo()\\n'bar' + baz\",\n+\t\t\toutput: \"foo()\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo[0]\\n'bar' + baz\",\n+\t\t\toutput: \"foo[0]\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"`template`\\n'bar' + baz\",\n+\t\t\toutput: \"`template`\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"'qux'\\n'bar' + baz\",\n+\t\t\toutput: \"'qux'\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\n+\t\t// preceding semicolon not needed\n+\t\t{\n+\t\t\tcode: \"foo;\\n'bar' + baz\",\n+\t\t\toutput: \"foo;\\n`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"if (foo) {}\\n'bar' + baz\",\n+\t\t\toutput: \"if (foo) {}\\n`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"'bar' + baz\",\n+\t\t\toutput: \"`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo\\nconsole.log('bar' + baz)\", // not at the start of an expression statement\n+\t\t\toutput: \"foo\\nconsole.log(`bar${  baz}`)\",\n+\t\t\terrors,\n+\t\t},\n \t],\n });"
+    },
+    "testCase": {
+      "id": "kbc_tc_0001",
+      "title": "Autofixing a var declaration to a block-scoped declaration preserves the hoisting behavior expected by a function declared earlier in the same scope",
+      "preconditions": "A JavaScript project is linted with ESLint using the core rule that flags `var` declarations in favor of block-scoped declarations, with the autofix option enabled and ECMAScript module source type configured.",
+      "steps": [
+        "Create a script containing a function `wrap` that declares a nested function `foo` which logs a variable `a`, calls `foo()` on the line before `var a = 1;`, and then invokes `wrap()` at the top level.",
+        "Run the linter with the autofix option against the file.",
+        "Execute the resulting (autofixed) file with Node.js."
+      ],
+      "expectedResult": "The script runs to completion and prints `undefined` to the console; no exception is thrown, matching the original hoisting behavior of the `var` declaration before it was rewritten."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T04:48:56Z",
+      "testType": "API",
+      "durationMs": null,
+      "feature": "no-var rule autofix (var-to-let/const hoisting safety)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/eslint/eslint/pull/21207",
+        "issueUrl": "https://github.com/eslint/eslint/issues/21193",
+        "evidenceTestFile": null,
+        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207."
+      },
+      "tags": [
+        "linting",
+        "autofix",
+        "hoisting"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0002",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "eslint/eslint",
+      "number": 21207,
+      "baseSha": "f3993b0547bace7370e9728ee7408af49d367d76",
+      "headSha": "89a27600e4d6fc68a08228ea33ff8c2c5ec74511",
+      "title": "fix: prevent ASI hazard in prefer-template autofix",
+      "description": "Fixes prefer-template's autofix so that when the string-concatenation expression being converted to a template literal is at the start of an expression statement and the preceding statement has no semicolon, a semicolon is inserted first. Without it, the leading backtick of the new template literal could continue the previous statement as a tagged template call instead of starting a new statement.",
+      "changedFiles": 2,
+      "addedLines": 56,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": [
+        "bug",
+        "rule",
+        "accepted",
+        "autofix"
+      ],
+      "diff": "diff --git a/lib/rules/prefer-template.js b/lib/rules/prefer-template.js\nindex 99e652ef2326..0d4aa69fa44e 100644\n--- a/lib/rules/prefer-template.js\n+++ b/lib/rules/prefer-template.js\n@@ -299,9 +299,15 @@ module.exports = {\n \t\t\t\treturn null;\n \t\t\t}\n \n+\t\t\tconst prefix =\n+\t\t\t\tastUtils.isStartOfExpressionStatement(topBinaryExpr) &&\n+\t\t\t\tastUtils.needsPrecedingSemicolon(sourceCode, topBinaryExpr)\n+\t\t\t\t\t? \";\"\n+\t\t\t\t\t: \"\";\n+\n \t\t\treturn fixer.replaceText(\n \t\t\t\ttopBinaryExpr,\n-\t\t\t\tgetTemplateLiteral(topBinaryExpr, null, null),\n+\t\t\t\t`${prefix}${getTemplateLiteral(topBinaryExpr, null, null)}`,\n \t\t\t);\n \t\t}\n \ndiff --git a/tests/lib/rules/prefer-template.js b/tests/lib/rules/prefer-template.js\nindex ef7ff200c552..156092aa41df 100644\n--- a/tests/lib/rules/prefer-template.js\n+++ b/tests/lib/rules/prefer-template.js\n@@ -419,5 +419,54 @@ ruleTester.run(\"prefer-template\", rule, {\n \t\t\toutput: `\\`${\"\\\\\".repeat(1_000_000)}\\${  test}\\``,\n \t\t\terrors,\n \t\t},\n+\n+\t\t// preceding semicolon needed\n+\t\t{\n+\t\t\tcode: \"foo\\n'bar' + baz\",\n+\t\t\toutput: \"foo\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo()\\n'bar' + baz\",\n+\t\t\toutput: \"foo()\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo[0]\\n'bar' + baz\",\n+\t\t\toutput: \"foo[0]\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"`template`\\n'bar' + baz\",\n+\t\t\toutput: \"`template`\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"'qux'\\n'bar' + baz\",\n+\t\t\toutput: \"'qux'\\n;`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\n+\t\t// preceding semicolon not needed\n+\t\t{\n+\t\t\tcode: \"foo;\\n'bar' + baz\",\n+\t\t\toutput: \"foo;\\n`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"if (foo) {}\\n'bar' + baz\",\n+\t\t\toutput: \"if (foo) {}\\n`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"'bar' + baz\",\n+\t\t\toutput: \"`bar${  baz}`\",\n+\t\t\terrors,\n+\t\t},\n+\t\t{\n+\t\t\tcode: \"foo\\nconsole.log('bar' + baz)\", // not at the start of an expression statement\n+\t\t\toutput: \"foo\\nconsole.log(`bar${  baz}`)\",\n+\t\t\terrors,\n+\t\t},\n \t],\n });"
+    },
+    "testCase": {
+      "id": "kbc_tc_0002",
+      "title": "Autofixed block-scoped declarations remain accessible to a function declaration invoked indirectly before the declaration line",
+      "preconditions": "Same linting setup as above: ESLint's `var`-flagging rule is enabled with autofix, targeting a module-scoped JavaScript file.",
+      "steps": [
+        "Create a script defining a helper `function schedule(fn) { fn(); }`.",
+        "In the same scope, call `schedule(printCount);` on the line before `var count = 5;`, where `printCount` is a function declaration (defined later in the same scope) that logs `count`.",
+        "Run the linter with autofix enabled on the file, then execute the resulting file with Node.js."
+      ],
+      "expectedResult": "The script runs without error and prints `undefined`, matching the pre-autofix hoisting semantics of `var` — the indirectly invoked function does not raise an error for accessing the variable before its initializer has run."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-11T04:48:56Z",
+      "testType": "API",
+      "durationMs": null,
+      "feature": "no-var rule autofix (var-to-let/const hoisting safety)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/eslint/eslint/pull/21207",
+        "issueUrl": "https://github.com/eslint/eslint/issues/21193",
+        "evidenceTestFile": null,
+        "note": "Issue #21193 ('no-var autofix produces ReferenceError when a hoisted function reads the variable before its declaration') was opened 2026-08-06, reproduced and confirmed by a core contributor (DMartens: 'I am able to reproduce this'), labelled bug/accepted, and remains OPEN as of verification; the linked fix PR #21213 for that specific issue is still open/unmerged. PR #21207 merged 2026-08-11 fixes an unrelated autofix hazard in the prefer-template rule (lib/rules/prefer-template.js) and does not touch lib/rules/no-var.js or any hoisting/TDZ-related code, so the no-var autofix hazard described in #21193 is present at both the base and head revisions of PR #21207."
+      },
+      "tags": [
+        "linting",
+        "autofix",
+        "hoisting"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0003",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "scrapy/scrapy",
+      "number": 7936,
+      "baseSha": "1bd839b57ddb614664a179b6213f49579bdfd3da",
+      "headSha": "e2ef0ffa5e5fb70ba1d03aaf8908313de6881ebc",
+      "title": "Do not mangle log messages when a log formatter returns empty or tuple args",
+      "description": "Fixes scrapy/utils/log.py's logformatter_adapter() helper so that when a custom LogFormatter method returns an empty/falsy 'args' value or a tuple of positional args, the resulting log call is not mangled into passing the whole keyword dict as the interpolation argument. Empty args now produce a plain (level, message) call, and tuple args are spread as separate positional arguments.",
+      "changedFiles": 2,
+      "addedLines": 45,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "Python",
+      "labels": [],
+      "diff": "diff --git a/scrapy/utils/log.py b/scrapy/utils/log.py\nindex 7645b235ec6..ee357c03140 100644\n--- a/scrapy/utils/log.py\n+++ b/scrapy/utils/log.py\n@@ -245,7 +245,7 @@ def emit(self, record: logging.LogRecord) -> None:\n \n def logformatter_adapter(\n     logkws: LogFormatterResult,\n-) -> tuple[int, str, dict[str, Any] | tuple[Any, ...]]:\n+) -> tuple[Any, ...]:\n     \"\"\"\n     Helper that takes the dictionary output from the methods in LogFormatter\n     and adapts it into a tuple of positional arguments for logger.log calls.\n@@ -253,10 +253,14 @@ def logformatter_adapter(\n \n     level = logkws.get(\"level\", logging.INFO)\n     message = logkws.get(\"msg\") or \"\"\n-    # NOTE: This also handles 'args' being an empty dict, that case doesn't\n-    # play well in logger.log calls\n-    args = cast(\"dict[str, Any]\", logkws) if not logkws.get(\"args\") else logkws[\"args\"]\n-\n+    args = logkws.get(\"args\")\n+    # logging interpolates the message whenever it receives any positional\n+    # argument, so empty args are left out. Tuple args become one positional\n+    # argument each, while a dict is a single positional argument.\n+    if not args:\n+        return (level, message)\n+    if isinstance(args, tuple):\n+        return (level, message, *args)\n     return (level, message, args)\n \n \ndiff --git a/tests/test_utils_log.py b/tests/test_utils_log.py\nindex 7f530138714..42b2b95fdf6 100644\n--- a/tests/test_utils_log.py\n+++ b/tests/test_utils_log.py\n@@ -5,7 +5,7 @@\n import re\n import sys\n from io import StringIO\n-from typing import TYPE_CHECKING, Any\n+from typing import TYPE_CHECKING, Any, cast\n \n import pytest\n from twisted.python.failure import Failure\n@@ -16,6 +16,7 @@\n     StreamLogger,\n     TopLevelFormatter,\n     failure_to_exc_info,\n+    logformatter_adapter,\n )\n from scrapy.utils.test import get_crawler\n from tests.spiders import LogSpider\n@@ -24,6 +25,7 @@\n     from collections.abc import Generator, Mapping, MutableMapping\n \n     from scrapy.crawler import Crawler\n+    from scrapy.logformatter import LogFormatterResult\n \n \n class TestFailureToExcInfo:\n@@ -311,3 +313,36 @@ def test_overwrite_spider_extra(\n         assert log_contents[\"message\"] == log_message\n         assert self.regex_pattern.match(log_contents[\"spider\"])\n         assert log_contents[\"important_info\"] == extra[\"important_info\"]\n+\n+\n+class TestLogformatterAdapter:\n+    @staticmethod\n+    def _log(caplog: pytest.LogCaptureFixture, logkws: LogFormatterResult) -> str:\n+        with caplog.at_level(logging.INFO):\n+            logging.getLogger(__name__).log(*logformatter_adapter(logkws))\n+        return caplog.records[-1].getMessage()\n+\n+    @pytest.mark.parametrize(\"args\", [None, {}, ()])\n+    def test_empty_args(\n+        self,\n+        caplog: pytest.LogCaptureFixture,\n+        args: dict[str, Any] | tuple[Any, ...] | None,\n+    ) -> None:\n+        logkws = cast(\n+            \"LogFormatterResult\",\n+            {\"level\": logging.INFO, \"msg\": \"90% done\", \"args\": args},\n+        )\n+        assert self._log(caplog, logkws) == \"90% done\"\n+\n+    @pytest.mark.parametrize(\n+        (\"msg\", \"args\"),\n+        [(\"%(pct)d%% done\", {\"pct\": 90}), (\"%d%% done\", (90,))],\n+    )\n+    def test_args(\n+        self,\n+        caplog: pytest.LogCaptureFixture,\n+        msg: str,\n+        args: dict[str, Any] | tuple[Any, ...],\n+    ) -> None:\n+        logkws: LogFormatterResult = {\"level\": logging.INFO, \"msg\": msg, \"args\": args}\n+        assert self._log(caplog, logkws) == \"90% done\""
+    },
+    "testCase": {
+      "id": "kbc_tc_0003",
+      "title": "A sitemap-based spider resumes crawling remaining URLs after being restarted with a persisted job directory",
+      "preconditions": "A spider inheriting from SitemapSpider is configured with sitemap_urls pointing at a target site's robots.txt, and the JOBDIR setting points at a persistent job directory on disk.",
+      "steps": [
+        "Start the spider and let it run long enough that it discovers sitemap URLs and begins crawling them, then stop the process before the crawl finishes (e.g. service stop or Ctrl+C).",
+        "Inspect the job directory and confirm it contains a persisted request queue, a seen-requests file, and spider state.",
+        "Start the spider again, pointing at the same JOBDIR."
+      ],
+      "expectedResult": "The spider resumes crawling the remaining, not-yet-visited sitemap URLs and continues scraping items, rather than opening and closing the run immediately having crawled zero pages."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-09T17:58:35Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "SitemapSpider job persistence and resume (JOBDIR)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/scrapy/scrapy/pull/7936",
+        "issueUrl": "https://github.com/scrapy/scrapy/issues/4479",
+        "evidenceTestFile": null,
+        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936."
+      },
+      "tags": [
+        "crawling",
+        "persistence",
+        "sitemap"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0004",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "scrapy/scrapy",
+      "number": 7936,
+      "baseSha": "1bd839b57ddb614664a179b6213f49579bdfd3da",
+      "headSha": "e2ef0ffa5e5fb70ba1d03aaf8908313de6881ebc",
+      "title": "Do not mangle log messages when a log formatter returns empty or tuple args",
+      "description": "Fixes scrapy/utils/log.py's logformatter_adapter() helper so that when a custom LogFormatter method returns an empty/falsy 'args' value or a tuple of positional args, the resulting log call is not mangled into passing the whole keyword dict as the interpolation argument. Empty args now produce a plain (level, message) call, and tuple args are spread as separate positional arguments.",
+      "changedFiles": 2,
+      "addedLines": 45,
+      "deletedLines": 6,
+      "commits": 1,
+      "language": "Python",
+      "labels": [],
+      "diff": "diff --git a/scrapy/utils/log.py b/scrapy/utils/log.py\nindex 7645b235ec6..ee357c03140 100644\n--- a/scrapy/utils/log.py\n+++ b/scrapy/utils/log.py\n@@ -245,7 +245,7 @@ def emit(self, record: logging.LogRecord) -> None:\n \n def logformatter_adapter(\n     logkws: LogFormatterResult,\n-) -> tuple[int, str, dict[str, Any] | tuple[Any, ...]]:\n+) -> tuple[Any, ...]:\n     \"\"\"\n     Helper that takes the dictionary output from the methods in LogFormatter\n     and adapts it into a tuple of positional arguments for logger.log calls.\n@@ -253,10 +253,14 @@ def logformatter_adapter(\n \n     level = logkws.get(\"level\", logging.INFO)\n     message = logkws.get(\"msg\") or \"\"\n-    # NOTE: This also handles 'args' being an empty dict, that case doesn't\n-    # play well in logger.log calls\n-    args = cast(\"dict[str, Any]\", logkws) if not logkws.get(\"args\") else logkws[\"args\"]\n-\n+    args = logkws.get(\"args\")\n+    # logging interpolates the message whenever it receives any positional\n+    # argument, so empty args are left out. Tuple args become one positional\n+    # argument each, while a dict is a single positional argument.\n+    if not args:\n+        return (level, message)\n+    if isinstance(args, tuple):\n+        return (level, message, *args)\n     return (level, message, args)\n \n \ndiff --git a/tests/test_utils_log.py b/tests/test_utils_log.py\nindex 7f530138714..42b2b95fdf6 100644\n--- a/tests/test_utils_log.py\n+++ b/tests/test_utils_log.py\n@@ -5,7 +5,7 @@\n import re\n import sys\n from io import StringIO\n-from typing import TYPE_CHECKING, Any\n+from typing import TYPE_CHECKING, Any, cast\n \n import pytest\n from twisted.python.failure import Failure\n@@ -16,6 +16,7 @@\n     StreamLogger,\n     TopLevelFormatter,\n     failure_to_exc_info,\n+    logformatter_adapter,\n )\n from scrapy.utils.test import get_crawler\n from tests.spiders import LogSpider\n@@ -24,6 +25,7 @@\n     from collections.abc import Generator, Mapping, MutableMapping\n \n     from scrapy.crawler import Crawler\n+    from scrapy.logformatter import LogFormatterResult\n \n \n class TestFailureToExcInfo:\n@@ -311,3 +313,36 @@ def test_overwrite_spider_extra(\n         assert log_contents[\"message\"] == log_message\n         assert self.regex_pattern.match(log_contents[\"spider\"])\n         assert log_contents[\"important_info\"] == extra[\"important_info\"]\n+\n+\n+class TestLogformatterAdapter:\n+    @staticmethod\n+    def _log(caplog: pytest.LogCaptureFixture, logkws: LogFormatterResult) -> str:\n+        with caplog.at_level(logging.INFO):\n+            logging.getLogger(__name__).log(*logformatter_adapter(logkws))\n+        return caplog.records[-1].getMessage()\n+\n+    @pytest.mark.parametrize(\"args\", [None, {}, ()])\n+    def test_empty_args(\n+        self,\n+        caplog: pytest.LogCaptureFixture,\n+        args: dict[str, Any] | tuple[Any, ...] | None,\n+    ) -> None:\n+        logkws = cast(\n+            \"LogFormatterResult\",\n+            {\"level\": logging.INFO, \"msg\": \"90% done\", \"args\": args},\n+        )\n+        assert self._log(caplog, logkws) == \"90% done\"\n+\n+    @pytest.mark.parametrize(\n+        (\"msg\", \"args\"),\n+        [(\"%(pct)d%% done\", {\"pct\": 90}), (\"%d%% done\", (90,))],\n+    )\n+    def test_args(\n+        self,\n+        caplog: pytest.LogCaptureFixture,\n+        msg: str,\n+        args: dict[str, Any] | tuple[Any, ...],\n+    ) -> None:\n+        logkws: LogFormatterResult = {\"level\": logging.INFO, \"msg\": msg, \"args\": args}\n+        assert self._log(caplog, logkws) == \"90% done\""
+    },
+    "testCase": {
+      "id": "kbc_tc_0004",
+      "title": "Restarting a sitemap-based spider with a persisted job directory does not close the spider before any pages are crawled",
+      "preconditions": "The same SitemapSpider/JOBDIR setup as above, with at least one prior interrupted run having left a non-empty job directory on disk.",
+      "steps": [
+        "Run the spider once, letting it begin crawling sitemap-derived pages, then interrupt it before it completes the site.",
+        "Restart the spider process using the exact same JOBDIR path.",
+        "Observe the spider's log output and crawl statistics for the new run."
+      ],
+      "expectedResult": "The log shows the spider crawling additional pages beyond zero on the resumed run, and 'Closing spider (finished)' is only reported after remaining sitemap URLs have actually been requested — the run does not close immediately after opening with 0 pages crawled."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-08-09T17:58:35Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "SitemapSpider job persistence and resume (JOBDIR)",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/scrapy/scrapy/pull/7936",
+        "issueUrl": "https://github.com/scrapy/scrapy/issues/4479",
+        "evidenceTestFile": null,
+        "note": "Issue #4479 ('Sitemap spider does not resume though JOBDIR is set') was opened 2020-04-09, labelled bug, and confirmed independently by multiple reporters ('I just ran into the same problem'); a maintainer (Gallaecio, MEMBER) linked a similarly-reported case. The issue remains OPEN as of verification (no closedAt), with the most recent maintainer comment (2026, AdrianAtZyte, CONTRIBUTOR) still discussing what is required to make it resumable. PR #7936 merged 2026-08-09 only touches scrapy/utils/log.py (the log-formatter-to-logger argument adapter) and its test file, with no changes to sitemap spiders, the scheduler, JOBDIR persistence, or the dupefilter, so the resume defect described in #4479 is present at both the base and head revisions of PR #7936."
+      },
+      "tags": [
+        "crawling",
+        "persistence",
+        "sitemap"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0005",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "sharkdp/bat",
+      "number": 3862,
+      "baseSha": "0230cba42d2f1089e232930aae9fccc5ec49cfa3",
+      "headSha": "df382256532b96da7cc8eba8fb5dca2d67c5d8ce",
+      "title": "Fix --sanitize passing through the bidi control characters U+200E, U+200F and U+061C",
+      "description": "Widens the --sanitize preprocessor's trigger-byte and multi-byte detection so the three Unicode Bidi_Control codepoints it previously missed (U+200E LEFT-TO-RIGHT MARK, U+200F RIGHT-TO-LEFT MARK, and U+061C ARABIC LETTER MARK) are substituted along with the nine that were already covered, closing a gap in the Trojan-Source-style spoofing mitigation.",
+      "changedFiles": 2,
+      "addedLines": 40,
+      "deletedLines": 4,
+      "commits": 2,
+      "language": "Rust",
+      "labels": [
+        "bug"
+      ],
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 0cf4f8f75e..7e0abc1845 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -25,6 +25,7 @@\n \n ## Bugfixes\n - Fix `--list-languages` respecting `--paging=never`, see #3828 (@cyphercodes)\n+- Fix `--sanitize` passing through the bidi control characters U+200E, U+200F and U+061C, see #3862 (@lenamonj)\n - `--strip-ansi`: also strip 8-bit C1 introducers (U+0090, U+0098, U+009B, U+009D, U+009E, U+009F) and DCS/SOS/PM/APC sequence bodies, which previously passed through. See #3729 (@curious-rabbit)\n - Fix `--ignored-suffix` not falling back to first-line/shebang detection when the ignored suffix is also a registered extension (e.g. `--ignored-suffix .txt` on a shebang script), see #2745 and #3816 (@adnrivera)\n - Fix `capacity overflow` panic when printing a snip separator at `--terminal-width=1` with multiple line ranges. Closes #3803, see #3804 (@leeewee)\ndiff --git a/src/preprocessor.rs b/src/preprocessor.rs\nindex 971ae3d496..a9b8e7127e 100644\n--- a/src/preprocessor.rs\n+++ b/src/preprocessor.rs\n@@ -168,7 +168,7 @@ pub fn sanitize(line: &str) -> String {\n #[inline]\n fn is_sanitize_trigger(b: u8) -> bool {\n     // C0 controls minus \\t \\n \\f; DEL; UTF-8 leads with dangerous codepoints.\n-    matches!(b, 0x00..=0x08 | 0x0B | 0x0D..=0x1F | 0x7F | 0xC2 | 0xE2 | 0xEF)\n+    matches!(b, 0x00..=0x08 | 0x0B | 0x0D..=0x1F | 0x7F | 0xC2 | 0xD8 | 0xE2 | 0xEF)\n }\n \n /// Substitutes the byte/sequence at `bytes[i]` (or passes it through on\n@@ -200,8 +200,14 @@ fn sanitize_at(\n             buffer.push('\\u{FFFD}');\n             3\n         }\n+        // 0xD8 0x9C = U+061C (Arabic letter mark, a bidi control). The rest of\n+        // the 0xD8 block is ordinary Arabic text.\n+        0xD8 if bytes.get(i + 1) == Some(&0x9C) => {\n+            buffer.push('\\u{FFFD}');\n+            2\n+        }\n         // False-alarm trigger: pass the full UTF-8 sequence through.\n-        lead @ (0xC2 | 0xE2 | 0xEF) => {\n+        lead @ (0xC2 | 0xD8 | 0xE2 | 0xEF) => {\n             let n = utf8_len_from_lead(lead);\n             buffer.push_str(&full[i..i + n]);\n             n\n@@ -217,10 +223,11 @@ fn sanitize_at(\n \n #[inline]\n fn is_dangerous_e2(bytes: &[u8], i: usize) -> bool {\n-    // U+200B..D (zero-width), U+202A..E (bidi controls), U+2066..9 (isolates).\n+    // U+200B..D (zero-width), U+200E..F (LRM/RLM), U+202A..E (bidi embedding\n+    // and override), U+2066..9 (bidi isolates).\n     matches!(\n         (bytes.get(i + 1), bytes.get(i + 2)),\n-        (Some(0x80), Some(0x8B..=0x8D | 0xAA..=0xAE)) | (Some(0x81), Some(0xA6..=0xA9))\n+        (Some(0x80), Some(0x8B..=0x8F | 0xAA..=0xAE)) | (Some(0x81), Some(0xA6..=0xA9))\n     )\n }\n \n@@ -411,6 +418,34 @@ fn test_sanitize_substitutes_bidi_and_zero_width() {\n     assert_eq!(sanitize(\"a\\u{FEFF}b\"), format!(\"a{r}b\"));\n }\n \n+#[test]\n+fn test_sanitize_substitutes_every_bidi_control() {\n+    // Unicode Bidi_Control is exactly these 12 codepoints. Covering only some\n+    // of them leaves a reordering attack available through the rest.\n+    let r = '\\u{FFFD}';\n+    for c in [\n+        '\\u{061C}', '\\u{200E}', '\\u{200F}', '\\u{202A}', '\\u{202B}', '\\u{202C}', '\\u{202D}',\n+        '\\u{202E}', '\\u{2066}', '\\u{2067}', '\\u{2068}', '\\u{2069}',\n+    ] {\n+        assert_eq!(\n+            sanitize(&format!(\"a{c}b\")),\n+            format!(\"a{r}b\"),\n+            \"U+{:04X} was not substituted\",\n+            c as u32\n+        );\n+    }\n+}\n+\n+#[test]\n+fn test_sanitize_preserves_arabic_sharing_the_alm_lead_byte() {\n+    // U+061C is reached via lead byte 0xD8, which also leads ordinary Arabic.\n+    assert_eq!(\n+        sanitize(\"\\u{0600}\\u{061F}\\u{06FF}\"),\n+        \"\\u{0600}\\u{061F}\\u{06FF}\"\n+    );\n+    assert_eq!(sanitize(\"مرحبا بالعالم\"), \"مرحبا بالعالم\");\n+}\n+\n #[test]\n fn test_sanitize_preserves_legitimate_bytes() {\n     assert_eq!(sanitize(\"crlf\\r\\nline\\r\\n\"), \"crlf\\r\\nline\\r\\n\");"
+    },
+    "testCase": {
+      "id": "kbc_tc_0005",
+      "title": "Printing a double-width character with a highlighted-line background at a very narrow terminal width does not crash",
+      "preconditions": "bat is invoked with character wrapping enabled, colored output forced on, and a terminal width narrower than the display width of the widest character in the input.",
+      "steps": [
+        "Prepare an input file whose only line contains a double-width character (for example a CJK character or an emoji).",
+        "Run bat against the file with `--highlight-line 1 --terminal-width 1 --wrap character --color always --paging never`."
+      ],
+      "expectedResult": "bat prints the line with its highlighted background clamped to the available width and exits successfully with status code 0; it does not panic or abort with a capacity/allocation error."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T21:27:21Z",
+      "testType": "OTHER",
+      "durationMs": null,
+      "feature": "terminal-width-aware line wrapping and background highlighting",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/sharkdp/bat/pull/3862",
+        "issueUrl": "https://github.com/sharkdp/bat/issues/3844",
+        "evidenceTestFile": null,
+        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862."
+      },
+      "tags": [
+        "cli",
+        "rendering",
+        "crash"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0006",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "sharkdp/bat",
+      "number": 3862,
+      "baseSha": "0230cba42d2f1089e232930aae9fccc5ec49cfa3",
+      "headSha": "df382256532b96da7cc8eba8fb5dca2d67c5d8ce",
+      "title": "Fix --sanitize passing through the bidi control characters U+200E, U+200F and U+061C",
+      "description": "Widens the --sanitize preprocessor's trigger-byte and multi-byte detection so the three Unicode Bidi_Control codepoints it previously missed (U+200E LEFT-TO-RIGHT MARK, U+200F RIGHT-TO-LEFT MARK, and U+061C ARABIC LETTER MARK) are substituted along with the nine that were already covered, closing a gap in the Trojan-Source-style spoofing mitigation.",
+      "changedFiles": 2,
+      "addedLines": 40,
+      "deletedLines": 4,
+      "commits": 2,
+      "language": "Rust",
+      "labels": [
+        "bug"
+      ],
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 0cf4f8f75e..7e0abc1845 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -25,6 +25,7 @@\n \n ## Bugfixes\n - Fix `--list-languages` respecting `--paging=never`, see #3828 (@cyphercodes)\n+- Fix `--sanitize` passing through the bidi control characters U+200E, U+200F and U+061C, see #3862 (@lenamonj)\n - `--strip-ansi`: also strip 8-bit C1 introducers (U+0090, U+0098, U+009B, U+009D, U+009E, U+009F) and DCS/SOS/PM/APC sequence bodies, which previously passed through. See #3729 (@curious-rabbit)\n - Fix `--ignored-suffix` not falling back to first-line/shebang detection when the ignored suffix is also a registered extension (e.g. `--ignored-suffix .txt` on a shebang script), see #2745 and #3816 (@adnrivera)\n - Fix `capacity overflow` panic when printing a snip separator at `--terminal-width=1` with multiple line ranges. Closes #3803, see #3804 (@leeewee)\ndiff --git a/src/preprocessor.rs b/src/preprocessor.rs\nindex 971ae3d496..a9b8e7127e 100644\n--- a/src/preprocessor.rs\n+++ b/src/preprocessor.rs\n@@ -168,7 +168,7 @@ pub fn sanitize(line: &str) -> String {\n #[inline]\n fn is_sanitize_trigger(b: u8) -> bool {\n     // C0 controls minus \\t \\n \\f; DEL; UTF-8 leads with dangerous codepoints.\n-    matches!(b, 0x00..=0x08 | 0x0B | 0x0D..=0x1F | 0x7F | 0xC2 | 0xE2 | 0xEF)\n+    matches!(b, 0x00..=0x08 | 0x0B | 0x0D..=0x1F | 0x7F | 0xC2 | 0xD8 | 0xE2 | 0xEF)\n }\n \n /// Substitutes the byte/sequence at `bytes[i]` (or passes it through on\n@@ -200,8 +200,14 @@ fn sanitize_at(\n             buffer.push('\\u{FFFD}');\n             3\n         }\n+        // 0xD8 0x9C = U+061C (Arabic letter mark, a bidi control). The rest of\n+        // the 0xD8 block is ordinary Arabic text.\n+        0xD8 if bytes.get(i + 1) == Some(&0x9C) => {\n+            buffer.push('\\u{FFFD}');\n+            2\n+        }\n         // False-alarm trigger: pass the full UTF-8 sequence through.\n-        lead @ (0xC2 | 0xE2 | 0xEF) => {\n+        lead @ (0xC2 | 0xD8 | 0xE2 | 0xEF) => {\n             let n = utf8_len_from_lead(lead);\n             buffer.push_str(&full[i..i + n]);\n             n\n@@ -217,10 +223,11 @@ fn sanitize_at(\n \n #[inline]\n fn is_dangerous_e2(bytes: &[u8], i: usize) -> bool {\n-    // U+200B..D (zero-width), U+202A..E (bidi controls), U+2066..9 (isolates).\n+    // U+200B..D (zero-width), U+200E..F (LRM/RLM), U+202A..E (bidi embedding\n+    // and override), U+2066..9 (bidi isolates).\n     matches!(\n         (bytes.get(i + 1), bytes.get(i + 2)),\n-        (Some(0x80), Some(0x8B..=0x8D | 0xAA..=0xAE)) | (Some(0x81), Some(0xA6..=0xA9))\n+        (Some(0x80), Some(0x8B..=0x8F | 0xAA..=0xAE)) | (Some(0x81), Some(0xA6..=0xA9))\n     )\n }\n \n@@ -411,6 +418,34 @@ fn test_sanitize_substitutes_bidi_and_zero_width() {\n     assert_eq!(sanitize(\"a\\u{FEFF}b\"), format!(\"a{r}b\"));\n }\n \n+#[test]\n+fn test_sanitize_substitutes_every_bidi_control() {\n+    // Unicode Bidi_Control is exactly these 12 codepoints. Covering only some\n+    // of them leaves a reordering attack available through the rest.\n+    let r = '\\u{FFFD}';\n+    for c in [\n+        '\\u{061C}', '\\u{200E}', '\\u{200F}', '\\u{202A}', '\\u{202B}', '\\u{202C}', '\\u{202D}',\n+        '\\u{202E}', '\\u{2066}', '\\u{2067}', '\\u{2068}', '\\u{2069}',\n+    ] {\n+        assert_eq!(\n+            sanitize(&format!(\"a{c}b\")),\n+            format!(\"a{r}b\"),\n+            \"U+{:04X} was not substituted\",\n+            c as u32\n+        );\n+    }\n+}\n+\n+#[test]\n+fn test_sanitize_preserves_arabic_sharing_the_alm_lead_byte() {\n+    // U+061C is reached via lead byte 0xD8, which also leads ordinary Arabic.\n+    assert_eq!(\n+        sanitize(\"\\u{0600}\\u{061F}\\u{06FF}\"),\n+        \"\\u{0600}\\u{061F}\\u{06FF}\"\n+    );\n+    assert_eq!(sanitize(\"مرحبا بالعالم\"), \"مرحبا بالعالم\");\n+}\n+\n #[test]\n fn test_sanitize_preserves_legitimate_bytes() {\n     assert_eq!(sanitize(\"crlf\\r\\nline\\r\\n\"), \"crlf\\r\\nline\\r\\n\");"
+    },
+    "testCase": {
+      "id": "kbc_tc_0006",
+      "title": "A theme that fills the row background does not cause bat to abort when a line's rendered width exceeds a narrow terminal width",
+      "preconditions": "bat is configured to use a color theme that paints a background across the full row width, with character wrapping enabled and the terminal width set to 1 column.",
+      "steps": [
+        "Prepare an input file containing two consecutive double-width characters on a single line.",
+        "Run bat against the file with `--wrap character --terminal-width 1 --color always --paging never --theme OneHalfDark`.",
+        "Check the process exit status after it returns."
+      ],
+      "expectedResult": "The process exits normally with status code 0 and produces rendered output; it does not terminate with a panic or a non-zero abort status."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-29T21:27:21Z",
+      "testType": "OTHER",
+      "durationMs": null,
+      "feature": "terminal-width-aware line wrapping and background highlighting",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/sharkdp/bat/pull/3862",
+        "issueUrl": "https://github.com/sharkdp/bat/issues/3844",
+        "evidenceTestFile": null,
+        "note": "Issue #3844 ('bat panics (capacity overflow) on --terminal-width 1 wrapping a double-width char with a background') was opened 2026-07-17 with a detailed root-cause analysis pointing at InteractivePrinter::print_line in src/printer.rs, is labelled bug, and remains OPEN (state OPEN, closedAt null) as of verification with no fix merged for it. PR #3862 merged 2026-07-29 only touches src/preprocessor.rs (the --sanitize bidi-control substitution logic) and CHANGELOG.md, and does not touch src/printer.rs or src/controller.rs, so the capacity-overflow panic described in #3844 is present at both the base and head revisions of PR #3862."
+      },
+      "tags": [
+        "cli",
+        "rendering",
+        "crash"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0007",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "composer/composer",
+      "number": 13006,
+      "baseSha": "bd9d7f34305f523bd691f3fe2c28f6c283b391ed",
+      "headSha": "200b93c45992d74a82b6a8e837b5f4aed3aa7b2f",
+      "title": "feat: #13002 Improve logging of failed download URLs by adding filename to message",
+      "description": "Adds the failing filename (sanitized via Url::sanitize) to the warning and RepositorySecurityException messages emitted in ComposerRepository when a package metadata file fails to download or fails signature verification, to make troubleshooting such failures easier.",
+      "changedFiles": 1,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "PHP",
+      "labels": [],
+      "diff": "diff --git a/src/Composer/Repository/ComposerRepository.php b/src/Composer/Repository/ComposerRepository.php\nindex 4e0c3df5c437..d713c3094c36 100644\n--- a/src/Composer/Repository/ComposerRepository.php\n+++ b/src/Composer/Repository/ComposerRepository.php\n@@ -1775,7 +1775,7 @@ protected function fetchFile(string $filename, ?string $cacheKey = null, ?string\n                     }\n \n                     // TODO use scarier wording once we know for sure it doesn't do false positives anymore\n-                    throw new RepositorySecurityException('The contents of '.$filename.' do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake.');\n+                    throw new RepositorySecurityException('The contents of '.Url::sanitize($filename).' do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake.');\n                 }\n \n                 if ($this->eventDispatcher) {\n@@ -1815,7 +1815,7 @@ protected function fetchFile(string $filename, ?string $cacheKey = null, ?string\n \n                 if ($cacheKey && ($contents = $this->cache->read($cacheKey))) {\n                     if (!$this->degradedMode) {\n-                        $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                        $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n                     }\n                     $this->degradedMode = true;\n                     $data = JsonFile::parseJson($contents, $this->cache->getRoot().$cacheKey);\n@@ -1892,7 +1892,7 @@ private function fetchFileIfLastModified(string $filename, string $cacheKey, str\n             }\n \n             if (!$this->degradedMode) {\n-                $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n             }\n             $this->degradedMode = true;\n \n@@ -1992,7 +1992,7 @@ private function asyncFetchFile(string $filename, string $cacheKey, ?string $las\n             }\n \n             if (!$degradedMode) {\n-                $io->writeError('<warning>'.Url::sanitize($url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                $io->writeError('<warning>'.Url::sanitize($url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n             }\n             $degradedMode = true;\n "
+    },
+    "testCase": {
+      "id": "kbc_tc_0007",
+      "title": "Archiving a package preserves the original file modification timestamps in the resulting zip",
+      "preconditions": "A package directory contains source files whose modification timestamps match a known release date, and Composer's archiving functionality targets that package using the zip format.",
+      "steps": [
+        "Note the modification timestamp of a source file within the package (matching the intended release date).",
+        "Run Composer's archive functionality to create a zip archive of the package.",
+        "Extract the resulting zip archive into a fresh directory."
+      ],
+      "expectedResult": "The extracted file's modification timestamp matches the original source file's timestamp (the release date), rather than a generic default such as 1 January 1980."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-31T13:10:33Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "package archiving (zip) timestamp preservation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/composer/composer/pull/13006",
+        "issueUrl": "https://github.com/composer/composer/issues/11342",
+        "evidenceTestFile": null,
+        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006."
+      },
+      "tags": [
+        "packaging",
+        "archive",
+        "filesystem"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0008",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "composer/composer",
+      "number": 13006,
+      "baseSha": "bd9d7f34305f523bd691f3fe2c28f6c283b391ed",
+      "headSha": "200b93c45992d74a82b6a8e837b5f4aed3aa7b2f",
+      "title": "feat: #13002 Improve logging of failed download URLs by adding filename to message",
+      "description": "Adds the failing filename (sanitized via Url::sanitize) to the warning and RepositorySecurityException messages emitted in ComposerRepository when a package metadata file fails to download or fails signature verification, to make troubleshooting such failures easier.",
+      "changedFiles": 1,
+      "addedLines": 4,
+      "deletedLines": 4,
+      "commits": 3,
+      "language": "PHP",
+      "labels": [],
+      "diff": "diff --git a/src/Composer/Repository/ComposerRepository.php b/src/Composer/Repository/ComposerRepository.php\nindex 4e0c3df5c437..d713c3094c36 100644\n--- a/src/Composer/Repository/ComposerRepository.php\n+++ b/src/Composer/Repository/ComposerRepository.php\n@@ -1775,7 +1775,7 @@ protected function fetchFile(string $filename, ?string $cacheKey = null, ?string\n                     }\n \n                     // TODO use scarier wording once we know for sure it doesn't do false positives anymore\n-                    throw new RepositorySecurityException('The contents of '.$filename.' do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake.');\n+                    throw new RepositorySecurityException('The contents of '.Url::sanitize($filename).' do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake.');\n                 }\n \n                 if ($this->eventDispatcher) {\n@@ -1815,7 +1815,7 @@ protected function fetchFile(string $filename, ?string $cacheKey = null, ?string\n \n                 if ($cacheKey && ($contents = $this->cache->read($cacheKey))) {\n                     if (!$this->degradedMode) {\n-                        $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                        $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n                     }\n                     $this->degradedMode = true;\n                     $data = JsonFile::parseJson($contents, $this->cache->getRoot().$cacheKey);\n@@ -1892,7 +1892,7 @@ private function fetchFileIfLastModified(string $filename, string $cacheKey, str\n             }\n \n             if (!$this->degradedMode) {\n-                $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                $this->io->writeError('<warning>'.Url::sanitize($this->url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n             }\n             $this->degradedMode = true;\n \n@@ -1992,7 +1992,7 @@ private function asyncFetchFile(string $filename, string $cacheKey, ?string $las\n             }\n \n             if (!$degradedMode) {\n-                $io->writeError('<warning>'.Url::sanitize($url).' could not be fully loaded ('.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n+                $io->writeError('<warning>'.Url::sanitize($url).' could not be fully loaded ('.Url::sanitize($filename).': '.$e->getMessage().'), package information was loaded from the local cache and may be out of date</warning>');\n             }\n             $degradedMode = true;\n "
+    },
+    "testCase": {
+      "id": "kbc_tc_0008",
+      "title": "Re-archiving the same package version multiple times yields files with consistent, source-matching modification times",
+      "preconditions": "Same package/archive setup as above, with the zip format selected for archiving.",
+      "steps": [
+        "Archive the package once and extract it, recording the modification timestamp of each file.",
+        "Archive the same package a second time, as would happen when a package repository re-indexes it, and extract the second archive."
+      ],
+      "expectedResult": "Both extractions show file modification timestamps matching the original source timestamps, and neither extraction contains files dated 1 January 1980."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-31T13:10:33Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "package archiving (zip) timestamp preservation",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/composer/composer/pull/13006",
+        "issueUrl": "https://github.com/composer/composer/issues/11342",
+        "evidenceTestFile": null,
+        "note": "Issue #11342 ('ArchiveManager::archive() doesn't appear to preserve file timestamps') was opened 2023-02-20 and confirmed the same day by a contributor (stof, CONTRIBUTOR: 'Zip archives are storing the file modification time. However, the ZipArchiver implemented in Composer does not use ZipArchive::setMTimeName... This should be an easy fix though.'), with further discussion about PHP version compatibility. The issue remains OPEN (closedAt null) as of verification. PR #13006 merged 2026-07-31 only touches src/Composer/Repository/ComposerRepository.php to sanitize a filename in log/exception messages, unrelated to src/Composer/Package/Archiver/ArchiveManager.php or any zip-writing code, so the timestamp-preservation defect described in #11342 is present at both the base and head revisions of PR #13006."
+      },
+      "tags": [
+        "packaging",
+        "archive",
+        "filesystem"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0009",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "dotnet/runtime",
+      "number": 130636,
+      "baseSha": "8a5301832157c4740b8c85ee25086762b29af531",
+      "headSha": "1fb90df4775f778fdf7d56dd4dd5ed73f2d2c6d0",
+      "title": "Compare CredentialCache prefix path case-sensitively",
+      "description": "Changes CredentialCacheKey.IsPrefix so the path portion of a URI prefix match is compared using ordinal (case-sensitive) comparison instead of case-insensitive comparison, since server paths can be case-sensitive, and additionally includes the trailing path separator in the compared span so a prefix like '/admin/' can no longer match an unrelated sibling path such as '/administrator/...'. Scheme, host, and port matching remain unchanged.",
+      "changedFiles": 2,
+      "addedLines": 66,
+      "deletedLines": 1,
+      "commits": 3,
+      "language": "C#",
+      "labels": [
+        "area-System.Net"
+      ],
+      "diff": "diff --git a/src/libraries/Common/src/System/Net/CredentialCacheKey.cs b/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\nindex fd6c85ed03f2d2..f3507b0600d8d4 100644\n--- a/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\n+++ b/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\n@@ -70,7 +70,15 @@ private bool IsPrefix(Uri uri, int prefixLen)\n                 return false;\n             }\n \n-            return uri.AbsolutePath.AsSpan(0, UriPrefixLength).Equals(uriPrefix.AbsolutePath.AsSpan(0, UriPrefixLength), StringComparison.OrdinalIgnoreCase);\n+            // Compare the path prefix including the trailing '/' delimiter (UriPrefixLength points at\n+            // the last '/' in the prefix path). Including that delimiter ensures the prefix only matches\n+            // at a path-segment boundary, so a prefix such as \"/admin/\" does not incorrectly match a\n+            // sibling path like \"/administrator/...\".\n+            //\n+            // The path on the server may be case-sensitive, so the path portion is compared\n+            // case-sensitively (scheme, host, and port are already matched above).\n+            int compareLength = UriPrefixLength + 1;\n+            return uri.AbsolutePath.AsSpan(0, compareLength).Equals(uriPrefix.AbsolutePath.AsSpan(0, compareLength), StringComparison.Ordinal);\n         }\n \n         public override int GetHashCode() =>\ndiff --git a/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs b/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\nindex 6895fabba4f1b9..a7fd8d8230307c 100644\n--- a/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\n+++ b/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\n@@ -283,6 +283,63 @@ public static void GetCredential_LongerUriButShorterMatch()\n             Assert.Equal(nc, credential2);\n         }\n \n+        [Fact]\n+        public static void GetCredential_PathCaseMismatch_ReturnsNull()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            // Use a multi-segment path so the compared prefix (everything up to the last '/')\n+            // is non-empty and includes characters whose case can differ.\n+            cc.Add(new Uri(\"http://microsoft:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // The path is compared case-sensitively, so a differently-cased path must not match.\n+            NetworkCredential nc = cc.GetCredential(new Uri(\"http://microsoft:80/casesensitive/path\"), authenticationType1);\n+            Assert.Null(nc);\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_PathCaseMatch_ReturnsCredential()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // Exact-case prefix match, including a longer request URI to exercise prefix matching.\n+            NetworkCredential nc = cc.GetCredential(new Uri(\"http://microsoft:80/CaseSensitive/path/resource\"), authenticationType1);\n+            Assert.Equal(credential1, nc);\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_HostCaseInsensitivePathCaseSensitive()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://MICROSOFT:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // Host comparison remains case-insensitive while the path portion is case-sensitive.\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/CaseSensitive/path/resource\"), authenticationType1));\n+            Assert.Null(cc.GetCredential(new Uri(\"http://microsoft:80/casesensitive/path/resource\"), authenticationType1));\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_SiblingPath_ReturnsNull()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/admin/\"), authenticationType1, credential1);\n+\n+            // A prefix of \"/admin/\" must only match resources under that directory, not a sibling\n+            // path such as \"/administrator/...\" that merely shares a leading substring.\n+            Assert.Null(cc.GetCredential(new Uri(\"http://microsoft:80/administrator/something\"), authenticationType1));\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_ChildAndExactPath_ReturnsCredential()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/admin/\"), authenticationType1, credential1);\n+\n+            // The directory itself and resources under it must still match.\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/admin/\"), authenticationType1));\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/admin/something\"), authenticationType1));\n+        }\n+\n         [Fact]\n         public static void GetCredential_UriAuthenticationType_Invalid()\n         {"
+    },
+    "testCase": {
+      "id": "kbc_tc_0009",
+      "title": "Asynchronously deserializing a JSON array into a list of objects with a nullable parent property succeeds",
+      "preconditions": "A C# type declares a property whose type is a nullable reference to another object (a nullable parent object), and a JSON array contains a large number of elements exercising that structure.",
+      "steps": [
+        "Serialize a list of objects of this type to a JSON string or stream.",
+        "Deserialize the resulting JSON stream asynchronously using JsonSerializer.DeserializeAsync<List<T>>."
+      ],
+      "expectedResult": "Deserialization completes successfully and returns a list matching the original objects, with no JsonException thrown."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-14T15:24:51Z",
+      "testType": "API",
+      "durationMs": null,
+      "feature": "JSON asynchronous deserialization of nullable parent types",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/dotnet/runtime/pull/130636",
+        "issueUrl": "https://github.com/dotnet/runtime/issues/110450",
+        "evidenceTestFile": null,
+        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636."
+      },
+      "tags": [
+        "serialization",
+        "json",
+        "async"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0010",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "dotnet/runtime",
+      "number": 130636,
+      "baseSha": "8a5301832157c4740b8c85ee25086762b29af531",
+      "headSha": "1fb90df4775f778fdf7d56dd4dd5ed73f2d2c6d0",
+      "title": "Compare CredentialCache prefix path case-sensitively",
+      "description": "Changes CredentialCacheKey.IsPrefix so the path portion of a URI prefix match is compared using ordinal (case-sensitive) comparison instead of case-insensitive comparison, since server paths can be case-sensitive, and additionally includes the trailing path separator in the compared span so a prefix like '/admin/' can no longer match an unrelated sibling path such as '/administrator/...'. Scheme, host, and port matching remain unchanged.",
+      "changedFiles": 2,
+      "addedLines": 66,
+      "deletedLines": 1,
+      "commits": 3,
+      "language": "C#",
+      "labels": [
+        "area-System.Net"
+      ],
+      "diff": "diff --git a/src/libraries/Common/src/System/Net/CredentialCacheKey.cs b/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\nindex fd6c85ed03f2d2..f3507b0600d8d4 100644\n--- a/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\n+++ b/src/libraries/Common/src/System/Net/CredentialCacheKey.cs\n@@ -70,7 +70,15 @@ private bool IsPrefix(Uri uri, int prefixLen)\n                 return false;\n             }\n \n-            return uri.AbsolutePath.AsSpan(0, UriPrefixLength).Equals(uriPrefix.AbsolutePath.AsSpan(0, UriPrefixLength), StringComparison.OrdinalIgnoreCase);\n+            // Compare the path prefix including the trailing '/' delimiter (UriPrefixLength points at\n+            // the last '/' in the prefix path). Including that delimiter ensures the prefix only matches\n+            // at a path-segment boundary, so a prefix such as \"/admin/\" does not incorrectly match a\n+            // sibling path like \"/administrator/...\".\n+            //\n+            // The path on the server may be case-sensitive, so the path portion is compared\n+            // case-sensitively (scheme, host, and port are already matched above).\n+            int compareLength = UriPrefixLength + 1;\n+            return uri.AbsolutePath.AsSpan(0, compareLength).Equals(uriPrefix.AbsolutePath.AsSpan(0, compareLength), StringComparison.Ordinal);\n         }\n \n         public override int GetHashCode() =>\ndiff --git a/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs b/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\nindex 6895fabba4f1b9..a7fd8d8230307c 100644\n--- a/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\n+++ b/src/libraries/System.Net.Primitives/tests/FunctionalTests/CredentialCacheTest.cs\n@@ -283,6 +283,63 @@ public static void GetCredential_LongerUriButShorterMatch()\n             Assert.Equal(nc, credential2);\n         }\n \n+        [Fact]\n+        public static void GetCredential_PathCaseMismatch_ReturnsNull()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            // Use a multi-segment path so the compared prefix (everything up to the last '/')\n+            // is non-empty and includes characters whose case can differ.\n+            cc.Add(new Uri(\"http://microsoft:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // The path is compared case-sensitively, so a differently-cased path must not match.\n+            NetworkCredential nc = cc.GetCredential(new Uri(\"http://microsoft:80/casesensitive/path\"), authenticationType1);\n+            Assert.Null(nc);\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_PathCaseMatch_ReturnsCredential()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // Exact-case prefix match, including a longer request URI to exercise prefix matching.\n+            NetworkCredential nc = cc.GetCredential(new Uri(\"http://microsoft:80/CaseSensitive/path/resource\"), authenticationType1);\n+            Assert.Equal(credential1, nc);\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_HostCaseInsensitivePathCaseSensitive()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://MICROSOFT:80/CaseSensitive/path\"), authenticationType1, credential1);\n+\n+            // Host comparison remains case-insensitive while the path portion is case-sensitive.\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/CaseSensitive/path/resource\"), authenticationType1));\n+            Assert.Null(cc.GetCredential(new Uri(\"http://microsoft:80/casesensitive/path/resource\"), authenticationType1));\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_SiblingPath_ReturnsNull()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/admin/\"), authenticationType1, credential1);\n+\n+            // A prefix of \"/admin/\" must only match resources under that directory, not a sibling\n+            // path such as \"/administrator/...\" that merely shares a leading substring.\n+            Assert.Null(cc.GetCredential(new Uri(\"http://microsoft:80/administrator/something\"), authenticationType1));\n+        }\n+\n+        [Fact]\n+        public static void GetCredential_ChildAndExactPath_ReturnsCredential()\n+        {\n+            CredentialCache cc = new CredentialCache();\n+            cc.Add(new Uri(\"http://microsoft:80/admin/\"), authenticationType1, credential1);\n+\n+            // The directory itself and resources under it must still match.\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/admin/\"), authenticationType1));\n+            Assert.Equal(credential1, cc.GetCredential(new Uri(\"http://microsoft:80/admin/something\"), authenticationType1));\n+        }\n+\n         [Fact]\n         public static void GetCredential_UriAuthenticationType_Invalid()\n         {"
+    },
+    "testCase": {
+      "id": "kbc_tc_0010",
+      "title": "Synchronous and asynchronous JSON deserialization of the same payload into a type with a nullable parent property produce equivalent results",
+      "preconditions": "Same C# type and JSON payload as above, containing a nullable parent property and a sizeable array of elements.",
+      "steps": [
+        "Deserialize a JSON payload into List<T> using the synchronous JsonSerializer.Deserialize<T> method and record the result.",
+        "Deserialize the identical JSON payload into the same List<T> type using JsonSerializer.DeserializeAsync<T> from a stream."
+      ],
+      "expectedResult": "Both the synchronous and asynchronous deserialization calls complete successfully and return equivalent object graphs; the asynchronous call does not throw a JsonException in a case where the synchronous call succeeds."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-14T15:24:51Z",
+      "testType": "API",
+      "durationMs": null,
+      "feature": "JSON asynchronous deserialization of nullable parent types",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/dotnet/runtime/pull/130636",
+        "issueUrl": "https://github.com/dotnet/runtime/issues/110450",
+        "evidenceTestFile": null,
+        "note": "Issue #110450 ('System.Text.Json.JsonException thrown when deserializing asynchronously to nullable types') was opened 2024-12-05 and reproduced deterministically by a Microsoft team member (eiriktsarpalis, MEMBER: 'I can reproduce this deterministically in .NET 8... these types of bugs are actually fairly deterministic once you fix the inputs and configuration'), with follow-up repro attempts on .NET 9. A later comment closing it referenced the wrong PR and was retracted by the same maintainer; the issue remains OPEN (closedAt null) as of verification. PR #130636 merged 2026-07-14 only touches src/libraries/Common/src/System/Net/CredentialCacheKey.cs and its test file (HTTP credential-cache prefix matching), with no changes anywhere under System.Text.Json, so the async-deserialization defect described in #110450 is present at both the base and head revisions of PR #130636."
+      },
+      "tags": [
+        "serialization",
+        "json",
+        "async"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0011",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "fluent/fluentd",
+      "number": 5437,
+      "baseSha": "1ad4b370e0882d364a2a7468c6801d39f0d0f528",
+      "headSha": "072b5192f163d47977ffc41548db80780bd744df",
+      "title": "Optimize RFC5424 structured data parsing",
+      "description": "Removes a redundant outer repetition in the RFC5424 structured-data regular expression used by the syslog parser, which repeated an element that already contained a lazy wildcard. On older Ruby versions, malformed input with adjacent structured-data elements could trigger exponential backtracking in that pattern; the lazy match still spans adjacent elements after the change, and a focused timeout regression test protects the invalid-suffix case.",
+      "changedFiles": 2,
+      "addedLines": 12,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": [
+        "backported",
+        "backport to v1.19"
+      ],
+      "diff": "diff --git a/lib/fluent/plugin/parser_syslog.rb b/lib/fluent/plugin/parser_syslog.rb\nindex acf2cbfa71..2b6fcca479 100644\n--- a/lib/fluent/plugin/parser_syslog.rb\n+++ b/lib/fluent/plugin/parser_syslog.rb\n@@ -44,7 +44,7 @@ class SyslogParser < Parser\n       RFC3164_CAPTURES = RFC3164_WITHOUT_TIME_AND_PRI_REGEXP.names.freeze\n       RFC3164_PRI_REGEXP = /^<(?<pri>[0-9]{1,3})>/\n \n-      RFC5424_WITHOUT_TIME_AND_PRI_REGEXP = /(?<host>[!-~]{1,255}) (?<ident>[!-~]{1,48}) (?<pid>[!-~]{1,128}) (?<msgid>[!-~]{1,32}) (?<extradata>(?:\\-|(?:\\[.*?(?<!\\\\)\\])+))(?: (?<message>.+))?\\z/m\n+      RFC5424_WITHOUT_TIME_AND_PRI_REGEXP = /(?<host>[!-~]{1,255}) (?<ident>[!-~]{1,48}) (?<pid>[!-~]{1,128}) (?<msgid>[!-~]{1,32}) (?<extradata>(?:\\-|(?:\\[.*?(?<!\\\\)\\])))(?: (?<message>.+))?\\z/m\n       RFC5424_CAPTURES = RFC5424_WITHOUT_TIME_AND_PRI_REGEXP.names.freeze\n       RFC5424_PRI_REGEXP = /^<(?<pri>\\d{1,3})>\\d\\d{0,2}\\s/\n \ndiff --git a/test/plugin/test_parser_syslog.rb b/test/plugin/test_parser_syslog.rb\nindex 64161f48f7..dcdbca8388 100644\n--- a/test/plugin/test_parser_syslog.rb\n+++ b/test/plugin/test_parser_syslog.rb\n@@ -1,6 +1,7 @@\n require_relative '../helper'\n require 'fluent/test/driver/parser'\n require 'fluent/plugin/parser'\n+require 'timeout'\n \n class SyslogParserTest < ::Test::Unit::TestCase\n   def setup\n@@ -199,6 +200,16 @@ def test_parse_various_characters_for_tag_with_priority(param)\n   end\n \n   class TestRFC5424Regexp < self\n+    def test_rejects_invalid_structured_data_without_excessive_backtracking\n+      text = 'host ident pid msgid ' + ('[example]' * 30) + 'invalid'\n+\n+      match = Timeout.timeout(1) do\n+        Fluent::Plugin::SyslogParser::RFC5424_WITHOUT_TIME_AND_PRI_REGEXP.match(text)\n+      end\n+\n+      assert_nil(match)\n+    end\n+\n     data('regexp' => 'regexp', 'string' => 'string')\n     def test_parse_with_rfc5424_message(param)\n       @parser.configure("
+    },
+    "testCase": {
+      "id": "kbc_tc_0011",
+      "title": "A symlink is created for every distinct metadata-based output file when multiple records with different chunk keys arrive in a single input batch",
+      "preconditions": "The file output plugin is configured with symlink_path using a placeholder derived from a record field, and buffering configured with a chunk key based on that same field.",
+      "steps": [
+        "Configure the output to write records to per-key buffer files and maintain a symlink pointing at the latest file for each key.",
+        "Send a single batch of input containing two records with different values for the key field (for example myid=aa and myid=bb) at the same time.",
+        "Inspect the symlink target files after the batch is flushed to buffer."
+      ],
+      "expectedResult": "A symlink exists and points at the latest buffer file for each distinct key value present in the batch (both the aa and bb symlinks are created), not only for one of them."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-17T02:04:28Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "file output plugin symlink_path placeholder handling",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/fluent/fluentd/pull/5437",
+        "issueUrl": "https://github.com/fluent/fluentd/issues/5099",
+        "evidenceTestFile": null,
+        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437."
+      },
+      "tags": [
+        "logging",
+        "output-plugin",
+        "symlink"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0012",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "fluent/fluentd",
+      "number": 5437,
+      "baseSha": "1ad4b370e0882d364a2a7468c6801d39f0d0f528",
+      "headSha": "072b5192f163d47977ffc41548db80780bd744df",
+      "title": "Optimize RFC5424 structured data parsing",
+      "description": "Removes a redundant outer repetition in the RFC5424 structured-data regular expression used by the syslog parser, which repeated an element that already contained a lazy wildcard. On older Ruby versions, malformed input with adjacent structured-data elements could trigger exponential backtracking in that pattern; the lazy match still spans adjacent elements after the change, and a focused timeout regression test protects the invalid-suffix case.",
+      "changedFiles": 2,
+      "addedLines": 12,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Ruby",
+      "labels": [
+        "backported",
+        "backport to v1.19"
+      ],
+      "diff": "diff --git a/lib/fluent/plugin/parser_syslog.rb b/lib/fluent/plugin/parser_syslog.rb\nindex acf2cbfa71..2b6fcca479 100644\n--- a/lib/fluent/plugin/parser_syslog.rb\n+++ b/lib/fluent/plugin/parser_syslog.rb\n@@ -44,7 +44,7 @@ class SyslogParser < Parser\n       RFC3164_CAPTURES = RFC3164_WITHOUT_TIME_AND_PRI_REGEXP.names.freeze\n       RFC3164_PRI_REGEXP = /^<(?<pri>[0-9]{1,3})>/\n \n-      RFC5424_WITHOUT_TIME_AND_PRI_REGEXP = /(?<host>[!-~]{1,255}) (?<ident>[!-~]{1,48}) (?<pid>[!-~]{1,128}) (?<msgid>[!-~]{1,32}) (?<extradata>(?:\\-|(?:\\[.*?(?<!\\\\)\\])+))(?: (?<message>.+))?\\z/m\n+      RFC5424_WITHOUT_TIME_AND_PRI_REGEXP = /(?<host>[!-~]{1,255}) (?<ident>[!-~]{1,48}) (?<pid>[!-~]{1,128}) (?<msgid>[!-~]{1,32}) (?<extradata>(?:\\-|(?:\\[.*?(?<!\\\\)\\])))(?: (?<message>.+))?\\z/m\n       RFC5424_CAPTURES = RFC5424_WITHOUT_TIME_AND_PRI_REGEXP.names.freeze\n       RFC5424_PRI_REGEXP = /^<(?<pri>\\d{1,3})>\\d\\d{0,2}\\s/\n \ndiff --git a/test/plugin/test_parser_syslog.rb b/test/plugin/test_parser_syslog.rb\nindex 64161f48f7..dcdbca8388 100644\n--- a/test/plugin/test_parser_syslog.rb\n+++ b/test/plugin/test_parser_syslog.rb\n@@ -1,6 +1,7 @@\n require_relative '../helper'\n require 'fluent/test/driver/parser'\n require 'fluent/plugin/parser'\n+require 'timeout'\n \n class SyslogParserTest < ::Test::Unit::TestCase\n   def setup\n@@ -199,6 +200,16 @@ def test_parse_various_characters_for_tag_with_priority(param)\n   end\n \n   class TestRFC5424Regexp < self\n+    def test_rejects_invalid_structured_data_without_excessive_backtracking\n+      text = 'host ident pid msgid ' + ('[example]' * 30) + 'invalid'\n+\n+      match = Timeout.timeout(1) do\n+        Fluent::Plugin::SyslogParser::RFC5424_WITHOUT_TIME_AND_PRI_REGEXP.match(text)\n+      end\n+\n+      assert_nil(match)\n+    end\n+\n     data('regexp' => 'regexp', 'string' => 'string')\n     def test_parse_with_rfc5424_message(param)\n       @parser.configure("
+    },
+    "testCase": {
+      "id": "kbc_tc_0012",
+      "title": "Sending additional records for a previously-seen metadata key after a bulk multi-key batch still updates that key's symlink",
+      "preconditions": "Same file output plugin configuration as above, with an initial multi-key batch already processed once.",
+      "steps": [
+        "Send an initial batch containing records for two different key values in a single input event, as above.",
+        "Send a follow-up input event containing a new record for one of the previously-seen key values.",
+        "Inspect the symlink for that key value after the follow-up record is flushed."
+      ],
+      "expectedResult": "The symlink for the key referenced by the follow-up record is created or updated to point at the new buffer file; every key value that has received data has a corresponding, up-to-date symlink."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-07-17T02:04:28Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "file output plugin symlink_path placeholder handling",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/fluent/fluentd/pull/5437",
+        "issueUrl": "https://github.com/fluent/fluentd/issues/5099",
+        "evidenceTestFile": null,
+        "note": "Issue #5099 ('out_file: By symlink_path, some symlinks are not created with bulk inputs') was opened 2025-09-16, labelled bug, and confirmed by a project contributor (daipom, CONTRIBUTOR: 'It seems to be an old bug of Fluentd... symlink_path supports placeholders... but it should consider @latest_metadata as well.'), who pointed to the specific code path in lib/fluent/plugin/out_file.rb. The issue remains OPEN (closedAt null) as of verification. PR #5437 merged 2026-07-17 only touches lib/fluent/plugin/parser_syslog.rb (the RFC5424 syslog parsing regex) and its test file, entirely unrelated to lib/fluent/plugin/out_file.rb or symlink handling, so the multi-key symlink defect described in #5099 is present at both the base and head revisions of PR #5437."
+      },
+      "tags": [
+        "logging",
+        "output-plugin",
+        "symlink"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0013",
+    "revision": "base",
+    "flipPairId": null,
+    "pr": {
+      "repository": "brettwooldridge/HikariCP",
+      "number": 2402,
+      "baseSha": "bba167f0a28905e8e63083cd7b5cbf479263271a",
+      "headSha": "02109744577c53ada27f363ee0ae804e485666bf",
+      "title": "Avoid virtual-thread yield spin in ConcurrentBag",
+      "description": "Keeps the existing Thread.yield() spin behavior for platform threads in ConcurrentBag's requite()/unreserve() handoff loops, but avoids the yield spin when the returning/unreserving thread is a virtual thread, using a short parkNanos(10us) path instead. Virtual-thread detection is resolved once via a cached MethodHandle so the library can still target Java 11 while detecting virtual threads on Java 19+.",
+      "changedFiles": 2,
+      "addedLines": 91,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Java",
+      "labels": [],
+      "diff": "diff --git a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java b/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\nindex 0cc5a1f17..60cab1cfe 100644\n--- a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\n+++ b/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\n@@ -19,6 +19,9 @@\n import org.slf4j.Logger;\n import org.slf4j.LoggerFactory;\n \n+import java.lang.invoke.MethodHandle;\n+import java.lang.invoke.MethodHandles;\n+import java.lang.invoke.MethodType;\n import java.lang.ref.WeakReference;\n import java.util.ArrayList;\n import java.util.Collections;\n@@ -61,6 +64,7 @@\n public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseable\n {\n    private static final Logger LOGGER = LoggerFactory.getLogger(ConcurrentBag.class);\n+   private static final MethodHandle THREAD_IS_VIRTUAL = resolveThreadIsVirtual();\n \n    private final CopyOnWriteArrayList<T> sharedList;\n    private final boolean useWeakThreadLocals;\n@@ -72,6 +76,31 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab\n \n    private final SynchronousQueue<T> handoffQueue;\n \n+   private static MethodHandle resolveThreadIsVirtual()\n+   {\n+      try {\n+         return MethodHandles.publicLookup()\n+            .findVirtual(Thread.class, \"isVirtual\", MethodType.methodType(boolean.class));\n+      }\n+      catch (NoSuchMethodException | IllegalAccessException e) {\n+         return null;\n+      }\n+   }\n+\n+   static boolean isCurrentThreadVirtual()\n+   {\n+      if (THREAD_IS_VIRTUAL == null) {\n+         return false;\n+      }\n+\n+      try {\n+         return (boolean) THREAD_IS_VIRTUAL.invokeExact(Thread.currentThread());\n+      }\n+      catch (Throwable t) {\n+         return false;\n+      }\n+   }\n+\n    /**\n     * This interface defines the contract for an entry in the ConcurrentBag.\n     * It provides methods to manage the state of the entry, which can be\n@@ -188,11 +217,12 @@ public void requite(final T bagEntry)\n    {\n       bagEntry.setState(STATE_NOT_IN_USE);\n \n+      final var isVirtualThread = isCurrentThreadVirtual();\n       for (int i = 1, waiting = waiters.get(); waiting > 0; i++, waiting = waiters.get()) {\n          if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {\n             return;\n          }\n-         else if ((i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n+         else if (isVirtualThread || (i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n             parkNanos(MICROSECONDS.toNanos(10));\n          }\n          else {\n@@ -319,11 +349,12 @@ public void unreserve(final T bagEntry)\n    {\n       if (bagEntry.compareAndSet(STATE_RESERVED, STATE_NOT_IN_USE)) {\n          // spin until a thread takes it or none are waiting\n+         final var isVirtualThread = isCurrentThreadVirtual();\n          for (int i = 1, waiting = waiters.get(); waiting > 0; i++, waiting = waiters.get()) {\n             if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {\n                return;\n             }\n-            else if ((i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n+            else if (isVirtualThread || (i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n                parkNanos(MICROSECONDS.toNanos(10));\n             }\n             else {\ndiff --git a/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java b/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java\nnew file mode 100644\nindex 000000000..256b9599c\n--- /dev/null\n+++ b/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java\n@@ -0,0 +1,58 @@\n+/*\n+ * Copyright (C) 2026 Brett Wooldridge\n+ *\n+ * Licensed under the Apache License, Version 2.0 (the \"License\");\n+ * you may not use this file except in compliance with the License.\n+ * You may obtain a copy of the License at\n+ *\n+ * http://www.apache.org/licenses/LICENSE-2.0\n+ *\n+ * Unless required by applicable law or agreed to in writing, software\n+ * distributed under the License is distributed on an \"AS IS\" BASIS,\n+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n+ * See the License for the specific language governing permissions and\n+ * limitations under the License.\n+ */\n+\n+package com.zaxxer.hikari.util;\n+\n+import static org.junit.Assert.assertFalse;\n+import static org.junit.Assert.assertTrue;\n+import static org.junit.Assume.assumeTrue;\n+\n+import java.lang.reflect.Method;\n+import java.util.concurrent.atomic.AtomicBoolean;\n+\n+import org.junit.Test;\n+\n+public class ConcurrentBagVirtualThreadTest\n+{\n+   @Test\n+   public void detectsCurrentVirtualThread() throws Exception\n+   {\n+      assertFalse(ConcurrentBag.isCurrentThreadVirtual());\n+\n+      final var ofVirtual = virtualThreadBuilderFactory();\n+      assumeTrue(ofVirtual != null);\n+\n+      final var virtualThreadBuilder = ofVirtual.invoke(null);\n+      final var start = Class.forName(\"java.lang.Thread$Builder$OfVirtual\").getMethod(\"start\", Runnable.class);\n+      final var detected = new AtomicBoolean();\n+\n+      final var virtualThread = (Thread) start.invoke(virtualThreadBuilder,\n+         (Runnable) () -> detected.set(ConcurrentBag.isCurrentThreadVirtual()));\n+      virtualThread.join();\n+\n+      assertTrue(detected.get());\n+   }\n+\n+   private static Method virtualThreadBuilderFactory()\n+   {\n+      try {\n+         return Thread.class.getMethod(\"ofVirtual\");\n+      }\n+      catch (NoSuchMethodException e) {\n+         return null;\n+      }\n+   }\n+}"
+    },
+    "testCase": {
+      "id": "kbc_tc_0013",
+      "title": "Creating a connection pool does not lock on the JVM-wide system properties object",
+      "preconditions": "An application creates a HikariCP connection pool without an explicit pool name, relying on the library to generate one, in a JVM where other threads may concurrently read or write system properties.",
+      "steps": [
+        "From a separate thread, begin a long-running operation that reads or writes a System property.",
+        "Concurrently, on the main thread, construct a new connection pool (HikariDataSource/HikariPool) without specifying a pool name.",
+        "Observe whether pool construction completes without waiting on the other thread's system-properties access."
+      ],
+      "expectedResult": "Pool construction completes promptly and does not block waiting on unrelated code elsewhere in the JVM that is accessing System properties; generating the pool name does not require acquiring a lock shared with arbitrary System.getProperties() callers."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-06-11T13:21:16Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "connection pool initialization / pool name generation locking",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/brettwooldridge/HikariCP/pull/2402",
+        "issueUrl": "https://github.com/brettwooldridge/HikariCP/issues/2104",
+        "evidenceTestFile": null,
+        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402."
+      },
+      "tags": [
+        "concurrency",
+        "connection-pool",
+        "deadlock"
+      ]
+    }
+  },
+  {
+    "id": "kbc_0014",
+    "revision": "head",
+    "flipPairId": null,
+    "pr": {
+      "repository": "brettwooldridge/HikariCP",
+      "number": 2402,
+      "baseSha": "bba167f0a28905e8e63083cd7b5cbf479263271a",
+      "headSha": "02109744577c53ada27f363ee0ae804e485666bf",
+      "title": "Avoid virtual-thread yield spin in ConcurrentBag",
+      "description": "Keeps the existing Thread.yield() spin behavior for platform threads in ConcurrentBag's requite()/unreserve() handoff loops, but avoids the yield spin when the returning/unreserving thread is a virtual thread, using a short parkNanos(10us) path instead. Virtual-thread detection is resolved once via a cached MethodHandle so the library can still target Java 11 while detecting virtual threads on Java 19+.",
+      "changedFiles": 2,
+      "addedLines": 91,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Java",
+      "labels": [],
+      "diff": "diff --git a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java b/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\nindex 0cc5a1f17..60cab1cfe 100644\n--- a/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\n+++ b/src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java\n@@ -19,6 +19,9 @@\n import org.slf4j.Logger;\n import org.slf4j.LoggerFactory;\n \n+import java.lang.invoke.MethodHandle;\n+import java.lang.invoke.MethodHandles;\n+import java.lang.invoke.MethodType;\n import java.lang.ref.WeakReference;\n import java.util.ArrayList;\n import java.util.Collections;\n@@ -61,6 +64,7 @@\n public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseable\n {\n    private static final Logger LOGGER = LoggerFactory.getLogger(ConcurrentBag.class);\n+   private static final MethodHandle THREAD_IS_VIRTUAL = resolveThreadIsVirtual();\n \n    private final CopyOnWriteArrayList<T> sharedList;\n    private final boolean useWeakThreadLocals;\n@@ -72,6 +76,31 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab\n \n    private final SynchronousQueue<T> handoffQueue;\n \n+   private static MethodHandle resolveThreadIsVirtual()\n+   {\n+      try {\n+         return MethodHandles.publicLookup()\n+            .findVirtual(Thread.class, \"isVirtual\", MethodType.methodType(boolean.class));\n+      }\n+      catch (NoSuchMethodException | IllegalAccessException e) {\n+         return null;\n+      }\n+   }\n+\n+   static boolean isCurrentThreadVirtual()\n+   {\n+      if (THREAD_IS_VIRTUAL == null) {\n+         return false;\n+      }\n+\n+      try {\n+         return (boolean) THREAD_IS_VIRTUAL.invokeExact(Thread.currentThread());\n+      }\n+      catch (Throwable t) {\n+         return false;\n+      }\n+   }\n+\n    /**\n     * This interface defines the contract for an entry in the ConcurrentBag.\n     * It provides methods to manage the state of the entry, which can be\n@@ -188,11 +217,12 @@ public void requite(final T bagEntry)\n    {\n       bagEntry.setState(STATE_NOT_IN_USE);\n \n+      final var isVirtualThread = isCurrentThreadVirtual();\n       for (int i = 1, waiting = waiters.get(); waiting > 0; i++, waiting = waiters.get()) {\n          if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {\n             return;\n          }\n-         else if ((i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n+         else if (isVirtualThread || (i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n             parkNanos(MICROSECONDS.toNanos(10));\n          }\n          else {\n@@ -319,11 +349,12 @@ public void unreserve(final T bagEntry)\n    {\n       if (bagEntry.compareAndSet(STATE_RESERVED, STATE_NOT_IN_USE)) {\n          // spin until a thread takes it or none are waiting\n+         final var isVirtualThread = isCurrentThreadVirtual();\n          for (int i = 1, waiting = waiters.get(); waiting > 0; i++, waiting = waiters.get()) {\n             if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {\n                return;\n             }\n-            else if ((i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n+            else if (isVirtualThread || (i & 0xff) == 0xff || (waiting > 1 && i % waiting == 0)) {\n                parkNanos(MICROSECONDS.toNanos(10));\n             }\n             else {\ndiff --git a/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java b/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java\nnew file mode 100644\nindex 000000000..256b9599c\n--- /dev/null\n+++ b/src/test/java/com/zaxxer/hikari/util/ConcurrentBagVirtualThreadTest.java\n@@ -0,0 +1,58 @@\n+/*\n+ * Copyright (C) 2026 Brett Wooldridge\n+ *\n+ * Licensed under the Apache License, Version 2.0 (the \"License\");\n+ * you may not use this file except in compliance with the License.\n+ * You may obtain a copy of the License at\n+ *\n+ * http://www.apache.org/licenses/LICENSE-2.0\n+ *\n+ * Unless required by applicable law or agreed to in writing, software\n+ * distributed under the License is distributed on an \"AS IS\" BASIS,\n+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n+ * See the License for the specific language governing permissions and\n+ * limitations under the License.\n+ */\n+\n+package com.zaxxer.hikari.util;\n+\n+import static org.junit.Assert.assertFalse;\n+import static org.junit.Assert.assertTrue;\n+import static org.junit.Assume.assumeTrue;\n+\n+import java.lang.reflect.Method;\n+import java.util.concurrent.atomic.AtomicBoolean;\n+\n+import org.junit.Test;\n+\n+public class ConcurrentBagVirtualThreadTest\n+{\n+   @Test\n+   public void detectsCurrentVirtualThread() throws Exception\n+   {\n+      assertFalse(ConcurrentBag.isCurrentThreadVirtual());\n+\n+      final var ofVirtual = virtualThreadBuilderFactory();\n+      assumeTrue(ofVirtual != null);\n+\n+      final var virtualThreadBuilder = ofVirtual.invoke(null);\n+      final var start = Class.forName(\"java.lang.Thread$Builder$OfVirtual\").getMethod(\"start\", Runnable.class);\n+      final var detected = new AtomicBoolean();\n+\n+      final var virtualThread = (Thread) start.invoke(virtualThreadBuilder,\n+         (Runnable) () -> detected.set(ConcurrentBag.isCurrentThreadVirtual()));\n+      virtualThread.join();\n+\n+      assertTrue(detected.get());\n+   }\n+\n+   private static Method virtualThreadBuilderFactory()\n+   {\n+      try {\n+         return Thread.class.getMethod(\"ofVirtual\");\n+      }\n+      catch (NoSuchMethodException e) {\n+         return null;\n+      }\n+   }\n+}"
+    },
+    "testCase": {
+      "id": "kbc_tc_0014",
+      "title": "Concurrently starting multiple connection pools without explicit names does not risk a deadlock with unrelated system-property access",
+      "preconditions": "Multiple threads in the same JVM each construct a HikariCP connection pool without an explicit name at approximately the same time that other application code accesses System properties while holding its own lock.",
+      "steps": [
+        "From one thread, acquire a lock on an application-defined object and, while still holding it, read a System property.",
+        "From another thread, hold a different application-defined lock while triggering pool-name generation by creating a connection pool without an explicit name.",
+        "Run both threads concurrently under contention and wait for both to complete."
+      ],
+      "expectedResult": "All pools are constructed successfully within a bounded time, with no deadlock or indefinite hang caused by pool-name generation contending for a lock on the shared system properties object."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-06-11T13:21:16Z",
+      "testType": "INTEGRATION",
+      "durationMs": null,
+      "feature": "connection pool initialization / pool name generation locking",
+      "platform": "linux",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "KNOWN_BROKEN",
+      "provenance": {
+        "prUrl": "https://github.com/brettwooldridge/HikariCP/pull/2402",
+        "issueUrl": "https://github.com/brettwooldridge/HikariCP/issues/2104",
+        "evidenceTestFile": null,
+        "note": "Issue #2104 ('Synchronizing System.getProperties in generatePoolName / Number creates a deadlock-able window') was opened 2023-09-05, labelled bug and volunteer-needed, and confirmed in detail by the community (bvsvas, kialambroca describing the concrete deadlock sequence) with a project collaborator (lfbayer, COLLABORATOR) acknowledging it is a real, unresolved defect ('If someone creates a pull request with a fix for this issue, I will gladly merge it.'). The issue remains OPEN (closedAt null) as of verification. PR #2402 merged 2026-06-11 only touches src/main/java/com/zaxxer/hikari/util/ConcurrentBag.java (pool entry handoff spin/park behavior for virtual threads) and its new test file, and does not touch HikariConfig.java's generatePoolName method or its System.getProperties() synchronization, so the deadlock-prone locking described in #2104 is present at both the base and head revisions of PR #2402."
+      },
+      "tags": [
+        "concurrency",
+        "connection-pool",
+        "deadlock"
+      ]
+    }
+  }
+]
