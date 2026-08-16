@@ -25,6 +25,10 @@ export default defineConfig({
   test: {
     include: ['packages/*/test/**/*.test.ts'],
     environment: 'node',
+    /** The end-to-end suite spawns the real CLI, which needs more than the
+     * 5s default — the seed alone reads and freezes the whole dataset. */
+    testTimeout: 200_000,
+    hookTimeout: 300_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
