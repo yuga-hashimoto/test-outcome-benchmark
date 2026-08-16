@@ -74,25 +74,50 @@ describe('classification metrics', () => {
 });
 
 describe('accuracy denominators', () => {
-  it('separates accuracy over resolved from strict accuracy over attempted', () => {
-    const metrics = aggregateRunMetrics(goldenPredictions(), { bootstrapResamples: 50 });
+  /**
+   * In FORCED mode the model had to commit to a verdict, so failing to
+   * produce one validly is a wrong answer. The headline `accuracy` must use
+   * the attempted denominator — not the resolved one — or a configuration
+   * could climb the leaderboard by emitting malformed output on the cases it
+   * finds hard.
+   */
+  it('scores unresolved forced attempts as wrong: accuracy equals strictAccuracy', () => {
+    const metrics = aggregateRunMetrics(goldenPredictions(), { predictionMode: 'FORCED', bootstrapResamples: 50 });
 
     expect(metrics.counts.attempted).toBe(12);
     expect(metrics.counts.resolved).toBe(11);
     expect(metrics.counts.correct).toBe(7);
+    expect(metrics.accuracy).toBeCloseTo(7 / 12, 12);
+    expect(metrics.strictAccuracy).toBeCloseTo(7 / 12, 12);
+    expect(metrics.accuracy).toBe(metrics.strictAccuracy);
+  });
+
+  /**
+   * SELECTIVE mode is the one place a resolved-denominator accuracy is
+   * legitimate: abstaining is an allowed answer, not a failure, so accuracy
+   * over what the model chose to answer is reported separately from coverage
+   * rather than folded into a single attempted-denominator number.
+   */
+  it('keeps a resolved-denominator accuracy in SELECTIVE mode, separate from coverage', () => {
+    const metrics = aggregateRunMetrics(goldenPredictions(), {
+      predictionMode: 'SELECTIVE',
+      bootstrapResamples: 50,
+    });
+
     expect(metrics.accuracy).toBeCloseTo(7 / 11, 12);
     expect(metrics.strictAccuracy).toBeCloseTo(7 / 12, 12);
+    expect(metrics.selective.coverage).toBeCloseTo(11 / 12, 12);
   });
 
   it('counts contract violations without letting them inflate accuracy', () => {
-    const metrics = aggregateRunMetrics(goldenPredictions(), { bootstrapResamples: 50 });
+    const metrics = aggregateRunMetrics(goldenPredictions(), { predictionMode: 'FORCED', bootstrapResamples: 50 });
 
     expect(metrics.counts.contractViolations).toBe(1);
     expect(metrics.counts.infrastructureErrors).toBe(0);
   });
 
   it('reports the false PASS count separately', () => {
-    const metrics = aggregateRunMetrics(goldenPredictions(), { bootstrapResamples: 50 });
+    const metrics = aggregateRunMetrics(goldenPredictions(), { predictionMode: 'FORCED', bootstrapResamples: 50 });
     expect(metrics.counts.falsePass).toBe(2);
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyDistribution,
   checkDatasetIntegrity,
-  hashCaseIds,
+  hashCases,
   hashPromptContent,
   parseBenchmarkCases,
 } from '@tob/core';
@@ -161,6 +161,14 @@ describe('hashing', () => {
   });
 
   it('hashes a case set independently of ordering', () => {
-    expect(hashCaseIds(['b', 'a'])).toBe(hashCaseIds(['a', 'b']));
+    const a = withGold('a', 'PASS');
+    const b = withGold('b', 'FAIL');
+    expect(hashCases([b, a])).toBe(hashCases([a, b]));
+  });
+
+  it('changes when a case changes content under the same id', () => {
+    const original = withGold('a', 'PASS');
+    const mutated = withGold('a', 'FAIL');
+    expect(hashCases([original])).not.toBe(hashCases([mutated]));
   });
 });

@@ -113,6 +113,13 @@ describe('importing a run', () => {
     expect(getRun(db, result.run.id)?.status).toBe('COMPLETED');
   });
 
+  /**
+   * The bug this guards against: a harness that only answers the easy cases
+   * must not look like one that answered everything and got it all right.
+   * Answering 1 of 4 correctly is 25% accuracy, not 100% — the 3 unanswered
+   * cases stay in the denominator as recorded failures, not as absent rows a
+   * naive `predictions.length` could undercount.
+   */
   it('reports cases the harness never answered instead of hiding them', () => {
     const { db, version, prompt, model } = setup();
 
@@ -125,7 +132,10 @@ describe('importing a run', () => {
 
     expect(result.imported).toBe(1);
     expect(result.missing).toBe(3);
-    expect(result.metrics.counts.attempted).toBe(1);
+    expect(result.metrics.counts.attempted).toBe(4);
+    expect(result.metrics.counts.resolved).toBe(1);
+    expect(result.metrics.accuracy).toBeCloseTo(0.25, 10);
+    expect(result.metrics.strictAccuracy).toBeCloseTo(0.25, 10);
   });
 
   it('ignores answers for cases outside the dataset version and says so', () => {
@@ -145,7 +155,13 @@ describe('importing a run', () => {
     expect(result.unmatched).toEqual(['not-a-case']);
   });
 
-  it('records an unusable verdict as an output-contract violation', () => {
+  /**
+   * setup() has 4 cases. Two get an explicit unusable verdict; the other two
+   * are never answered at all. Both kinds are contract violations — an
+   * unanswered case is scored exactly like one the harness answered badly,
+   * not silently excluded from the denominator.
+   */
+  it('records an unusable verdict as an output-contract violation, same as never answering', () => {
     const { db, version, prompt, model } = setup();
 
     const result = importRun(db, {
@@ -158,9 +174,13 @@ describe('importing a run', () => {
       ],
     });
 
-    expect(result.metrics.counts.contractViolations).toBe(2);
+    expect(result.imported).toBe(2);
+    expect(result.missing).toBe(2);
+    expect(result.metrics.counts.attempted).toBe(4);
+    expect(result.metrics.counts.contractViolations).toBe(4);
     expect(result.metrics.counts.resolved).toBe(0);
-    expect(result.metrics.accuracy).toBeNull();
+    /** FORCED mode: 0 correct of 4 attempted is a defined 0%, not "no data". */
+    expect(result.metrics.accuracy).toBe(0);
     expect(result.metrics.strictAccuracy).toBe(0);
   });
 

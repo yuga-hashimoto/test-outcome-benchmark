@@ -1,0 +1,26 @@
+{"caseId":"js_0001","repetition":0,"verdict":"FAIL","confidence":0.85,"reason":"At base, single Y matches REGEX_FORMAT and falls through to UTC-offset fallback; expected literal Y, so test fails."}
+{"caseId":"js_0002","repetition":0,"verdict":"PASS","confidence":0.85,"reason":"At head, REGEX_FORMAT only matches YYYY/YY, so lone Y and YYY pass through (or YY matched then Y remains), yielding literal Y and YY+Y."}
+{"caseId":"js_0011","repetition":0,"verdict":"PASS","confidence":0.8,"reason":"Refactor only relocates tryDecodeURIComponent; percent-encoded params are still decoded at base."}
+{"caseId":"js_0012","repetition":0,"verdict":"PASS","confidence":0.8,"reason":"Refactor preserves decoding behavior; percent-encoded params decoded at head."}
+{"caseId":"jvm_0003","repetition":0,"verdict":"FAIL","confidence":0.9,"reason":"At base reschedule() updates Redis via zincrby but does not set @score, so in-memory score remains stale."}
+{"caseId":"jvm_0004","repetition":0,"verdict":"PASS","confidence":0.9,"reason":"PR adds @score = at.to_f after zincrby, so in-memory score matches the new time."}
+{"caseId":"jvm_0007","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"PR is about Range header parsing; Content-Type/charset handling is unchanged and works at base."}
+{"caseId":"jvm_0008","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"PR is about Range header parsing; Content-Type/charset handling is unchanged at head."}
+{"caseId":"kbc_0007","repetition":0,"verdict":"PASS","confidence":0.65,"reason":"PR is about logging failed URLs; PHP ZipArchive::addFile preserves mtime by default, so test passes."}
+{"caseId":"kbc_0008","repetition":0,"verdict":"PASS","confidence":0.65,"reason":"PR unrelated to archiving; PHP ZipArchive preserves mtime at head as well."}
+{"caseId":"kbc_0009","repetition":0,"verdict":"PASS","confidence":0.75,"reason":"PR is about CredentialCache path matching; JSON deserialization of nullable parent is unaffected at base."}
+{"caseId":"kbc_0010","repetition":0,"verdict":"PASS","confidence":0.75,"reason":"PR is about CredentialCache path matching; JSON deserialization of nullable parent is unaffected at head."}
+{"caseId":"kbd_0013","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"PR is about FETCH FIRST cursor; INET <<= ANY subnet comparison is unrelated and works at base."}
+{"caseId":"kbd_0014","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"PR is about FETCH FIRST cursor; INET >>= ANY subnet comparison is unrelated and works at head."}
+{"caseId":"py_0001","repetition":0,"verdict":"FAIL","confidence":0.9,"reason":"At base, NO_PROXY=::1 becomes pattern all://*::1, an invalid URL pattern; client construction fails."}
+{"caseId":"py_0002","repetition":0,"verdict":"PASS","confidence":0.9,"reason":"At head, IPv6 NO_PROXY is detected and wrapped as all://[::1], a valid pattern; client constructs successfully."}
+{"caseId":"py_0003","repetition":0,"verdict":"FAIL","confidence":0.85,"reason":"At base, flags != IGNORECASE cause validation to raise ValueError when pat.flags check fails; DOTALL call raises."}
+{"caseId":"py_0004","repetition":0,"verdict":"PASS","confidence":0.85,"reason":"At head, PR fixes flag handling so DOTALL compiles and matches as expected without raising."}
+{"caseId":"rg_0001","repetition":0,"verdict":"FAIL","confidence":0.8,"reason":"At base, recursive parent tracking is broken for chain with group in the middle; result tree is incomplete."}
+{"caseId":"rg_0002","repetition":0,"verdict":"PASS","confidence":0.8,"reason":"PR updates prev_task/prev_res per task in the chain, so parent links are correctly preserved."}
+{"caseId":"rg_0005","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"Test has -- in the middle (not first arg); PR fix is only about -- as first arg, so behavior is unchanged at base."}
+{"caseId":"rg_0006","repetition":0,"verdict":"PASS","confidence":0.7,"reason":"Test has -- in the middle; PR fix does not change this case, so test still passes at head."}
+{"caseId":"rgf_0009","repetition":0,"verdict":"PASS","confidence":0.55,"reason":"At base, OSC11 response after VimEnter triggers OptionSet via nvim_set_option_value; ColorScheme also fires, so test passes."}
+{"caseId":"rgf_0010","repetition":0,"verdict":"FAIL","confidence":0.55,"reason":"At head, PR uses :noautocmd set background which suppresses both OptionSet and ColorScheme autocmds; neither fires."}
+{"caseId":"sa_0007","repetition":0,"verdict":"PASS","confidence":0.75,"reason":"PR only reorders internal checks around derive attribute; required-field validation logic is unchanged at base."}
+{"caseId":"sa_0008","repetition":0,"verdict":"PASS","confidence":0.75,"reason":"PR only reorders internal checks; required-field validation works at head as well."}

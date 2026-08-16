@@ -7,6 +7,7 @@ import {
   formalBenchmarkRuns,
   paretoFront,
   rankRuns,
+  rankRunsInScope,
 } from '@tob/core';
 import { latency, prediction, usage } from './helpers';
 import type { RunSummary } from '@tob/core';
@@ -68,7 +69,7 @@ const summary = (
     resolved: 10,
     finishedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
-    metrics: aggregateRunMetrics(predictions, { bootstrapResamples: 20 }),
+    metrics: aggregateRunMetrics(predictions, { predictionMode: 'FORCED', bootstrapResamples: 20 }),
   };
 };
 
@@ -126,6 +127,63 @@ describe('ranking', () => {
     });
 
     expect(formalBenchmarkRuns([mock, openai]).map((run) => run.runId)).toEqual(['real']);
+  });
+});
+
+describe('scoped ranking', () => {
+  /**
+   * The bug this guards against: a 2-case dev-split run at 100% accuracy must
+   * not outrank a 10-case full-dataset run at 80% accuracy just because both
+   * were fed into the same table. They are estimates over different samples,
+   * so only the larger group — the dominant scope — gets ranked; the small
+   * one is reported as excluded instead of silently mixed in.
+   */
+  it('ranks only within the scope shared by the most runs, excluding the rest', () => {
+    const full = [
+      summary({ runId: 'a', modelName: 'A', accuracy: 0.8, datasetVersion: 1, split: 'test' }),
+      summary({ runId: 'b', modelName: 'B', accuracy: 0.6, datasetVersion: 1, split: 'test' }),
+    ];
+    const dev = summary({
+      runId: 'c',
+      modelName: 'C',
+      accuracy: 1,
+      datasetVersion: 1,
+      split: 'dev',
+    });
+
+    const { scope, ranked, excluded } = rankRunsInScope([...full, dev], 'accuracy');
+
+    expect(scope).toEqual({ datasetVersion: 1, split: 'test' });
+    expect(ranked.map((entry) => entry.summary.modelName)).toEqual(['A', 'B']);
+    expect(excluded.map((entry) => entry.runId)).toEqual(['c']);
+  });
+
+  it('reports no exclusions when every run shares one scope', () => {
+    const runs = [
+      summary({ runId: 'a', modelName: 'A', accuracy: 0.8 }),
+      summary({ runId: 'b', modelName: 'B', accuracy: 0.6 }),
+    ];
+
+    const { excluded, ranked } = rankRunsInScope(runs, 'accuracy');
+    expect(excluded).toHaveLength(0);
+    expect(ranked).toHaveLength(2);
+  });
+
+  it('never lets a small-sample outlier win a dashboard highlight over the dominant scope', () => {
+    const full = [
+      summary({ runId: 'a', modelName: 'A', accuracy: 0.8, datasetVersion: 1, split: 'test' }),
+      summary({ runId: 'b', modelName: 'B', accuracy: 0.6, datasetVersion: 1, split: 'test' }),
+    ];
+    const dev = summary({
+      runId: 'c',
+      modelName: 'C',
+      accuracy: 1,
+      datasetVersion: 1,
+      split: 'dev',
+    });
+
+    const highlights = dashboardHighlights([...full, dev]);
+    expect(highlights.find((item) => item.id === 'best-accuracy')?.summary?.modelName).toBe('A');
   });
 });
 

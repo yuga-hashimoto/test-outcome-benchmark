@@ -185,7 +185,7 @@ describe('run report', () => {
         { ...basePrediction(), goldVerdict: 'PASS', predictedVerdict: 'PASS' },
         { ...basePrediction(), goldVerdict: 'FAIL', predictedVerdict: 'PASS' },
       ],
-      { bootstrapResamples: 10 },
+      { predictionMode: 'FORCED', bootstrapResamples: 10 },
     );
 
     const report = renderRunReport(metrics, 'demo run');
@@ -199,7 +199,7 @@ describe('run report', () => {
 
   /** Timing present but no first-token time: the response simply was not streamed. */
   it('says so when nothing was streamed rather than showing a blank latency', () => {
-    const metrics = aggregateRunMetrics([basePrediction()], { bootstrapResamples: 10 });
+    const metrics = aggregateRunMetrics([basePrediction()], { predictionMode: 'FORCED', bootstrapResamples: 10 });
 
     expect(renderRunReport(metrics, 'demo')).toContain('no response was streamed');
   });
@@ -208,6 +208,7 @@ describe('run report', () => {
    * misattribute it — an imported run has no per-request timing to begin with. */
   it('distinguishes a run with no timing at all from a non-streamed one', () => {
     const metrics = aggregateRunMetrics([{ ...basePrediction(), latency: null }], {
+      predictionMode: 'FORCED',
       bootstrapResamples: 10,
     });
 

@@ -11,6 +11,7 @@ import {
   getModelConfig,
   getPrompt,
   getRun,
+  getRunWallClock,
   getVersion,
   listCases,
   saveRunMetrics,
@@ -181,15 +182,24 @@ export const resumeRun = async (db: Db, input: ResumeRunInput): Promise<StartRun
   return { ...result, run: getRun(db, run.id) ?? run };
 };
 
-/** Rescores stored predictions, e.g. after a scoring change. No model calls. */
+/**
+ * Rescores stored predictions, e.g. after a scoring change. No model calls,
+ * so no new timing information exists — the previously recorded wall-clock
+ * time is carried forward rather than overwritten with null, which would
+ * otherwise silently erase every run's throughput the first time its scoring
+ * is recomputed.
+ */
 export const recomputeRunMetrics = (db: Db, runId: string): RunMetrics => {
   const run = getRun(db, runId);
   if (run === null) throw new Error(`Unknown run ${runId}`);
 
+  const wallClockMs = getRunWallClock(db, runId);
   const metrics = aggregateRunMetrics(buildEvaluatedPredictions(db, runId), {
+    predictionMode: run.config.predictionMode,
     seed: run.config.seed,
+    wallClockMs,
   });
-  saveRunMetrics(db, runId, metrics, null);
+  saveRunMetrics(db, runId, metrics, wallClockMs);
   return metrics;
 };
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { InfrastructureError } from '@tob/core';
 import { createMockAdapter } from '@tob/providers';
 import { executeRun } from '@tob/runner';
-import { getRun, getRunMetrics, listPredictions, listWarnings } from '@tob/db';
+import { getRun, getRunMetrics, listPredictions, listWarnings, saveRunMetrics } from '@tob/db';
 import { createHarness, defaultCases, makeCase } from './harness';
 import type { ModelAdapter, ModelRequest, ModelResponse } from '@tob/providers';
 import type { Harness } from './harness';
@@ -143,7 +143,9 @@ describe('failure handling', () => {
     const metrics = getRunMetrics(context.handle.db, context.run.id);
     expect(metrics?.counts.contractViolations).toBe(4);
     expect(metrics?.counts.resolved).toBe(0);
-    expect(metrics?.accuracy).toBeNull();
+    /** FORCED mode: nothing resolved is 0% correct, not "no data" — the run
+     * did attempt every case, and got zero of them right. */
+    expect(metrics?.accuracy).toBe(0);
     expect(metrics?.strictAccuracy).toBe(0);
   });
 
@@ -368,6 +370,53 @@ describe('resume and cancellation', () => {
     expect(rerun.executed).toBe(0);
     expect(rerun.skipped).toBe(4);
     expect(rerun.metrics?.counts.attempted).toBe(4);
+  });
+
+  /**
+   * The bug this guards against: throughput computed as (everything on disk)
+   * ÷ (only this session's elapsed time) makes a resumed run look faster the
+   * more work had already been banked before the resume. The fix carries the
+   * prior session's wall-clock time forward and adds to it, rather than
+   * measuring from a startedAt that resets on every resume.
+   */
+  it('accumulates wall-clock time across a resume instead of resetting it', async () => {
+    const context = harness({ repetitions: 1, concurrency: 1, cases: defaultCases() });
+    const controller = new AbortController();
+    let calls = 0;
+
+    const first = await executeRun({
+      db: context.handle.db,
+      run: context.run,
+      cases: context.cases,
+      prompt: context.prompt,
+      modelConfig: context.modelConfig,
+      signal: controller.signal,
+      adapter: stubAdapter(async () => {
+        calls += 1;
+        if (calls === 2) controller.abort();
+        return okResponse('{"verdict":"PASS","confidence":0.7,"reason":"x"}');
+      }, 1),
+    });
+
+    expect(first.metrics).not.toBeNull();
+    /** Stands in for the first session having taken 5 real seconds, which an
+     * in-memory test with a mock adapter cannot reproduce by actually waiting. */
+    saveRunMetrics(context.handle.db, context.run.id, first.metrics!, 5_000);
+
+    const resumed = await executeRun({
+      db: context.handle.db,
+      run: context.run,
+      cases: context.cases,
+      prompt: context.prompt,
+      modelConfig: context.modelConfig,
+      adapter: stubAdapter(async () =>
+        okResponse('{"verdict":"PASS","confidence":0.7,"reason":"x"}'),
+      ),
+    });
+
+    expect(resumed.status).toBe('COMPLETED');
+    expect(resumed.wallClockMs).toBeGreaterThanOrEqual(5_000);
+    expect(resumed.metrics?.latency.wallClockMs).toBeGreaterThanOrEqual(5_000);
   });
 });
 

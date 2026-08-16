@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, max } from 'drizzle-orm';
-import { checkDatasetIntegrity, hashCaseIds } from '@tob/core';
+import { checkDatasetIntegrity, hashCases } from '@tob/core';
 import { cases, datasetVersions, datasets } from '../schema';
 import { newId, nowIso } from '../ids';
 import type { BenchmarkCase, BenchmarkDataset, DatasetVersion, Split } from '@tob/core';
@@ -104,7 +104,7 @@ export const freezeDatasetVersion = (
     datasetId: input.datasetId,
     version: (previous?.value ?? 0) + 1,
     caseCount: input.cases.length,
-    contentHash: hashCaseIds(input.cases.map((item) => item.id)),
+    contentHash: hashCases(input.cases),
     frozenAt: nowIso(),
     notes: input.notes ?? '',
   };

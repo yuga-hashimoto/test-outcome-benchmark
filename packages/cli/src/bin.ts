@@ -7,7 +7,7 @@ import {
   METRIC_DESCRIPTORS,
   dashboardHighlights,
   formalBenchmarkRuns,
-  rankRuns,
+  rankRunsInScope,
 } from '@tob/core';
 import {
   createModelConfig,
@@ -464,11 +464,16 @@ program
       const metric = options.metric as LeaderboardMetric;
       const descriptor = METRIC_DESCRIPTORS[metric];
 
-      const ranked = rankRuns(summaries, metric);
-      const versions = new Set(ranked.map((entry) => entry.summary.datasetVersion));
+      const { scope, ranked, excluded } = rankRunsInScope(summaries, metric);
       const showsAccuracySeparately = metric !== 'accuracy';
 
-      out(heading(`${descriptor.label} (${descriptor.direction} is better)`));
+      out(
+        heading(
+          `${descriptor.label} (${descriptor.direction} is better) — dataset v${scope?.datasetVersion ?? '?'}${
+            scope?.split === null || scope?.split === undefined ? '' : `/${scope.split}`
+          }`,
+        ),
+      );
       out(
         table([
           [
@@ -476,7 +481,6 @@ program
             'MODEL',
             'PROMPT',
             'STRATEGY',
-            'SCOPE',
             'N',
             descriptor.label.toUpperCase(),
             ...(showsAccuracySeparately ? ['ACCURACY'] : []),
@@ -486,7 +490,6 @@ program
             entry.summary.modelName,
             `${entry.summary.promptName} v${entry.summary.promptVersion}`,
             entry.summary.contextStrategy,
-            `v${entry.summary.datasetVersion}${entry.summary.split === null ? '' : `/${entry.summary.split}`}`,
             String(entry.summary.resolved),
             descriptor.format === 'ratio' ? percent(entry.value) : score(entry.value),
             ...(showsAccuracySeparately ? [percent(entry.summary.metrics.accuracy)] : []),
@@ -494,14 +497,19 @@ program
         ]),
       );
 
-      const scopes = new Set(
-        ranked.map((entry) => `${entry.summary.datasetVersion}:${entry.summary.split ?? 'all'}`),
-      );
-      if (scopes.size > 1) {
+      if (excluded.length > 0) {
+        const otherScopes = [
+          ...new Set(
+            excluded.map(
+              (summary) => `v${summary.datasetVersion}${summary.split === null ? '' : `/${summary.split}`}`,
+            ),
+          ),
+        ];
         out(
-          `\nThese runs were not all scored on the same cases (see SCOPE and N). A score on a small` +
-            `\nsplit and a score on the full dataset estimate the same quantity from different samples,` +
-            `\nso use \`benchmark compare\` to read a difference between two of them.`,
+          `\n${excluded.length} run(s) were left out of this ranking because they were scored on a` +
+            `\ndifferent dataset version or split (${otherScopes.join(', ')}) than the rest — mixing them` +
+            `\nin would rank estimates from different samples against each other. Use \`benchmark compare\`` +
+            `\nto read a difference between two runs on different scopes.`,
         );
       }
 

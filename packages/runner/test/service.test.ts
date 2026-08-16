@@ -190,6 +190,28 @@ describe('recomputeRunMetrics', () => {
     expect(recomputed.accuracy).toBe(first.metrics?.accuracy);
     expect(recomputed.counts.attempted).toBe(8);
   });
+
+  /**
+   * A rescore has no new timing data — recomputing after a scoring change
+   * must not look like the run had zero throughput just because this call
+   * didn't execute anything.
+   */
+  it('keeps the previously recorded wall-clock time instead of erasing it', async () => {
+    const { db, version, prompt, model } = setup();
+
+    const first = await startRun(db, {
+      datasetVersionId: version.id,
+      modelConfigId: model.id,
+      promptId: prompt.id,
+      repetitions: 2,
+    });
+
+    expect(first.metrics?.latency.wallClockMs).not.toBeNull();
+
+    const recomputed = recomputeRunMetrics(db, first.run.id);
+
+    expect(recomputed.latency.wallClockMs).toBe(first.metrics?.latency.wallClockMs);
+  });
 });
 
 describe('compareRuns', () => {

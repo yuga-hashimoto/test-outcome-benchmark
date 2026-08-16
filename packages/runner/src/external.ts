@@ -11,6 +11,7 @@ import {
 import {
   buildEvaluatedPredictions,
   createRun,
+  getDataset,
   getModelConfig,
   getPrompt,
   getRun,
@@ -124,10 +125,15 @@ export interface ImportRunInput {
 export interface ImportRunResult {
   readonly run: BenchmarkRun;
   readonly metrics: RunMetrics;
+  /** Answers actually matched to a case in this dataset version. */
   readonly imported: number;
   /** Answers whose case id is not in this dataset version. */
   readonly unmatched: readonly string[];
-  /** Cases the harness never answered. */
+  /**
+   * Cases the harness never answered. These are recorded as explicit failing
+   * rows (predictedVerdict: null), not omitted — see importRun's doc comment
+   * for why omitting them would be a scoring bug, not a convenience.
+   */
   readonly missing: number;
 }
 
@@ -150,13 +156,22 @@ const usageFrom = (partial: Partial<TokenUsage> | undefined): TokenUsage => {
  *
  * Everything downstream — scoring, intervals, leaderboards, comparison — treats
  * it identically to a run this process executed, because the scoring engine
- * only ever sees predictions. What differs is that unanswered cases are
- * reported rather than silently dropped: a harness that skipped the hard cases
- * would otherwise look like one that answered them all correctly.
+ * only ever sees predictions. The critical property this function has to
+ * preserve is the denominator: every case×repetition the run was supposed to
+ * answer gets a row, whether the harness answered it or not. A harness that
+ * only attempts the easy cases and skips the rest must not be able to look
+ * like one that attempted and got everything right — skipping a case is
+ * scored as if the model answered it and got it wrong, exactly like a native
+ * run's provider failure would be. Confidence, threshold and coverage metrics
+ * that need to distinguish "resolved to a verdict" from "never attempted"
+ * still can, via each prediction's `error.code`.
  */
 export const importRun = (db: Db, input: ImportRunInput): ImportRunResult => {
   const version = getVersion(db, input.datasetVersionId);
   if (version === null) throw new Error(`Unknown dataset version ${input.datasetVersionId}`);
+
+  const dataset = getDataset(db, version.datasetId);
+  if (dataset === null) throw new Error(`Unknown dataset ${version.datasetId}`);
 
   const modelConfig = getModelConfig(db, input.modelConfigId);
   if (modelConfig === null) throw new Error(`Unknown model configuration ${input.modelConfigId}`);
@@ -188,7 +203,7 @@ export const importRun = (db: Db, input: ImportRunInput): ImportRunResult => {
 
   const snapshot: RunSnapshot = {
     datasetId: version.datasetId,
-    datasetName: version.datasetId,
+    datasetName: dataset.name,
     datasetVersion: version.version,
     datasetContentHash: version.contentHash,
     modelName: modelConfig.name,
@@ -281,9 +296,48 @@ export const importRun = (db: Db, input: ImportRunInput): ImportRunResult => {
     imported += 1;
   }
 
-  setCompletedCount(db, run.id, imported);
+  /**
+   * Every case×repetition the run promised to score gets a row. One that the
+   * harness never answered is recorded as a resolved-nothing failure — the
+   * same shape a native run stores when a provider call never comes back —
+   * so it counts against the denominator instead of vanishing from it.
+   */
+  let missing = 0;
+  for (const benchmarkCase of cases.values()) {
+    for (let repetition = 0; repetition < repetitions; repetition += 1) {
+      const key = `${benchmarkCase.id}::${repetition}`;
+      if (answered.has(key)) continue;
+
+      recordPrediction(db, {
+        runId: run.id,
+        caseId: benchmarkCase.id,
+        repetition,
+        goldVerdict: benchmarkCase.gold.result,
+        predictedVerdict: null,
+        confidence: null,
+        reason: null,
+        evidence: [],
+        requiresRuntimeInformation: null,
+        rawResponse: '',
+        usage: emptyUsage(),
+        latency: null,
+        costUsd: null,
+        error: {
+          kind: 'OUTPUT_CONTRACT',
+          code: 'NOT_ANSWERED',
+          message: 'The harness never produced an answer for this case.',
+          attempts: 0,
+        },
+        warnings: [],
+      });
+      missing += 1;
+    }
+  }
+
+  setCompletedCount(db, run.id, imported + missing);
 
   const metrics = aggregateRunMetrics(buildEvaluatedPredictions(db, run.id), {
+    predictionMode: config.predictionMode,
     seed: config.seed,
     wallClockMs: input.wallClockMs ?? null,
   });
@@ -296,7 +350,7 @@ export const importRun = (db: Db, input: ImportRunInput): ImportRunResult => {
     metrics,
     imported,
     unmatched,
-    missing: cases.size * repetitions - answered.size,
+    missing,
   };
 };
 

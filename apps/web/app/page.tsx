@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { dashboardHighlights, formalBenchmarkRuns, paretoFront, rankRuns } from '@tob/core';
+import { dashboardHighlights, formalBenchmarkRuns, paretoFront, rankRunsInScope } from '@tob/core';
 import { listRunSummaries } from '@tob/db';
 import { ScatterChart } from '@/components/ScatterChart';
 import { Bar, Empty, Note, Stat } from '@/components/Stat';
@@ -43,9 +43,9 @@ export default function DashboardPage() {
     );
   }
 
-  const best = rankRuns(summaries, 'accuracy')[0];
+  const { scope, ranked: accuracyRanked, excluded } = rankRunsInScope(summaries, 'accuracy');
+  const best = accuracyRanked[0];
   const highlights = dashboardHighlights(summaries);
-  const versions = new Set(summaries.map((summary) => summary.datasetVersion));
 
   return (
     <>
@@ -77,17 +77,25 @@ export default function DashboardPage() {
         />
         <Stat
           label="Best flip pair accuracy"
-          value={percent(rankRuns(summaries, 'flipPairAccuracy')[0]?.value ?? null)}
+          value={percent(rankRunsInScope(summaries, 'flipPairAccuracy').ranked[0]?.value ?? null)}
           note="Both sides of a change correct"
         />
-        <Stat label="Completed runs" value={count(summaries.length)} note={`${versions.size} dataset version${versions.size === 1 ? '' : 's'}`} />
+        <Stat
+          label="Completed runs"
+          value={count(summaries.length)}
+          note={
+            scope === null
+              ? undefined
+              : `${accuracyRanked.length} on dataset v${scope.datasetVersion}${scope.split === null ? '' : `/${scope.split}`}`
+          }
+        />
       </div>
 
-      {versions.size > 1 && (
+      {excluded.length > 0 && (
         <Note tone="warn">
-          These runs span {versions.size} dataset versions. Scores from different case sets are not
-          directly comparable — filter to a single version before reading a ranking as a
-          head-to-head.
+          {excluded.length} completed run(s) were scored on a different dataset version or split
+          and are left out of the leaderboard below — scores from different case sets are not
+          directly comparable. See the Runs page for the full list.
         </Note>
       )}
 
@@ -98,7 +106,6 @@ export default function DashboardPage() {
             <tr>
               <th>#</th>
               <th className="wrap">Configuration</th>
-              <th>Scope</th>
               <th className="num">n</th>
               <th className="num">Accuracy</th>
               <th className="num">95% interval</th>
@@ -108,7 +115,7 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {rankRuns(summaries, 'accuracy').map((entry) => (
+            {accuracyRanked.map((entry) => (
               <tr key={entry.summary.runId}>
                 <td className="muted">{entry.rank}</td>
                 <td className="wrap">
@@ -117,10 +124,6 @@ export default function DashboardPage() {
                     · {entry.summary.promptName} v{entry.summary.promptVersion} ·{' '}
                     {entry.summary.contextStrategy}
                   </span>
-                </td>
-                <td className="muted">
-                  v{entry.summary.datasetVersion}
-                  {entry.summary.split === null ? '' : ` · ${entry.summary.split}`}
                 </td>
                 <td className="num muted">{entry.summary.resolved}</td>
                 <td className="num">

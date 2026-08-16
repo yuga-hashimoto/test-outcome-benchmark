@@ -166,6 +166,70 @@ export const rankRuns = (
   return scored.map((entry, index) => ({ rank: index + 1, ...entry }));
 };
 
+export interface Scope {
+  readonly datasetVersion: number;
+  readonly split: string | null;
+}
+
+const scopeKey = (summary: RunSummary): string =>
+  `${summary.datasetVersion}:${summary.split ?? 'all'}`;
+
+/**
+ * The (dataset version, split) pair used by the largest number of runs. A
+ * run's accuracy is an estimate over the specific sample it was scored on,
+ * so a 24-case dev-split run and a 124-case full-dataset run are estimates
+ * of different quantities — this is what a ranking should hold fixed rather
+ * than mix, the same way it already holds prompt and context strategy fixed.
+ */
+export const dominantScope = (summaries: readonly RunSummary[]): Scope | null => {
+  if (summaries.length === 0) return null;
+
+  const counts = new Map<string, { scope: Scope; count: number }>();
+  for (const summary of summaries) {
+    const key = scopeKey(summary);
+    const entry = counts.get(key);
+    counts.set(key, {
+      scope: { datasetVersion: summary.datasetVersion, split: summary.split },
+      count: (entry?.count ?? 0) + 1,
+    });
+  }
+
+  const [best] = [...counts.values()].sort((left, right) => right.count - left.count);
+  return best?.scope ?? null;
+};
+
+const inScope = (summaries: readonly RunSummary[], scope: Scope | null): RunSummary[] =>
+  scope === null
+    ? []
+    : summaries.filter(
+        (summary) =>
+          summary.datasetVersion === scope.datasetVersion && summary.split === scope.split,
+      );
+
+export interface ScopedRanking {
+  readonly scope: Scope | null;
+  readonly ranked: RankedRun[];
+  /** Runs excluded because they were scored on a different dataset version or split. */
+  readonly excluded: readonly RunSummary[];
+}
+
+/**
+ * Ranks only within the dominant scope, so a small easier sample can never
+ * outrank a large harder one at the same nominal accuracy. Callers that used
+ * to mix scopes with a footnote warning should use this instead — the
+ * footnote described the problem, this prevents it.
+ */
+export const rankRunsInScope = (
+  summaries: readonly RunSummary[],
+  metric: LeaderboardMetric,
+): ScopedRanking => {
+  const scope = dominantScope(summaries);
+  const scoped = inScope(summaries, scope);
+  const excluded = summaries.filter((summary) => !scoped.includes(summary));
+
+  return { scope, ranked: rankRuns(scoped, metric), excluded };
+};
+
 export interface MatrixCell {
   readonly modelConfigId: string;
   readonly promptId: string;
@@ -236,8 +300,7 @@ const bestBy = (
   id: string,
   label: string,
 ): Highlight => {
-  const ranked = rankRuns(summaries, metric);
-  const top = ranked[0];
+  const top = rankRunsInScope(summaries, metric).ranked[0];
   return {
     id,
     label,

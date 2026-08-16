@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { rankRuns } from '@tob/core';
+import { rankRunsInScope } from '@tob/core';
 import { listRunSummaries } from '@tob/db';
 import { compareRuns } from '@tob/runner';
 import { Empty, Note } from '@/components/Stat';
@@ -24,7 +24,7 @@ export default function CompareIndexPage() {
 
   const runIds = new Set(runs.map((run) => run.id));
   const summaries = listRunSummaries(handle, 200).filter((summary) => runIds.has(summary.runId));
-  const leader = rankRuns(summaries, 'accuracy')[0];
+  const leader = rankRunsInScope(summaries, 'accuracy').ranked[0];
 
   if (leader === undefined) {
     return (

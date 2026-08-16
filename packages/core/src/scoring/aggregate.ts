@@ -16,6 +16,7 @@ import type { ConfidenceInterval } from './stats';
 import type { ConfusionMatrix } from './confusion';
 import type { CostMetrics } from './cost';
 import type { EvaluatedPrediction } from '../domain/prediction';
+import type { PredictionMode } from '../domain/verdict';
 import type { FlipPairMetrics } from './flip-pairs';
 import type { LatencyMetrics } from './latency';
 import type { SafeSkipMetrics } from './safe-skip';
@@ -36,9 +37,19 @@ export interface PredictionCounts {
 
 export interface RunMetrics {
   readonly counts: PredictionCounts;
-  /** Correct ÷ resolved. The headline number. */
+  /**
+   * The headline number, and its definition depends on the run's prediction
+   * mode. In FORCED mode the model was required to commit to a verdict, so
+   * failing to produce one validly is a wrong answer: accuracy = correct ÷
+   * attempted, identical to `strictAccuracy`. In SELECTIVE mode abstaining is
+   * a legitimate choice, so accuracy = correct ÷ resolved, and `selective`
+   * carries coverage as a separate, explicit number rather than folding it
+   * into this one. Either way, a configuration cannot climb the leaderboard by
+   * quietly failing to answer the cases it finds hard.
+   */
   readonly accuracy: number | null;
-  /** Correct ÷ attempted, counting abstentions and malformed output as wrong. */
+  /** Correct ÷ attempted, counting abstentions and malformed output as wrong,
+   * regardless of mode. In FORCED mode this equals `accuracy`. */
   readonly strictAccuracy: number | null;
   readonly accuracyInterval: ConfidenceInterval;
   readonly confusionMatrix: ConfusionMatrix;
@@ -55,6 +66,12 @@ export interface RunMetrics {
 }
 
 export interface AggregateOptions {
+  /**
+   * Required rather than defaulted: which denominator the headline `accuracy`
+   * uses is exactly the thing a silent default would get wrong for someone
+   * who forgot to think about it.
+   */
+  readonly predictionMode: PredictionMode;
   readonly seed?: number | string;
   readonly bootstrapResamples?: number;
   readonly wallClockMs?: number | null;
@@ -63,16 +80,18 @@ export interface AggregateOptions {
 /**
  * Composes every metric from one list of predictions.
  *
- * `accuracy` and `strictAccuracy` are always produced together. Reporting only
- * the first would let a configuration climb the leaderboard by abstaining or by
- * emitting malformed JSON on the cases it finds hard; reporting only the second
- * would conflate "wrong" with "did not answer".
+ * `accuracy` and `strictAccuracy` are always produced together, and in FORCED
+ * mode they are the same number. Reporting only a resolved-denominator
+ * accuracy in FORCED mode would let a configuration climb the leaderboard by
+ * emitting malformed JSON on the cases it finds hard — the failure is scored
+ * as if it never happened rather than as the wrong answer it functionally is.
  */
 export const aggregateRunMetrics = (
   predictions: readonly EvaluatedPrediction[],
-  options: AggregateOptions = {},
+  options: AggregateOptions,
 ): RunMetrics => {
   const seed = options.seed ?? 'aggregate';
+  const isForced = options.predictionMode === 'FORCED';
   const matrix = buildConfusionMatrix(predictions);
   const resolved = resolvedPredictions(predictions);
   const correct = correctCount(matrix);
@@ -94,12 +113,19 @@ export const aggregateRunMetrics = (
     falsePass: falsePassCount(matrix),
   };
 
+  const strictAccuracy = predictions.length === 0 ? null : correct / predictions.length;
+
   return {
     counts,
-    accuracy: resolved.length === 0 ? null : correct / resolved.length,
-    strictAccuracy: predictions.length === 0 ? null : correct / predictions.length,
+    accuracy: isForced
+      ? strictAccuracy
+      : resolved.length === 0
+        ? null
+        : correct / resolved.length,
+    strictAccuracy,
     accuracyInterval: clusterBootstrapAccuracy(predictions, {
       seed: `${seed}:accuracy`,
+      strict: isForced,
       ...(options.bootstrapResamples !== undefined
         ? { resamples: options.bootstrapResamples }
         : {}),

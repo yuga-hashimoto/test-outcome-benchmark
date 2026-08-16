@@ -6,6 +6,7 @@ import {
 import {
   buildEvaluatedPredictions,
   completedAttempts,
+  getRunWallClock,
   incrementCompleted,
   markRunFinished,
   markRunStarted,
@@ -148,11 +149,20 @@ export const executeRun = async (options: ExecuteRunOptions): Promise<ExecuteRun
     };
   }
 
-  const wallClockMs = Date.now() - startedAt;
+  /**
+   * Metrics are computed over everything on disk, including work resumed
+   * from a previous attempt at this run — so the wall-clock denominator has
+   * to match: the previously accumulated time plus this session's, not just
+   * this session's. Using only this session's elapsed time here would let a
+   * resumed run's throughput look arbitrarily higher the more work had
+   * already been done before the resume.
+   */
+  const sessionWallClockMs = Date.now() - startedAt;
+  const previousWallClockMs = getRunWallClock(db, run.id) ?? 0;
+  const wallClockMs = previousWallClockMs + sessionWallClockMs;
 
-  /** Metrics are computed over everything on disk, including work resumed from
-   * a previous attempt at this run. */
   const metrics = aggregateRunMetrics(buildEvaluatedPredictions(db, run.id), {
+    predictionMode: run.config.predictionMode,
     seed: run.config.seed,
     wallClockMs,
   });

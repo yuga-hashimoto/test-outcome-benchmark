@@ -17,6 +17,15 @@ export interface BootstrapOptions {
   readonly resamples?: number;
   readonly level?: number;
   readonly seed?: number | string;
+  /**
+   * When true, the interval is computed over every attempted prediction
+   * rather than only the ones that resolved to a verdict. `accuracyOf`
+   * already counts a null `predictedVerdict` as not matching gold, so this
+   * needs no special-casing beyond widening the pool — it is the same
+   * strict/lenient distinction as `RunMetrics.accuracy` vs `strictAccuracy`,
+   * applied to the interval around whichever one is being reported.
+   */
+  readonly strict?: boolean;
 }
 
 const DEFAULT_RESAMPLES = 1000;
@@ -59,10 +68,10 @@ export const clusterBootstrapAccuracy = (
 ): ConfidenceInterval => {
   const level = options.level ?? DEFAULT_LEVEL;
   const resamples = options.resamples ?? DEFAULT_RESAMPLES;
-  const resolved = resolvedPredictions(predictions);
-  const clusters = groupByCluster(resolved);
+  const pool = options.strict === true ? predictions : resolvedPredictions(predictions);
+  const clusters = groupByCluster(pool);
 
-  const estimate = accuracyOf(resolved);
+  const estimate = accuracyOf(pool);
 
   if (clusters.length < 2 || estimate === null) {
     return { estimate, lower: null, upper: null, level, resamples: 0, clusters: clusters.length };
