@@ -41,7 +41,7 @@ const runExpectingFailure = (...args: string[]): { status: number; stderr: strin
 beforeAll(() => {
   directory = mkdtempSync(join(tmpdir(), 'tob-e2e-'));
   databasePath = join(directory, 'benchmark.sqlite');
-  run('seed');
+  run('seed', '--with-mocks');
 }, 300_000);
 
 afterAll(() => {
@@ -84,9 +84,13 @@ describe('cli end to end', () => {
     expect(run('show', runId as string)).toContain('Class performance');
   });
 
-  it('ranks completed runs', () => {
-    expect(run('leaderboard')).toContain('Accuracy');
-    expect(run('leaderboard', '--metric', 'failRecall')).toContain('FAIL recall');
+  it('keeps mock runs out of the formal leaderboard unless explicitly included', () => {
+    const formal = runExpectingFailure('leaderboard');
+    expect(formal.status).toBe(1);
+    expect(formal.stderr).toContain('No completed formal runs yet');
+
+    expect(run('leaderboard', '--include-mocks')).toContain('Accuracy');
+    expect(run('leaderboard', '--include-mocks', '--metric', 'failRecall')).toContain('FAIL recall');
   });
 
   it('rejects an unknown metric with a non-zero exit', () => {

@@ -4,6 +4,7 @@ import {
   aggregateRunMetrics,
   buildModelPromptMatrix,
   dashboardHighlights,
+  formalBenchmarkRuns,
   paretoFront,
   rankRuns,
 } from '@tob/core';
@@ -113,6 +114,18 @@ describe('ranking', () => {
     expect(METRIC_DESCRIPTORS.accuracy.direction).toBe('higher');
     expect(METRIC_DESCRIPTORS.costPerTest.direction).toBe('lower');
     expect(METRIC_DESCRIPTORS.brierScore.direction).toBe('lower');
+  });
+
+  it('excludes mock-provider runs from formal benchmark views', () => {
+    const mock = summary({ runId: 'mock', provider: 'mock', modelName: 'Mock' });
+    const openai = summary({
+      runId: 'real',
+      provider: 'openai',
+      model: 'gpt-real',
+      modelName: 'Real model',
+    });
+
+    expect(formalBenchmarkRuns([mock, openai]).map((run) => run.runId)).toEqual(['real']);
   });
 });
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { dashboardHighlights, paretoFront, rankRuns } from '@tob/core';
+import { dashboardHighlights, formalBenchmarkRuns, paretoFront, rankRuns } from '@tob/core';
 import { listRunSummaries } from '@tob/db';
 import { ScatterChart } from '@/components/ScatterChart';
 import { Bar, Empty, Note, Stat } from '@/components/Stat';
@@ -23,7 +23,8 @@ const paretoPoints = (
   }));
 
 export default function DashboardPage() {
-  const summaries = listRunSummaries(db());
+  const allSummaries = listRunSummaries(db());
+  const summaries = formalBenchmarkRuns(allSummaries);
 
   if (summaries.length === 0) {
     return (
@@ -34,11 +35,9 @@ export default function DashboardPage() {
           case, given the pull request it runs against?
         </p>
         <Empty>
-          No completed runs yet. Seed the database and run the benchmark with the mock provider —
-          no API key required.
-          <pre style={{ marginTop: 14, textAlign: 'left' }}>
-            pnpm seed{'\n'}pnpm benchmark run --model mock-thorough --prompt reasoning-v1
-          </pre>
+          No completed formal benchmark runs yet. Register a real model configuration and run it
+          against the dataset. Development-only mock runs remain visible on the Runs page but do
+          not participate in this dashboard or the formal leaderboard.
         </Empty>
       </>
     );

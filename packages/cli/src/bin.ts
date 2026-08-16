@@ -6,6 +6,7 @@ import {
   LEADERBOARD_METRICS,
   METRIC_DESCRIPTORS,
   dashboardHighlights,
+  formalBenchmarkRuns,
   rankRuns,
 } from '@tob/core';
 import {
@@ -49,12 +50,17 @@ const out = (text: string): void => {
 
 program
   .command('seed')
-  .description('Load the bundled dataset, prompts and mock models')
+  .description('Load the bundled dataset and prompts')
   .option('--data <dir>', 'Directory of case JSON files', 'data/oss')
   .option('--force', 'Freeze a new dataset version even if one exists', false)
-  .action(async (options: { data: string; force: boolean }) => {
+  .option('--with-mocks', 'Also register development-only mock model adapters', false)
+  .action(async (options: { data: string; force: boolean; withMocks: boolean }) => {
     await withDatabase(dbPath(), ({ db }) => {
-      const result = seedDatabase(db, { dataDirectory: options.data, force: options.force });
+      const result = seedDatabase(db, {
+        dataDirectory: options.data,
+        force: options.force,
+        includeMocks: options.withMocks,
+      });
 
       out(heading('Seed complete'));
       out(
@@ -73,7 +79,9 @@ program
       for (const warning of result.warnings) {
         out(`\nWarning [${warning.code}]: ${warning.message}`);
       }
-      out('\nTry:  pnpm benchmark run --model mock-thorough --prompt reasoning-v1');
+      if (options.withMocks) {
+        out('\nDevelopment mock models registered. Run with --model mock-thorough to exercise the harness.');
+      }
     });
   });
 
@@ -438,16 +446,20 @@ program
 
 program
   .command('leaderboard')
-  .description('Rank completed runs')
+  .description('Rank completed formal benchmark runs')
   .option('--metric <metric>', `One of: ${LEADERBOARD_METRICS.join(', ')}`, 'accuracy')
-  .action(async (options: { metric: string }) => {
+  .option('--include-mocks', 'Include development-only mock runs', false)
+  .action(async (options: { metric: string; includeMocks: boolean }) => {
     if (!(LEADERBOARD_METRICS as readonly string[]).includes(options.metric)) {
       fail(`Unknown metric ${options.metric}`);
     }
 
     await withDatabase(dbPath(), ({ db }) => {
-      const summaries = listRunSummaries(db);
-      if (summaries.length === 0) fail('No completed runs yet.');
+      const allSummaries = listRunSummaries(db);
+      const summaries = options.includeMocks ? allSummaries : formalBenchmarkRuns(allSummaries);
+      if (summaries.length === 0) {
+        fail(options.includeMocks ? 'No completed runs yet.' : 'No completed formal runs yet.');
+      }
 
       const metric = options.metric as LeaderboardMetric;
       const descriptor = METRIC_DESCRIPTORS[metric];

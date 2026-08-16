@@ -10,16 +10,26 @@ AIが**自然言語のテストケース + PRの変更内容 + プロンプト**
 
 ## Quick start
 
-APIキーなしで全ワークフローが動きます。
+通常の `seed` は**評価データセットとプロンプトだけ**を投入します。mockモデルは正式なベンチマーク対象には入りません。
 
 ```bash
 pnpm install
 pnpm seed
-pnpm benchmark run --model mock-thorough --prompt reasoning-v1
+
+export OPENAI_API_KEY=...
+pnpm benchmark model add --name my-model --provider openai --model <model-id> --api-key-env OPENAI_API_KEY
+pnpm benchmark run --model my-model --prompt reasoning-v1
 pnpm dev        # ダッシュボード
 ```
 
-`seed` は実PRから作った148ケースのデータセット、プロンプト3種、決定論的なmockモデル4種を投入します。
+APIキーなしでrunnerやUIを開発確認したい場合だけ、明示的にmockを登録できます。
+
+```bash
+pnpm seed:dev
+pnpm benchmark run --model mock-thorough --prompt reasoning-v1
+```
+
+mock providerはrunner・retry・calibration・UIなどを検証するための開発用fixtureです。**データセットには含まれず、Dashboardと正式Leaderboardからも除外されます。**
 
 ## Dataset
 
@@ -38,8 +48,6 @@ gold ラベルはリポジトリ自身の証拠に基づきます。ケースは
 | `REGRESSION` | PASS | FAIL | 後続PRが「これが壊した」と明示している変更 |
 
 **後半4パターンは飾りではありません。** `BUG_FIX` だけのデータセットは「baseならFAIL、headならPASS」と答えるだけで高得点が取れてしまい、テストを読む能力を何も測れません。
-
-これは実測できています。同梱のmockアダプタはまさにその「headならPASSに寄せる」ナイーブな戦略です。開発初期の48ケース（`BUG_FIX`+`UNRELATED`+`REFACTOR`のみ）では **flip pair accuracy 100% / accuracy 74.6%** を取りました。6パターン148ケースに揃えた現在は、12構成すべてが **accuracy 48.8%〜51.8%** に収まります。つまり偶然と変わりません。
 
 最終的な分布は gold が **74 PASS / 74 FAIL**、base が 36 PASS / 38 FAIL、head が 38 PASS / 36 FAIL。revision からも、全体の偏りからも答えは決まりません。`checkDatasetIntegrity` がこの退化を検査し、警告します。
 
@@ -67,7 +75,6 @@ dev split（**26ケース / 13 PRクラスタ、gold 13 PASS / 13 FAIL**）を `
 | 12 | Big Pickle（OpenCode Zen, free） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
 | 12 | DeepSeek V4 Flash Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 0.260 | 38.5% | 8 |
 | 16 | Nemotron 3 Ultra Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 0.087 | 30.8% | 9 |
-| — | mock-thorough（ナイーブな発見的手法、参考） | 53.8% | — | — | — | — |
 | 17 | Nemotron 3.5 Lightning Free（OpenCode Zen） | 50.0% | 23.1–76.9% | 0.000 | 30.8% | 9 |
 | 17 | Claude Haiku 4.5 | 50.0% | 23.1–76.9% | 0.000 | 30.8% | 9 |
 
@@ -95,8 +102,8 @@ n=26では正解数が整数（0〜26）しか取れないため、accuracyの�
 packages/core       純粋ドメイン。I/Oゼロ。型・スコアリング・統計・
                     コンテキスト構築・出力コントラクト解析。
 packages/db         Drizzle + SQLite。スキーマ・マイグレーション・リポジトリ。
-packages/providers  ModelAdapter（mock / openai / anthropic / gemini /
-                    openai-compatible）。
+packages/providers  ModelAdapter（openai / anthropic / gemini / openai-compatible）。
+                    mock は開発・自己テスト専用。
 packages/runner     並列度・リトライ・リピート・再開・キャンセル。
 packages/cli        commander CLI。
 apps/web            Next.js ダッシュボード。CLIと同じサービス層を使用。
@@ -121,7 +128,7 @@ apps/web            Next.js ダッシュボード。CLIと同じサービス層�
 実行はCLI、閲覧はWeb、という分担です。
 
 ```bash
-pnpm benchmark seed [--force]
+pnpm benchmark seed [--force] [--with-mocks]
 pnpm benchmark dataset list
 pnpm benchmark dataset import <dir> --name <name>
 pnpm benchmark prompt list | show <name> | create --name <n> --file <path>
@@ -132,13 +139,13 @@ pnpm benchmark run --model <name> --prompt <name> [--strategy S] [--repetitions 
 pnpm benchmark resume <runId>
 pnpm benchmark runs | show <runId>
 pnpm benchmark compare <baselineRunId> <candidateRunId>
-pnpm benchmark leaderboard [--metric accuracy|failRecall|flipPairAccuracy|costPerTest|...]
+pnpm benchmark leaderboard [--metric accuracy|failRecall|flipPairAccuracy|costPerTest|...] [--include-mocks]
 ```
 
 ### 行列を一発で回す
 
 ```bash
-pnpm benchmark sweep --models mock-thorough,mock-lean --prompts reasoning-v1,concise-v1 \
+pnpm benchmark sweep --models model-a,model-b --prompts reasoning-v1,concise-v1 \
                      --strategies TEST_ONLY,TEST_PLUS_DIFF --repetitions 3
 ```
 
@@ -199,7 +206,7 @@ pnpm site:serve    # 出力をローカルで確認
 `out/` は完全に自己完結（サーバー不要、DB不要）なので、無料の静的ホストにそのまま置けます。
 
 - **GitHub Pages** — `.github/workflows/pages.yml` を同梱しています。リポジトリの Settings → Pages で Source を GitHub Actions にすれば、main への push で自動公開されます。プロジェクトサイトは `/<repo>` 配下に出るため、ワークフローが `TOB_BASE_PATH` を自動設定します。
-- **Netlify / Cloudflare Pages** — `netlify.toml` の通り。ビルドコマンド `pnpm install && pnpm site`、公開ディレクトリ `apps/web/out`。
+- **Netlify / Cloudflare Pages** — `netlify.toml` の通り。ビルドコマンド `pnpm install && pnpm seed && pnpm site`、公開ディレクトリ `apps/web/out`。
 
 公開されるのは結果とデータセットです。データセットは公開PR由来で、各ケースが provenance（PR URL・Issue URL・根拠テストファイル）を持つので、第三者がラベルを検証できます。APIキーはDBにもrun snapshotにも保存されないため、書き出しに含まれることはありません。
 
@@ -208,7 +215,7 @@ pnpm site:serve    # 出力をローカルで確認
 ## Testing
 
 ```bash
-pnpm test          # 212 tests
+pnpm test          # 214 tests
 pnpm coverage
 pnpm typecheck
 pnpm build

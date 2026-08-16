@@ -32,17 +32,30 @@ afterEach(() => {
 });
 
 describe('seeding', () => {
-  it('loads the bundled dataset, prompts and mock models', () => {
+  it('loads the bundled dataset and prompts without registering mock models by default', () => {
     const { db } = fresh();
     const result = seedDatabase(db, { dataDirectory: 'data/oss' });
 
     expect(result.caseCount).toBeGreaterThan(0);
     expect(result.repositories).toBeGreaterThan(10);
     expect(result.promptsCreated).toBe(SEED_PROMPTS.length);
-    expect(result.modelsCreated).toBe(4);
+    expect(result.modelsCreated).toBe(0);
     expect(listDatasets(db)).toHaveLength(1);
     expect(listPrompts(db)).toHaveLength(SEED_PROMPTS.length);
-    expect(listModelConfigs(db)).toHaveLength(4);
+    expect(listModelConfigs(db)).toHaveLength(0);
+  });
+
+  it('registers mock models only when explicitly requested', () => {
+    const { db } = fresh();
+    const result = seedDatabase(db, { dataDirectory: 'data/oss', includeMocks: true });
+
+    expect(result.modelsCreated).toBe(4);
+    expect(listModelConfigs(db).map((model) => model.provider)).toEqual([
+      'mock',
+      'mock',
+      'mock',
+      'mock',
+    ]);
   });
 
   it('is idempotent: seeding twice does not duplicate anything', () => {

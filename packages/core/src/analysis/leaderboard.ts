@@ -27,6 +27,13 @@ export interface RunSummary {
   readonly metrics: RunMetrics;
 }
 
+/**
+ * Mock adapters exist to exercise the benchmark machinery, not to compete with
+ * real models. Formal dashboards and leaderboards use this view by default.
+ */
+export const formalBenchmarkRuns = (summaries: readonly RunSummary[]): RunSummary[] =>
+  summaries.filter((summary) => summary.provider !== 'mock');
+
 export const LEADERBOARD_METRICS = [
   'accuracy',
   'strictAccuracy',
