@@ -1,1 +1,0 @@
-self.__SSG_MANIFEST=new Set(["\u002Fcompare\u002F[baseline]\u002F[candidate]","\u002Fleaderboard\u002F[metric]","\u002Fruns\u002F[id]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()

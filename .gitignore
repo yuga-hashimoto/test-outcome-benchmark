@@ -19,3 +19,6 @@ coverage/
 # TypeScript / Next.js generated
 *.tsbuildinfo
 next-env.d.ts
+
+# Static export output (regenerate with `pnpm site`)
+out/
