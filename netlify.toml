@@ -1,8 +1,8 @@
 # Netlify / Cloudflare Pages both work from this configuration.
-# Cloudflare Pages: set build command `pnpm install && pnpm site`,
+# Cloudflare Pages: set build command `pnpm install && pnpm seed && pnpm site`,
 # output directory `apps/web/out`.
 [build]
-  command = "pnpm install && pnpm site"
+  command = "pnpm install && pnpm seed && pnpm site"
   publish = "apps/web/out"
 
 [build.environment]

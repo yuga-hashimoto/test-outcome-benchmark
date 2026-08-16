@@ -485,7 +485,9 @@ Provide a reusable service/API layer for at least:
 A CLI is desirable, for example:
 
 ```bash
-benchmark run --dataset test-outcome-v1 --model mock --prompt reasoning-v1
+benchmark run --dataset test-outcome-v1 --model <real-model-config> --prompt reasoning-v1
+# Development-only harness check: opt in to mock registration first.
+benchmark seed --with-mocks
 ```
 
 ---
@@ -533,7 +535,7 @@ Include a small deterministic self-test dataset with hand-checkable expected met
 
 ## 21. Seed/demo data
 
-The repository should eventually ship with meaningful local demo data and a deterministic mock model adapter so contributors can run the entire workflow without API keys or paid providers.
+The repository should ship meaningful benchmark data plus a deterministic mock model adapter for contributor self-tests. Mock models are development-only: normal seed must not register them, formal dashboards/leaderboards must exclude them, and contributors opt in explicitly when they want an API-key-free harness check.
 
 ---
 

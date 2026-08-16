@@ -70,6 +70,8 @@ export interface SeedOptions {
   readonly datasetName?: string;
   /** Freeze a new version even if one already exists. */
   readonly force?: boolean;
+  /** Development/demo only. Formal benchmark setup does not register mock models. */
+  readonly includeMocks?: boolean;
 }
 
 export const seedDatabase = (db: Db, options: SeedOptions = {}): SeedResult => {
@@ -114,16 +116,18 @@ export const seedDatabase = (db: Db, options: SeedOptions = {}): SeedResult => {
   }
 
   let modelsCreated = 0;
-  for (const seed of SEED_MODELS) {
-    if (findModelConfigByName(db, seed.name) !== null) continue;
-    createModelConfig(db, {
-      name: seed.name,
-      provider: 'mock',
-      model: seed.model,
-      settings: { temperature: 0, stream: true },
-      pricing: MOCK_PRICING,
-    });
-    modelsCreated += 1;
+  if (options.includeMocks === true) {
+    for (const seed of SEED_MODELS) {
+      if (findModelConfigByName(db, seed.name) !== null) continue;
+      createModelConfig(db, {
+        name: seed.name,
+        provider: 'mock',
+        model: seed.model,
+        settings: { temperature: 0, stream: true },
+        pricing: MOCK_PRICING,
+      });
+      modelsCreated += 1;
+    }
   }
 
   return {

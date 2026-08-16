@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { LEADERBOARD_METRICS } from '@tob/core';
+import { LEADERBOARD_METRICS, formalBenchmarkRuns } from '@tob/core';
 import { listRunSummaries } from '@tob/db';
 import { LeaderboardView } from '@/components/LeaderboardView';
 import { db } from '@/lib/db';
@@ -21,6 +21,9 @@ export default async function LeaderboardMetricPage({
   if (!(LEADERBOARD_METRICS as readonly string[]).includes(metric)) notFound();
 
   return (
-    <LeaderboardView summaries={listRunSummaries(db())} metric={metric as LeaderboardMetric} />
+    <LeaderboardView
+      summaries={formalBenchmarkRuns(listRunSummaries(db()))}
+      metric={metric as LeaderboardMetric}
+    />
   );
 }

@@ -109,7 +109,7 @@ export function LeaderboardView({
     return (
       <>
         <h1>Leaderboards</h1>
-        <Empty>No completed runs yet.</Empty>
+        <Empty>No completed formal benchmark runs yet.</Empty>
       </>
     );
   }

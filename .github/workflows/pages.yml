@@ -34,15 +34,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # No database committed? Produce one so the site is not empty.
-      - name: Seed and run the mock benchmark if no database exists
+      # No database committed? Seed the public dataset and prompts only.
+      # Development mock runs are deliberately not generated for the published benchmark.
+      - name: Seed benchmark data if no database exists
         run: |
           if [ ! -f data/benchmark.sqlite ]; then
             pnpm seed
-            pnpm benchmark sweep \
-              --models mock-thorough,mock-lean,mock-overconfident,mock-cautious \
-              --prompts reasoning-v1,concise-v1,evidence-first-v1 \
-              --repetitions 3
           fi
 
       - name: Build the static site
