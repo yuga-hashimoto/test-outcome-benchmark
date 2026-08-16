@@ -1,4 +1,3 @@
-import { createInterface } from 'node:readline/promises';
 import { buildContext, createRng, toModelFacingCase } from '@tob/core';
 import {
   finishHumanSession,
@@ -10,6 +9,7 @@ import {
   recordHumanResponse,
   startHumanSession,
 } from '@tob/db';
+import { InputEnded, ask, createLineReader } from './prompt-io';
 import { fail, withDatabase } from '../context';
 import { heading, percent, table } from '../format';
 import type { Command } from 'commander';
@@ -71,8 +71,9 @@ export const registerHumanCommand = (program: Command, dbPath: () => string | un
             participantLabel: options.participant,
           });
 
-          const io = createInterface({ input: process.stdin, output: process.stdout });
+          const reader = createLineReader(process.stdin);
           let answered = 0;
+          let stoppedEarly = false;
 
           try {
             process.stdout.write(
@@ -91,20 +92,26 @@ export const registerHumanCommand = (program: Command, dbPath: () => string | un
               const startedAt = Date.now();
               let verdict: Verdict | null = null;
               while (verdict === null) {
-                const answer = (await io.question('Will this test PASS or FAIL? [p/f] ')).trim().toLowerCase();
+                const answer = (
+                  await ask(reader, process.stdout, 'Will this test PASS or FAIL? [p/f] ')
+                ).toLowerCase();
                 if (answer.startsWith('p')) verdict = 'PASS';
                 else if (answer.startsWith('f')) verdict = 'FAIL';
                 else process.stdout.write('Please answer p or f.\n');
               }
 
-              const confidenceInput = (await io.question('Confidence 0-1 (blank to skip): ')).trim();
+              const confidenceInput = await ask(
+                reader,
+                process.stdout,
+                'Confidence 0-1 (blank to skip): ',
+              );
               const parsed = Number(confidenceInput);
               const confidence =
                 confidenceInput.length > 0 && Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
                   ? parsed
                   : null;
 
-              const notes = (await io.question('Notes (optional): ')).trim();
+              const notes = await ask(reader, process.stdout, 'Notes (optional): ');
 
               recordHumanResponse(db, {
                 sessionId: session.id,
@@ -118,11 +125,19 @@ export const registerHumanCommand = (program: Command, dbPath: () => string | un
               });
               answered += 1;
             }
+          } catch (error) {
+            /** Input ending part-way is a normal way to stop, not a failure —
+             * everything answered so far is already saved. */
+            if (!(error instanceof InputEnded)) throw error;
+            stoppedEarly = true;
           } finally {
-            io.close();
+            reader.close();
             finishHumanSession(db, session.id);
           }
 
+          if (stoppedEarly) {
+            process.stdout.write(`\nInput ended after ${answered} of ${cases.length} cases.\n`);
+          }
           process.stdout.write(`\nRecorded ${answered} answers for ${options.participant}.\n`);
           process.stdout.write(`Score them with: benchmark human score --session ${session.id}\n`);
         });
