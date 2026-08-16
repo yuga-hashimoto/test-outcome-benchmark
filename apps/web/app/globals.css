@@ -105,6 +105,63 @@ a {
   max-width: 1220px;
 }
 
+/*
+ * Below this width the fixed 210px sidebar was leaving less room for content
+ * than the sidebar itself took, crushing every table and stat card. The
+ * sidebar becomes a horizontally scrollable top bar instead of a column, so
+ * the page never has to scroll sideways to read its own navigation.
+ */
+@media (max-width: 768px) {
+  .shell {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 12px 14px 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand-sub {
+    margin-bottom: 10px;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    margin: 0 -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .nav a {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .main {
+    padding: 20px 16px 50px;
+    max-width: 100%;
+  }
+
+  h1 {
+    font-size: 21px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+}
+
 h1 {
   font-size: 25px;
   letter-spacing: -0.02em;
