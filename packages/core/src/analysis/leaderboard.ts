@@ -19,6 +19,10 @@ export interface RunSummary {
   readonly datasetVersionId: string;
   /** Surfaced in rankings: runs scored on different case sets are not comparable. */
   readonly datasetVersion: number;
+  /** Which split was scored. A dev-split run and a full run are different samples. */
+  readonly split: string | null;
+  /** Predictions actually scored, so a small sample is visible as a small sample. */
+  readonly resolved: number;
   readonly finishedAt: string | null;
   readonly metrics: RunMetrics;
 }

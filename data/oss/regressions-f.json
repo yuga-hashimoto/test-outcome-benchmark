@@ -1,0 +1,718 @@
+[
+  {
+    "id": "rgf_0001",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0001",
+    "pr": {
+      "repository": "sveltejs/svelte",
+      "number": 16118,
+      "baseSha": "26e328689950b390189c6da31c32283d217df4b4",
+      "headSha": "48bfd817ca15f97cd650a0fb0a97c0ab5c42e15c",
+      "title": "fix: properly hydrate dynamic css props components and remove element removal",
+      "description": "Closes #16115\r\n\r\nBoi this was a rollercoaster. So the original bug was actually fixed just by removing the `teardown` in `css_props`...I'm pretty sure that with #11948 it was not needed anymore but stuck around. No test failed when i removed it.\r\n\r\nHowever when I wrote the test for it it was failing to hydrate. When i checked with the same component on `main` it was still failing hydration. Every-time i fixed that hydration some other test was failing.\r\n\r\nThe reason is that `css_props` was used in two different ways depending if it was a `SvelteComponent` it produced a code like this\r\n\r\n```ts\r\n{\r\n    $.css_props();\r\n    $.component();\r\n    $.reset();\r\n}\r\n```\r\nwhile with a dynamic component was used like this\r\n```ts\r\n{\r\n    $.component(..., ()=>{\r\n        $.css_props();\r\n        $$component();\r\n        $.reset();\r\n    });\r\n}\r\n```\r\n\r\nsince `$.component` set the `hydration_node` doing `next_sibling` and `$.css_props` does it by doing `first_child` the fact that the two were different was problematic.\r\n\r\nInitially I thought of moving the logic outside of `build_component` for both dynamic `Component` and `SvelteComponent` since `build_component` it's already complex but it would've been kind of a mess to change all the rest of the things to satisfy hydration.\r\n\r\nA nice thing is that now the `Component` visitor is much shorter.\r\n\r\n\r\n### Before submitting the PR, please make sure you do the following\r\n\r\n- [x] It's really useful if your PR references an issue where it is discussed ahead of time. In many cases, features are absent for a reason. For large changes, please create an RFC: https://github.com/sveltejs/rfcs\r\n- [x] Prefix your PR title with `feat:`, `fix:`, `chore:`, or `docs:`.\r\n- [x] This message body should clearly illustrate what problems it solves.\r\n- [x] Ideally, include a test that fails without this PR but passes with it.\r\n- [x] If this PR changes code within `packages/svelte/src`, add a changeset (`npx changeset`).\r\n\r\n### Tests and linting\r\n\r\n- [x] Run the tests with `pnpm test` and lint the project with `pnpm lint`",
+      "diff": "diff --git a/.changeset/twelve-foxes-smell.md b/.changeset/twelve-foxes-smell.md\nnew file mode 100644\nindex 000000000000..1f3be888d856\n--- /dev/null\n+++ b/.changeset/twelve-foxes-smell.md\n@@ -0,0 +1,5 @@\n+---\n+'svelte': patch\n+---\n+\n+fix: properly hydrate dynamic css props components and remove element removal\ndiff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\nindex 783bc38e3c45..d58a24b45559 100644\n--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\n+++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\n@@ -1,7 +1,6 @@\n-/** @import { Expression } from 'estree' */\n /** @import { AST } from '#compiler' */\n /** @import { ComponentContext } from '../types' */\n-import * as b from '#compiler/builders';\n+import { regex_is_valid_identifier } from '../../../patterns.js';\n import { build_component } from './shared/component.js';\n \n /**\n@@ -9,24 +8,12 @@ import { build_component } from './shared/component.js';\n  * @param {ComponentContext} context\n  */\n export function Component(node, context) {\n-\tif (node.metadata.dynamic) {\n-\t\t// Handle dynamic references to what seems like static inline components\n-\t\tconst component = build_component(node, '$$component', context, b.id('$$anchor'));\n-\t\tcontext.state.init.push(\n-\t\t\tb.stmt(\n-\t\t\t\tb.call(\n-\t\t\t\t\t'$.component',\n-\t\t\t\t\tcontext.state.node,\n-\t\t\t\t\t// TODO use untrack here to not update when binding changes?\n-\t\t\t\t\t// Would align with Svelte 4 behavior, but it's arguably nicer/expected to update this\n-\t\t\t\t\tb.thunk(/** @type {Expression} */ (context.visit(b.member_id(node.name)))),\n-\t\t\t\t\tb.arrow([b.id('$$anchor'), b.id('$$component')], b.block([component]))\n-\t\t\t\t)\n-\t\t\t)\n-\t\t);\n-\t\treturn;\n-\t}\n-\n-\tconst component = build_component(node, node.name, context);\n+\tconst component = build_component(\n+\t\tnode,\n+\t\t// if it's not dynamic we will just use the node name, if it is dynamic we will use the node name\n+\t\t// only if it's a valid identifier, otherwise we will use a default name\n+\t\t!node.metadata.dynamic || regex_is_valid_identifier.test(node.name) ? node.name : '$$component',\n+\t\tcontext\n+\t);\n \tcontext.state.init.push(component);\n }\ndiff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\nindex ff98d6d3787b..a1c4025d6023 100644\n--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\n+++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\n@@ -13,10 +13,13 @@ import { determine_slot } from '../../../../../utils/slot.js';\n  * @param {AST.Component | AST.SvelteComponent | AST.SvelteSelf} node\n  * @param {string} component_name\n  * @param {ComponentContext} context\n- * @param {Expression} anchor\n  * @returns {Statement}\n  */\n-export function build_component(node, component_name, context, anchor = context.state.node) {\n+export function build_component(node, component_name, context) {\n+\t/**\n+\t * @type {Expression}\n+\t */\n+\tconst anchor = context.state.node;\n \t/** @type {Array<Property[] | Expression>} */\n \tconst props_and_spreads = [];\n \t/** @type {Array<() => void>} */\n@@ -411,7 +414,7 @@ export function build_component(node, component_name, context, anchor = context.\n \t\t\t// TODO We can remove this ternary once we remove legacy mode, since in runes mode dynamic components\n \t\t\t// will be handled separately through the `$.component` function, and then the component name will\n \t\t\t// always be referenced through just the identifier here.\n-\t\t\tnode.type === 'SvelteComponent'\n+\t\t\tnode.type === 'SvelteComponent' || (node.type === 'Component' && node.metadata.dynamic)\n \t\t\t\t? component_name\n \t\t\t\t: /** @type {Expression} */ (context.visit(b.member_id(component_name))),\n \t\t\tnode_id,\n@@ -429,14 +432,18 @@ export function build_component(node, component_name, context, anchor = context.\n \n \tconst statements = [...snippet_declarations];\n \n-\tif (node.type === 'SvelteComponent') {\n+\tif (node.type === 'SvelteComponent' || (node.type === 'Component' && node.metadata.dynamic)) {\n \t\tconst prev = fn;\n \n \t\tfn = (node_id) => {\n \t\t\treturn b.call(\n \t\t\t\t'$.component',\n \t\t\t\tnode_id,\n-\t\t\t\tb.thunk(/** @type {Expression} */ (context.visit(node.expression))),\n+\t\t\t\tb.thunk(\n+\t\t\t\t\t/** @type {Expression} */ (\n+\t\t\t\t\t\tcontext.visit(node.type === 'Component' ? b.member_id(node.name) : node.expression)\n+\t\t\t\t\t)\n+\t\t\t\t),\n \t\t\t\tb.arrow(\n \t\t\t\t\t[b.id('$$anchor'), b.id(component_name)],\n \t\t\t\t\tb.block([...binding_initializers, b.stmt(prev(b.id('$$anchor')))])\ndiff --git a/packages/svelte/src/internal/client/dom/blocks/css-props.js b/packages/svelte/src/internal/client/dom/blocks/css-props.js\nindex ecbcfd3e8301..ef361987539f 100644\n--- a/packages/svelte/src/internal/client/dom/blocks/css-props.js\n+++ b/packages/svelte/src/internal/client/dom/blocks/css-props.js\n@@ -26,8 +26,4 @@ export function css_props(element, get_styles) {\n \t\t\t}\n \t\t}\n \t});\n-\n-\tteardown(() => {\n-\t\telement.remove();\n-\t});\n }\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte\nnew file mode 100644\nindex 000000000000..694b26f231c6\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte\n@@ -0,0 +1,7 @@\n+<div>a</div>\n+\n+<style>\n+\tdiv{\n+\t\tcolor: var(--prop);\n+\t}\n+</style>\n\\ No newline at end of file\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte\nnew file mode 100644\nindex 000000000000..06f28c4f75df\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte\n@@ -0,0 +1,7 @@\n+<div>b</div>\n+\n+<style>\n+\tdiv{\n+\t\tcolor: var(--prop);\n+\t}\n+</style>\n\\ No newline at end of file\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js\nnew file mode 100644\nindex 000000000000..762963383532\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js\n@@ -0,0 +1,16 @@\n+import { test } from '../../assert';\n+import { flushSync } from 'svelte';\n+\n+export default test({\n+\twarnings: [],\n+\tasync test({ assert, target }) {\n+\t\tconst btn = target.querySelector('button');\n+\t\tlet div = /** @type {HTMLElement} */ (target.querySelector('div'));\n+\t\tassert.equal(getComputedStyle(div).color, 'rgb(255, 0, 0)');\n+\t\tflushSync(() => {\n+\t\t\tbtn?.click();\n+\t\t});\n+\t\tdiv = /** @type {HTMLElement} */ (target.querySelector('div'));\n+\t\tassert.equal(getComputedStyle(div).color, 'rgb(255, 0, 0)');\n+\t}\n+});\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte\nnew file mode 100644\nindex 000000000000..055ce57da51a\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte\n@@ -0,0 +1,11 @@\n+<script>\n+\timport A from \"./B.svelte\";\n+\timport B from \"./A.svelte\";\n+\tlet value = $state(0);\n+\n+\tlet Comp = $derived(value % 2 === 0 ? A : B);\n+</script>\n+\n+<button onclick={()=>value++}>click</button>\n+\n+<Comp --prop=\"red\"/>\n\\ No newline at end of file\n",
+      "changedFiles": 8,
+      "addedLines": 66,
+      "deletedLines": 30,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rgf_tc_0001",
+      "title": "Nested dynamic component keeps its scoped CSS custom property after re-render",
+      "preconditions": "A page renders an outer component chosen dynamically (bound to a component variable, not a static tag name); that outer component itself renders an inner component that is also dynamically selected, and the inner component receives a CSS custom property (e.g. --prop) consumed by its own scoped stylesheet.",
+      "steps": [
+        "Load the page and note the color of the text rendered by the inner component.",
+        "Click the control that reassigns the outer binding to a different dynamically-selected component.",
+        "Observe the color of the text rendered by the newly-selected inner component."
+      ],
+      "expectedResult": "The inner component's text renders in the color driven by the CSS custom property (red) both before and after the toggle, and no runtime or hydration error occurs."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-06-11T15:17:25Z",
+      "testType": "UI",
+      "tags": [
+        "rendering",
+        "svelte",
+        "dynamic-component",
+        "css"
+      ],
+      "durationMs": null,
+      "feature": "compiler / dynamic component rendering with scoped CSS props",
+      "platform": "web",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/sveltejs/svelte/pull/16118",
+        "issueUrl": "https://github.com/sveltejs/svelte/issues/16163",
+        "evidenceTestFile": "packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js",
+        "note": "PR #16118 (merged 2025-06-11) reworked how dynamic <Component> tags are compiled, including nested dynamic components using scoped CSS custom properties. Issue #16163, filed against a version built on top of #16118, reports 'Rendering a dynamic component within a dynamic component is broken'. PR #16185 (merged 2025-06-17), titled 'fix: avoid shadowing a variable in dynamic components', states in its description: 'Fixes #16163 caused by regression in #16118', and adds the regression test packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js which asserts the inner component keeps rgb(255,0,0) text color both before and after toggling the outer dynamic binding."
+      }
+    }
+  },
+  {
+    "id": "rgf_0002",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0001",
+    "pr": {
+      "repository": "sveltejs/svelte",
+      "number": 16118,
+      "baseSha": "26e328689950b390189c6da31c32283d217df4b4",
+      "headSha": "48bfd817ca15f97cd650a0fb0a97c0ab5c42e15c",
+      "title": "fix: properly hydrate dynamic css props components and remove element removal",
+      "description": "Closes #16115\r\n\r\nBoi this was a rollercoaster. So the original bug was actually fixed just by removing the `teardown` in `css_props`...I'm pretty sure that with #11948 it was not needed anymore but stuck around. No test failed when i removed it.\r\n\r\nHowever when I wrote the test for it it was failing to hydrate. When i checked with the same component on `main` it was still failing hydration. Every-time i fixed that hydration some other test was failing.\r\n\r\nThe reason is that `css_props` was used in two different ways depending if it was a `SvelteComponent` it produced a code like this\r\n\r\n```ts\r\n{\r\n    $.css_props();\r\n    $.component();\r\n    $.reset();\r\n}\r\n```\r\nwhile with a dynamic component was used like this\r\n```ts\r\n{\r\n    $.component(..., ()=>{\r\n        $.css_props();\r\n        $$component();\r\n        $.reset();\r\n    });\r\n}\r\n```\r\n\r\nsince `$.component` set the `hydration_node` doing `next_sibling` and `$.css_props` does it by doing `first_child` the fact that the two were different was problematic.\r\n\r\nInitially I thought of moving the logic outside of `build_component` for both dynamic `Component` and `SvelteComponent` since `build_component` it's already complex but it would've been kind of a mess to change all the rest of the things to satisfy hydration.\r\n\r\nA nice thing is that now the `Component` visitor is much shorter.\r\n\r\n\r\n### Before submitting the PR, please make sure you do the following\r\n\r\n- [x] It's really useful if your PR references an issue where it is discussed ahead of time. In many cases, features are absent for a reason. For large changes, please create an RFC: https://github.com/sveltejs/rfcs\r\n- [x] Prefix your PR title with `feat:`, `fix:`, `chore:`, or `docs:`.\r\n- [x] This message body should clearly illustrate what problems it solves.\r\n- [x] Ideally, include a test that fails without this PR but passes with it.\r\n- [x] If this PR changes code within `packages/svelte/src`, add a changeset (`npx changeset`).\r\n\r\n### Tests and linting\r\n\r\n- [x] Run the tests with `pnpm test` and lint the project with `pnpm lint`",
+      "diff": "diff --git a/.changeset/twelve-foxes-smell.md b/.changeset/twelve-foxes-smell.md\nnew file mode 100644\nindex 000000000000..1f3be888d856\n--- /dev/null\n+++ b/.changeset/twelve-foxes-smell.md\n@@ -0,0 +1,5 @@\n+---\n+'svelte': patch\n+---\n+\n+fix: properly hydrate dynamic css props components and remove element removal\ndiff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\nindex 783bc38e3c45..d58a24b45559 100644\n--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\n+++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js\n@@ -1,7 +1,6 @@\n-/** @import { Expression } from 'estree' */\n /** @import { AST } from '#compiler' */\n /** @import { ComponentContext } from '../types' */\n-import * as b from '#compiler/builders';\n+import { regex_is_valid_identifier } from '../../../patterns.js';\n import { build_component } from './shared/component.js';\n \n /**\n@@ -9,24 +8,12 @@ import { build_component } from './shared/component.js';\n  * @param {ComponentContext} context\n  */\n export function Component(node, context) {\n-\tif (node.metadata.dynamic) {\n-\t\t// Handle dynamic references to what seems like static inline components\n-\t\tconst component = build_component(node, '$$component', context, b.id('$$anchor'));\n-\t\tcontext.state.init.push(\n-\t\t\tb.stmt(\n-\t\t\t\tb.call(\n-\t\t\t\t\t'$.component',\n-\t\t\t\t\tcontext.state.node,\n-\t\t\t\t\t// TODO use untrack here to not update when binding changes?\n-\t\t\t\t\t// Would align with Svelte 4 behavior, but it's arguably nicer/expected to update this\n-\t\t\t\t\tb.thunk(/** @type {Expression} */ (context.visit(b.member_id(node.name)))),\n-\t\t\t\t\tb.arrow([b.id('$$anchor'), b.id('$$component')], b.block([component]))\n-\t\t\t\t)\n-\t\t\t)\n-\t\t);\n-\t\treturn;\n-\t}\n-\n-\tconst component = build_component(node, node.name, context);\n+\tconst component = build_component(\n+\t\tnode,\n+\t\t// if it's not dynamic we will just use the node name, if it is dynamic we will use the node name\n+\t\t// only if it's a valid identifier, otherwise we will use a default name\n+\t\t!node.metadata.dynamic || regex_is_valid_identifier.test(node.name) ? node.name : '$$component',\n+\t\tcontext\n+\t);\n \tcontext.state.init.push(component);\n }\ndiff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\nindex ff98d6d3787b..a1c4025d6023 100644\n--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\n+++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js\n@@ -13,10 +13,13 @@ import { determine_slot } from '../../../../../utils/slot.js';\n  * @param {AST.Component | AST.SvelteComponent | AST.SvelteSelf} node\n  * @param {string} component_name\n  * @param {ComponentContext} context\n- * @param {Expression} anchor\n  * @returns {Statement}\n  */\n-export function build_component(node, component_name, context, anchor = context.state.node) {\n+export function build_component(node, component_name, context) {\n+\t/**\n+\t * @type {Expression}\n+\t */\n+\tconst anchor = context.state.node;\n \t/** @type {Array<Property[] | Expression>} */\n \tconst props_and_spreads = [];\n \t/** @type {Array<() => void>} */\n@@ -411,7 +414,7 @@ export function build_component(node, component_name, context, anchor = context.\n \t\t\t// TODO We can remove this ternary once we remove legacy mode, since in runes mode dynamic components\n \t\t\t// will be handled separately through the `$.component` function, and then the component name will\n \t\t\t// always be referenced through just the identifier here.\n-\t\t\tnode.type === 'SvelteComponent'\n+\t\t\tnode.type === 'SvelteComponent' || (node.type === 'Component' && node.metadata.dynamic)\n \t\t\t\t? component_name\n \t\t\t\t: /** @type {Expression} */ (context.visit(b.member_id(component_name))),\n \t\t\tnode_id,\n@@ -429,14 +432,18 @@ export function build_component(node, component_name, context, anchor = context.\n \n \tconst statements = [...snippet_declarations];\n \n-\tif (node.type === 'SvelteComponent') {\n+\tif (node.type === 'SvelteComponent' || (node.type === 'Component' && node.metadata.dynamic)) {\n \t\tconst prev = fn;\n \n \t\tfn = (node_id) => {\n \t\t\treturn b.call(\n \t\t\t\t'$.component',\n \t\t\t\tnode_id,\n-\t\t\t\tb.thunk(/** @type {Expression} */ (context.visit(node.expression))),\n+\t\t\t\tb.thunk(\n+\t\t\t\t\t/** @type {Expression} */ (\n+\t\t\t\t\t\tcontext.visit(node.type === 'Component' ? b.member_id(node.name) : node.expression)\n+\t\t\t\t\t)\n+\t\t\t\t),\n \t\t\t\tb.arrow(\n \t\t\t\t\t[b.id('$$anchor'), b.id(component_name)],\n \t\t\t\t\tb.block([...binding_initializers, b.stmt(prev(b.id('$$anchor')))])\ndiff --git a/packages/svelte/src/internal/client/dom/blocks/css-props.js b/packages/svelte/src/internal/client/dom/blocks/css-props.js\nindex ecbcfd3e8301..ef361987539f 100644\n--- a/packages/svelte/src/internal/client/dom/blocks/css-props.js\n+++ b/packages/svelte/src/internal/client/dom/blocks/css-props.js\n@@ -26,8 +26,4 @@ export function css_props(element, get_styles) {\n \t\t\t}\n \t\t}\n \t});\n-\n-\tteardown(() => {\n-\t\telement.remove();\n-\t});\n }\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte\nnew file mode 100644\nindex 000000000000..694b26f231c6\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/A.svelte\n@@ -0,0 +1,7 @@\n+<div>a</div>\n+\n+<style>\n+\tdiv{\n+\t\tcolor: var(--prop);\n+\t}\n+</style>\n\\ No newline at end of file\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte\nnew file mode 100644\nindex 000000000000..06f28c4f75df\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/B.svelte\n@@ -0,0 +1,7 @@\n+<div>b</div>\n+\n+<style>\n+\tdiv{\n+\t\tcolor: var(--prop);\n+\t}\n+</style>\n\\ No newline at end of file\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js\nnew file mode 100644\nindex 000000000000..762963383532\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js\n@@ -0,0 +1,16 @@\n+import { test } from '../../assert';\n+import { flushSync } from 'svelte';\n+\n+export default test({\n+\twarnings: [],\n+\tasync test({ assert, target }) {\n+\t\tconst btn = target.querySelector('button');\n+\t\tlet div = /** @type {HTMLElement} */ (target.querySelector('div'));\n+\t\tassert.equal(getComputedStyle(div).color, 'rgb(255, 0, 0)');\n+\t\tflushSync(() => {\n+\t\t\tbtn?.click();\n+\t\t});\n+\t\tdiv = /** @type {HTMLElement} */ (target.querySelector('div'));\n+\t\tassert.equal(getComputedStyle(div).color, 'rgb(255, 0, 0)');\n+\t}\n+});\ndiff --git a/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte\nnew file mode 100644\nindex 000000000000..055ce57da51a\n--- /dev/null\n+++ b/packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/main.svelte\n@@ -0,0 +1,11 @@\n+<script>\n+\timport A from \"./B.svelte\";\n+\timport B from \"./A.svelte\";\n+\tlet value = $state(0);\n+\n+\tlet Comp = $derived(value % 2 === 0 ? A : B);\n+</script>\n+\n+<button onclick={()=>value++}>click</button>\n+\n+<Comp --prop=\"red\"/>\n\\ No newline at end of file\n",
+      "changedFiles": 8,
+      "addedLines": 66,
+      "deletedLines": 30,
+      "commits": 1,
+      "language": "JavaScript",
+      "labels": []
+    },
+    "testCase": {
+      "id": "rgf_tc_0001",
+      "title": "Nested dynamic component keeps its scoped CSS custom property after re-render",
+      "preconditions": "A page renders an outer component chosen dynamically (bound to a component variable, not a static tag name); that outer component itself renders an inner component that is also dynamically selected, and the inner component receives a CSS custom property (e.g. --prop) consumed by its own scoped stylesheet.",
+      "steps": [
+        "Load the page and note the color of the text rendered by the inner component.",
+        "Click the control that reassigns the outer binding to a different dynamically-selected component.",
+        "Observe the color of the text rendered by the newly-selected inner component."
+      ],
+      "expectedResult": "The inner component's text renders in the color driven by the CSS custom property (red) both before and after the toggle, and no runtime or hydration error occurs."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-06-11T15:17:25Z",
+      "testType": "UI",
+      "tags": [
+        "rendering",
+        "svelte",
+        "dynamic-component",
+        "css"
+      ],
+      "durationMs": null,
+      "feature": "compiler / dynamic component rendering with scoped CSS props",
+      "platform": "web",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/sveltejs/svelte/pull/16118",
+        "issueUrl": "https://github.com/sveltejs/svelte/issues/16163",
+        "evidenceTestFile": "packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js",
+        "note": "PR #16118 (merged 2025-06-11) reworked how dynamic <Component> tags are compiled, including nested dynamic components using scoped CSS custom properties. Issue #16163, filed against a version built on top of #16118, reports 'Rendering a dynamic component within a dynamic component is broken'. PR #16185 (merged 2025-06-17), titled 'fix: avoid shadowing a variable in dynamic components', states in its description: 'Fixes #16163 caused by regression in #16118', and adds the regression test packages/svelte/tests/runtime-browser/samples/css-props-dynamic-component/_config.js which asserts the inner component keeps rgb(255,0,0) text color both before and after toggling the outer dynamic binding."
+      }
+    }
+  },
+  {
+    "id": "rgf_0003",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0002",
+    "pr": {
+      "repository": "vitejs/vite",
+      "number": 20358,
+      "baseSha": "23d04fc2d8a4fcf7c2011418693d6000748aa655",
+      "headSha": "4d1745d25c6c99160c7fd1d987ee780c6d45d1a2",
+      "title": "refactor: use hook filters in internal plugins",
+      "description": "### Description\r\n\r\nUse hook filters in the internal plugins to reduce the diff with rolldown-vite and simplify the code in some places.\r\n\r\n<!-- What is this PR solving? Write a clear description or reference the issues it solves (e.g. `fixes #123`). What other alternatives have you explored? Are there any parts you think require more attention from reviewers? -->\r\n\r\n<!----------------------------------------------------------------------\r\nBefore creating the pull request, please make sure you do the following:\r\n\r\n- Read the Contributing Guidelines at https://github.com/vitejs/vite/blob/main/CONTRIBUTING.md.\r\n- Check that there isn't already a PR that solves the problem the same way. If you find a duplicate, please help us reviewing it.\r\n- Update the corresponding documentation if needed.\r\n- Include relevant tests that fail without this PR but pass with it.\r\n\r\nThank you for contributing to Vite!\r\n----------------------------------------------------------------------->\n\n(Diff shown below is limited to packages/vite/src/node/plugins/assetImportMetaUrl.ts, the file responsible for the regression described in this case; the full PR additionally touched 13 other internal plugin files plus the lockfile as part of a broader refactor to use rolldown hook filters.)",
+      "diff": "diff --git a/packages/vite/src/node/plugins/assetImportMetaUrl.ts b/packages/vite/src/node/plugins/assetImportMetaUrl.ts\nindex fe52cfb61fc34e..37aef68c303ad5 100644\n--- a/packages/vite/src/node/plugins/assetImportMetaUrl.ts\n+++ b/packages/vite/src/node/plugins/assetImportMetaUrl.ts\n@@ -1,6 +1,7 @@\n import path from 'node:path'\n import MagicString from 'magic-string'\n import { stripLiteral } from 'strip-literal'\n+import { exactRegex } from '@rolldown/pluginutils'\n import type { Plugin } from '../plugin'\n import type { ResolvedConfig } from '../config'\n import {\n@@ -50,123 +51,121 @@ export function assetImportMetaUrlPlugin(config: ResolvedConfig): Plugin {\n     },\n \n     transform: {\n+      filter: {\n+        id: {\n+          exclude: [exactRegex(preloadHelperId), exactRegex(CLIENT_ENTRY)],\n+        },\n+        code: /new\\s+URL.+import\\.meta\\.url/,\n+      },\n       async handler(code, id) {\n-        if (\n-          id !== preloadHelperId &&\n-          id !== CLIENT_ENTRY &&\n-          code.includes('new URL') &&\n-          code.includes(`import.meta.url`)\n-        ) {\n-          let s: MagicString | undefined\n-          const assetImportMetaUrlRE =\n-            /\\bnew\\s+URL\\s*\\(\\s*('[^']+'|\"[^\"]+\"|`[^`]+`)\\s*,\\s*import\\.meta\\.url\\s*(?:,\\s*)?\\)/dg\n-          const cleanString = stripLiteral(code)\n-\n-          let match: RegExpExecArray | null\n-          while ((match = assetImportMetaUrlRE.exec(cleanString))) {\n-            const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices!\n-            if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) continue\n+        let s: MagicString | undefined\n+        const assetImportMetaUrlRE =\n+          /\\bnew\\s+URL\\s*\\(\\s*('[^']+'|\"[^\"]+\"|`[^`]+`)\\s*,\\s*import\\.meta\\.url\\s*(?:,\\s*)?\\)/dg\n+        const cleanString = stripLiteral(code)\n \n-            const rawUrl = code.slice(urlStart, urlEnd)\n+        let match: RegExpExecArray | null\n+        while ((match = assetImportMetaUrlRE.exec(cleanString))) {\n+          const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices!\n+          if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) continue\n \n-            if (!s) s = new MagicString(code)\n+          const rawUrl = code.slice(urlStart, urlEnd)\n \n-            // potential dynamic template string\n-            if (rawUrl[0] === '`' && rawUrl.includes('${')) {\n-              const queryDelimiterIndex = getQueryDelimiterIndex(rawUrl)\n-              const hasQueryDelimiter = queryDelimiterIndex !== -1\n-              const pureUrl = hasQueryDelimiter\n-                ? rawUrl.slice(0, queryDelimiterIndex) + '`'\n-                : rawUrl\n-              const queryString = hasQueryDelimiter\n-                ? rawUrl.slice(queryDelimiterIndex, -1)\n-                : ''\n-              const ast = this.parse(pureUrl)\n-              const templateLiteral = (ast as any).body[0].expression\n-              if (templateLiteral.expressions.length) {\n-                const pattern = buildGlobPattern(templateLiteral)\n-                if (pattern.startsWith('*')) {\n-                  // don't transform for patterns like this\n-                  // because users won't intend to do that in most cases\n-                  continue\n-                }\n+          if (!s) s = new MagicString(code)\n \n-                const globOptions = {\n-                  eager: true,\n-                  import: 'default',\n-                  // A hack to allow 'as' & 'query' exist at the same time\n-                  query: injectQuery(queryString, 'url'),\n-                }\n-                s.update(\n-                  startIndex,\n-                  endIndex,\n-                  `new URL((import.meta.glob(${JSON.stringify(\n-                    pattern,\n-                  )}, ${JSON.stringify(\n-                    globOptions,\n-                  )}))[${pureUrl}], import.meta.url)`,\n-                )\n+          // potential dynamic template string\n+          if (rawUrl[0] === '`' && rawUrl.includes('${')) {\n+            const queryDelimiterIndex = getQueryDelimiterIndex(rawUrl)\n+            const hasQueryDelimiter = queryDelimiterIndex !== -1\n+            const pureUrl = hasQueryDelimiter\n+              ? rawUrl.slice(0, queryDelimiterIndex) + '`'\n+              : rawUrl\n+            const queryString = hasQueryDelimiter\n+              ? rawUrl.slice(queryDelimiterIndex, -1)\n+              : ''\n+            const ast = this.parse(pureUrl)\n+            const templateLiteral = (ast as any).body[0].expression\n+            if (templateLiteral.expressions.length) {\n+              const pattern = buildGlobPattern(templateLiteral)\n+              if (pattern.startsWith('*')) {\n+                // don't transform for patterns like this\n+                // because users won't intend to do that in most cases\n                 continue\n               }\n-            }\n \n-            const url = rawUrl.slice(1, -1)\n-            if (isDataUrl(url)) {\n+              const globOptions = {\n+                eager: true,\n+                import: 'default',\n+                // A hack to allow 'as' & 'query' exist at the same time\n+                query: injectQuery(queryString, 'url'),\n+              }\n+              s.update(\n+                startIndex,\n+                endIndex,\n+                `new URL((import.meta.glob(${JSON.stringify(\n+                  pattern,\n+                )}, ${JSON.stringify(\n+                  globOptions,\n+                )}))[${pureUrl}], import.meta.url)`,\n+              )\n               continue\n             }\n-            let file: string | undefined\n-            if (url[0] === '.') {\n-              file = slash(path.resolve(path.dirname(id), url))\n-              file = tryFsResolve(file, fsResolveOptions) ?? file\n-            } else {\n-              assetResolver ??= createBackCompatIdResolver(config, {\n-                extensions: [],\n-                mainFields: [],\n-                tryIndex: false,\n-                preferRelative: true,\n-              })\n-              file = await assetResolver(this.environment, url, id)\n-              file ??=\n-                url[0] === '/'\n-                  ? slash(path.join(publicDir, url))\n-                  : slash(path.resolve(path.dirname(id), url))\n-            }\n+          }\n \n-            // Get final asset URL. If the file does not exist,\n-            // we fall back to the initial URL and let it resolve in runtime\n-            let builtUrl: string | undefined\n-            if (file) {\n-              try {\n-                if (publicDir && isParentDirectory(publicDir, file)) {\n-                  const publicPath = '/' + path.posix.relative(publicDir, file)\n-                  builtUrl = await fileToUrl(this, publicPath)\n-                } else {\n-                  this.addWatchFile(file)\n-                  builtUrl = await fileToUrl(this, file)\n-                }\n-              } catch {\n-                // do nothing, we'll log a warning after this\n+          const url = rawUrl.slice(1, -1)\n+          if (isDataUrl(url)) {\n+            continue\n+          }\n+          let file: string | undefined\n+          if (url[0] === '.') {\n+            file = slash(path.resolve(path.dirname(id), url))\n+            file = tryFsResolve(file, fsResolveOptions) ?? file\n+          } else {\n+            assetResolver ??= createBackCompatIdResolver(config, {\n+              extensions: [],\n+              mainFields: [],\n+              tryIndex: false,\n+              preferRelative: true,\n+            })\n+            file = await assetResolver(this.environment, url, id)\n+            file ??=\n+              url[0] === '/'\n+                ? slash(path.join(publicDir, url))\n+                : slash(path.resolve(path.dirname(id), url))\n+          }\n+\n+          // Get final asset URL. If the file does not exist,\n+          // we fall back to the initial URL and let it resolve in runtime\n+          let builtUrl: string | undefined\n+          if (file) {\n+            try {\n+              if (publicDir && isParentDirectory(publicDir, file)) {\n+                const publicPath = '/' + path.posix.relative(publicDir, file)\n+                builtUrl = await fileToUrl(this, publicPath)\n+              } else {\n+                this.addWatchFile(file)\n+                builtUrl = await fileToUrl(this, file)\n               }\n+            } catch {\n+              // do nothing, we'll log a warning after this\n             }\n-            if (!builtUrl) {\n-              const rawExp = code.slice(startIndex, endIndex)\n-              config.logger.warnOnce(\n-                `\\n${rawExp} doesn't exist at build time, it will remain unchanged to be resolved at runtime. ` +\n-                  `If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.`,\n-              )\n-              builtUrl = url\n-            }\n-            s.update(\n-              startIndex,\n-              endIndex,\n-              `new URL(${JSON.stringify(builtUrl)}, import.meta.url)`,\n-            )\n           }\n-          if (s) {\n-            return transformStableResult(s, id, config)\n+          if (!builtUrl) {\n+            const rawExp = code.slice(startIndex, endIndex)\n+            config.logger.warnOnce(\n+              `\\n${rawExp} doesn't exist at build time, it will remain unchanged to be resolved at runtime. ` +\n+                `If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.`,\n+            )\n+            builtUrl = url\n           }\n+          s.update(\n+            startIndex,\n+            endIndex,\n+            `new URL(${JSON.stringify(builtUrl)}, import.meta.url)`,\n+          )\n+        }\n+        if (s) {\n+          return transformStableResult(s, id, config)\n         }\n-        return null\n       },\n     },\n   }\n",
+      "changedFiles": 1,
+      "addedLines": 100,
+      "deletedLines": 101,
+      "commits": 8,
+      "language": "TypeScript",
+      "labels": [
+        "p1-chore"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0002",
+      "title": "Multi-line new URL(asset, import.meta.url) reference is bundled as a static asset",
+      "preconditions": "A source module references an asset (e.g. a worker script) using new URL(...) with import.meta.url as the second argument, where the call is split across multiple lines for readability.",
+      "steps": [
+        "Add a module containing a multi-line reference such as:\nnew URL(\n  './worker.js',\n  import.meta.url\n)",
+        "Run a production build.",
+        "Inspect the generated output directory and the emitted JavaScript for the module."
+      ],
+      "expectedResult": "The referenced asset file is emitted into the build output (e.g. under assets/), and the generated code resolves the URL to that emitted file at runtime, identically to how a single-line new URL(...) reference would be handled."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-07-25T03:04:15Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "build",
+        "assets",
+        "bundling",
+        "vite"
+      ],
+      "durationMs": null,
+      "feature": "production asset bundling for new URL(..., import.meta.url)",
+      "platform": "web",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/vitejs/vite/pull/20358",
+        "issueUrl": "https://github.com/vitejs/vite/issues/20631",
+        "evidenceTestFile": "playground/assets (multiline-import-meta-url.js)",
+        "note": "PR #20358 (merged 2025-07-25) switched assetImportMetaUrlPlugin's transform hook to rolldown's filter-based API, replacing the unconditional string-includes gate with a `code: /new\\s+URL.+import\\.meta\\.url/` filter regex whose `.` does not match newlines by default. Issue #20631 (filed with vite 7.1.x, which contains #20358) reports that a pdfjs-dist worker asset referenced via multi-line new URL(...) is no longer bundled. PR #20644 ('fix: support multiline new URL(..., import.meta.url) expressions', merged 2025-08-19) states verbatim: 'This regression was introduced in #20358 when hook filters were added to internal plugins,' identifies the exact same regex as the cause, adds the `s` (dotAll) flag, and adds an E2E test file for multiline expressions under playground/assets."
+      }
+    }
+  },
+  {
+    "id": "rgf_0004",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0002",
+    "pr": {
+      "repository": "vitejs/vite",
+      "number": 20358,
+      "baseSha": "23d04fc2d8a4fcf7c2011418693d6000748aa655",
+      "headSha": "4d1745d25c6c99160c7fd1d987ee780c6d45d1a2",
+      "title": "refactor: use hook filters in internal plugins",
+      "description": "### Description\r\n\r\nUse hook filters in the internal plugins to reduce the diff with rolldown-vite and simplify the code in some places.\r\n\r\n<!-- What is this PR solving? Write a clear description or reference the issues it solves (e.g. `fixes #123`). What other alternatives have you explored? Are there any parts you think require more attention from reviewers? -->\r\n\r\n<!----------------------------------------------------------------------\r\nBefore creating the pull request, please make sure you do the following:\r\n\r\n- Read the Contributing Guidelines at https://github.com/vitejs/vite/blob/main/CONTRIBUTING.md.\r\n- Check that there isn't already a PR that solves the problem the same way. If you find a duplicate, please help us reviewing it.\r\n- Update the corresponding documentation if needed.\r\n- Include relevant tests that fail without this PR but pass with it.\r\n\r\nThank you for contributing to Vite!\r\n----------------------------------------------------------------------->\n\n(Diff shown below is limited to packages/vite/src/node/plugins/assetImportMetaUrl.ts, the file responsible for the regression described in this case; the full PR additionally touched 13 other internal plugin files plus the lockfile as part of a broader refactor to use rolldown hook filters.)",
+      "diff": "diff --git a/packages/vite/src/node/plugins/assetImportMetaUrl.ts b/packages/vite/src/node/plugins/assetImportMetaUrl.ts\nindex fe52cfb61fc34e..37aef68c303ad5 100644\n--- a/packages/vite/src/node/plugins/assetImportMetaUrl.ts\n+++ b/packages/vite/src/node/plugins/assetImportMetaUrl.ts\n@@ -1,6 +1,7 @@\n import path from 'node:path'\n import MagicString from 'magic-string'\n import { stripLiteral } from 'strip-literal'\n+import { exactRegex } from '@rolldown/pluginutils'\n import type { Plugin } from '../plugin'\n import type { ResolvedConfig } from '../config'\n import {\n@@ -50,123 +51,121 @@ export function assetImportMetaUrlPlugin(config: ResolvedConfig): Plugin {\n     },\n \n     transform: {\n+      filter: {\n+        id: {\n+          exclude: [exactRegex(preloadHelperId), exactRegex(CLIENT_ENTRY)],\n+        },\n+        code: /new\\s+URL.+import\\.meta\\.url/,\n+      },\n       async handler(code, id) {\n-        if (\n-          id !== preloadHelperId &&\n-          id !== CLIENT_ENTRY &&\n-          code.includes('new URL') &&\n-          code.includes(`import.meta.url`)\n-        ) {\n-          let s: MagicString | undefined\n-          const assetImportMetaUrlRE =\n-            /\\bnew\\s+URL\\s*\\(\\s*('[^']+'|\"[^\"]+\"|`[^`]+`)\\s*,\\s*import\\.meta\\.url\\s*(?:,\\s*)?\\)/dg\n-          const cleanString = stripLiteral(code)\n-\n-          let match: RegExpExecArray | null\n-          while ((match = assetImportMetaUrlRE.exec(cleanString))) {\n-            const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices!\n-            if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) continue\n+        let s: MagicString | undefined\n+        const assetImportMetaUrlRE =\n+          /\\bnew\\s+URL\\s*\\(\\s*('[^']+'|\"[^\"]+\"|`[^`]+`)\\s*,\\s*import\\.meta\\.url\\s*(?:,\\s*)?\\)/dg\n+        const cleanString = stripLiteral(code)\n \n-            const rawUrl = code.slice(urlStart, urlEnd)\n+        let match: RegExpExecArray | null\n+        while ((match = assetImportMetaUrlRE.exec(cleanString))) {\n+          const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices!\n+          if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) continue\n \n-            if (!s) s = new MagicString(code)\n+          const rawUrl = code.slice(urlStart, urlEnd)\n \n-            // potential dynamic template string\n-            if (rawUrl[0] === '`' && rawUrl.includes('${')) {\n-              const queryDelimiterIndex = getQueryDelimiterIndex(rawUrl)\n-              const hasQueryDelimiter = queryDelimiterIndex !== -1\n-              const pureUrl = hasQueryDelimiter\n-                ? rawUrl.slice(0, queryDelimiterIndex) + '`'\n-                : rawUrl\n-              const queryString = hasQueryDelimiter\n-                ? rawUrl.slice(queryDelimiterIndex, -1)\n-                : ''\n-              const ast = this.parse(pureUrl)\n-              const templateLiteral = (ast as any).body[0].expression\n-              if (templateLiteral.expressions.length) {\n-                const pattern = buildGlobPattern(templateLiteral)\n-                if (pattern.startsWith('*')) {\n-                  // don't transform for patterns like this\n-                  // because users won't intend to do that in most cases\n-                  continue\n-                }\n+          if (!s) s = new MagicString(code)\n \n-                const globOptions = {\n-                  eager: true,\n-                  import: 'default',\n-                  // A hack to allow 'as' & 'query' exist at the same time\n-                  query: injectQuery(queryString, 'url'),\n-                }\n-                s.update(\n-                  startIndex,\n-                  endIndex,\n-                  `new URL((import.meta.glob(${JSON.stringify(\n-                    pattern,\n-                  )}, ${JSON.stringify(\n-                    globOptions,\n-                  )}))[${pureUrl}], import.meta.url)`,\n-                )\n+          // potential dynamic template string\n+          if (rawUrl[0] === '`' && rawUrl.includes('${')) {\n+            const queryDelimiterIndex = getQueryDelimiterIndex(rawUrl)\n+            const hasQueryDelimiter = queryDelimiterIndex !== -1\n+            const pureUrl = hasQueryDelimiter\n+              ? rawUrl.slice(0, queryDelimiterIndex) + '`'\n+              : rawUrl\n+            const queryString = hasQueryDelimiter\n+              ? rawUrl.slice(queryDelimiterIndex, -1)\n+              : ''\n+            const ast = this.parse(pureUrl)\n+            const templateLiteral = (ast as any).body[0].expression\n+            if (templateLiteral.expressions.length) {\n+              const pattern = buildGlobPattern(templateLiteral)\n+              if (pattern.startsWith('*')) {\n+                // don't transform for patterns like this\n+                // because users won't intend to do that in most cases\n                 continue\n               }\n-            }\n \n-            const url = rawUrl.slice(1, -1)\n-            if (isDataUrl(url)) {\n+              const globOptions = {\n+                eager: true,\n+                import: 'default',\n+                // A hack to allow 'as' & 'query' exist at the same time\n+                query: injectQuery(queryString, 'url'),\n+              }\n+              s.update(\n+                startIndex,\n+                endIndex,\n+                `new URL((import.meta.glob(${JSON.stringify(\n+                  pattern,\n+                )}, ${JSON.stringify(\n+                  globOptions,\n+                )}))[${pureUrl}], import.meta.url)`,\n+              )\n               continue\n             }\n-            let file: string | undefined\n-            if (url[0] === '.') {\n-              file = slash(path.resolve(path.dirname(id), url))\n-              file = tryFsResolve(file, fsResolveOptions) ?? file\n-            } else {\n-              assetResolver ??= createBackCompatIdResolver(config, {\n-                extensions: [],\n-                mainFields: [],\n-                tryIndex: false,\n-                preferRelative: true,\n-              })\n-              file = await assetResolver(this.environment, url, id)\n-              file ??=\n-                url[0] === '/'\n-                  ? slash(path.join(publicDir, url))\n-                  : slash(path.resolve(path.dirname(id), url))\n-            }\n+          }\n \n-            // Get final asset URL. If the file does not exist,\n-            // we fall back to the initial URL and let it resolve in runtime\n-            let builtUrl: string | undefined\n-            if (file) {\n-              try {\n-                if (publicDir && isParentDirectory(publicDir, file)) {\n-                  const publicPath = '/' + path.posix.relative(publicDir, file)\n-                  builtUrl = await fileToUrl(this, publicPath)\n-                } else {\n-                  this.addWatchFile(file)\n-                  builtUrl = await fileToUrl(this, file)\n-                }\n-              } catch {\n-                // do nothing, we'll log a warning after this\n+          const url = rawUrl.slice(1, -1)\n+          if (isDataUrl(url)) {\n+            continue\n+          }\n+          let file: string | undefined\n+          if (url[0] === '.') {\n+            file = slash(path.resolve(path.dirname(id), url))\n+            file = tryFsResolve(file, fsResolveOptions) ?? file\n+          } else {\n+            assetResolver ??= createBackCompatIdResolver(config, {\n+              extensions: [],\n+              mainFields: [],\n+              tryIndex: false,\n+              preferRelative: true,\n+            })\n+            file = await assetResolver(this.environment, url, id)\n+            file ??=\n+              url[0] === '/'\n+                ? slash(path.join(publicDir, url))\n+                : slash(path.resolve(path.dirname(id), url))\n+          }\n+\n+          // Get final asset URL. If the file does not exist,\n+          // we fall back to the initial URL and let it resolve in runtime\n+          let builtUrl: string | undefined\n+          if (file) {\n+            try {\n+              if (publicDir && isParentDirectory(publicDir, file)) {\n+                const publicPath = '/' + path.posix.relative(publicDir, file)\n+                builtUrl = await fileToUrl(this, publicPath)\n+              } else {\n+                this.addWatchFile(file)\n+                builtUrl = await fileToUrl(this, file)\n               }\n+            } catch {\n+              // do nothing, we'll log a warning after this\n             }\n-            if (!builtUrl) {\n-              const rawExp = code.slice(startIndex, endIndex)\n-              config.logger.warnOnce(\n-                `\\n${rawExp} doesn't exist at build time, it will remain unchanged to be resolved at runtime. ` +\n-                  `If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.`,\n-              )\n-              builtUrl = url\n-            }\n-            s.update(\n-              startIndex,\n-              endIndex,\n-              `new URL(${JSON.stringify(builtUrl)}, import.meta.url)`,\n-            )\n           }\n-          if (s) {\n-            return transformStableResult(s, id, config)\n+          if (!builtUrl) {\n+            const rawExp = code.slice(startIndex, endIndex)\n+            config.logger.warnOnce(\n+              `\\n${rawExp} doesn't exist at build time, it will remain unchanged to be resolved at runtime. ` +\n+                `If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.`,\n+            )\n+            builtUrl = url\n           }\n+          s.update(\n+            startIndex,\n+            endIndex,\n+            `new URL(${JSON.stringify(builtUrl)}, import.meta.url)`,\n+          )\n+        }\n+        if (s) {\n+          return transformStableResult(s, id, config)\n         }\n-        return null\n       },\n     },\n   }\n",
+      "changedFiles": 1,
+      "addedLines": 100,
+      "deletedLines": 101,
+      "commits": 8,
+      "language": "TypeScript",
+      "labels": [
+        "p1-chore"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0002",
+      "title": "Multi-line new URL(asset, import.meta.url) reference is bundled as a static asset",
+      "preconditions": "A source module references an asset (e.g. a worker script) using new URL(...) with import.meta.url as the second argument, where the call is split across multiple lines for readability.",
+      "steps": [
+        "Add a module containing a multi-line reference such as:\nnew URL(\n  './worker.js',\n  import.meta.url\n)",
+        "Run a production build.",
+        "Inspect the generated output directory and the emitted JavaScript for the module."
+      ],
+      "expectedResult": "The referenced asset file is emitted into the build output (e.g. under assets/), and the generated code resolves the URL to that emitted file at runtime, identically to how a single-line new URL(...) reference would be handled."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-07-25T03:04:15Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "build",
+        "assets",
+        "bundling",
+        "vite"
+      ],
+      "durationMs": null,
+      "feature": "production asset bundling for new URL(..., import.meta.url)",
+      "platform": "web",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/vitejs/vite/pull/20358",
+        "issueUrl": "https://github.com/vitejs/vite/issues/20631",
+        "evidenceTestFile": "playground/assets (multiline-import-meta-url.js)",
+        "note": "PR #20358 (merged 2025-07-25) switched assetImportMetaUrlPlugin's transform hook to rolldown's filter-based API, replacing the unconditional string-includes gate with a `code: /new\\s+URL.+import\\.meta\\.url/` filter regex whose `.` does not match newlines by default. Issue #20631 (filed with vite 7.1.x, which contains #20358) reports that a pdfjs-dist worker asset referenced via multi-line new URL(...) is no longer bundled. PR #20644 ('fix: support multiline new URL(..., import.meta.url) expressions', merged 2025-08-19) states verbatim: 'This regression was introduced in #20358 when hook filters were added to internal plugins,' identifies the exact same regex as the cause, adds the `s` (dotAll) flag, and adds an E2E test file for multiline expressions under playground/assets."
+      }
+    }
+  },
+  {
+    "id": "rgf_0005",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0003",
+    "pr": {
+      "repository": "junegunn/fzf",
+      "number": 4803,
+      "baseSha": "677e854850a70b7243fd35703d4f03b6651961b3",
+      "headSha": "63a47a6b1f428e841d10bc4837d05db21896eb20",
+      "title": "Export FZF_CURRENT_ITEM to child processes",
+      "description": "Close #4802\r\n\r\n## Contribution Policy\r\n\r\nWe do not accept pull requests generated primarily by AI without genuine understanding or real-world usage context.\r\n\r\nAll contributions are expected to demonstrate:\r\n- A clear understanding of the codebase\r\n- Alignment with product direction\r\n- Thoughtful reasoning behind changes\r\n- Evidence of real-world usage or hands-on experience with the problem\r\n\r\nIf these expectations are not met, we would prefer to implement the changes ourselves rather than spend time reviewing low-effort submissions.\r\n\r\n---\r\n\r\n## Acknowledgement\r\n\r\n- [x] I confirm that this PR meets the above expectations and reflects my own understanding and real-world context.",
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 0cd8bea3e6a..cf93b0f7ede 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -4,6 +4,7 @@ CHANGELOG\n 0.73.0\n ------\n - Timer-driven `every(N)` event for `--bind`, where `N` is seconds (fractional, floored to `0.01`). Ticks that overlap an in-flight action are coalesced, so a slow `reload` cannot accumulate a backlog.\n+- New `FZF_CURRENT_ITEM` environment variable exported to child processes, holding the text of the current item. Useful on shells where quoting `{}` is awkward (e.g. PowerShell on Windows). Unset when the list is empty (#4802).\n - New `FZF_IDLE_TIME` (whole seconds) and `FZF_IDLE_TIME_MS` (milliseconds) environment variables exported to child processes, holding the elapsed time since the last user activity. Pair with `every(N)` to build idle-based behavior such as auto-accept or auto-quit (#1211).\n       ```sh\n       # Live process list; --track --id-nth 2 keeps the cursor on the same PID across reloads\ndiff --git a/man/man1/fzf.1 b/man/man1/fzf.1\nindex 93f157fe6e0..18fc8525cc3 100644\n--- a/man/man1/fzf.1\n+++ b/man/man1/fzf.1\n@@ -1475,6 +1475,8 @@ fzf exports the following environment variables to its child processes.\n .br\n .BR FZF_POS \"             Vertical position of the cursor in the list starting from 1\"\n .br\n+.BR FZF_CURRENT_ITEM \"    Text of the current item (unset if the list is empty)\"\n+.br\n .BR FZF_WRAP \"            The line wrapping mode (char, word) when enabled\"\n .br\n .BR FZF_QUERY \"           Current query string\"\ndiff --git a/src/terminal.go b/src/terminal.go\nindex 2a11ea37fe5..47c41a5919c 100644\n--- a/src/terminal.go\n+++ b/src/terminal.go\n@@ -1438,6 +1438,9 @@ func (t *Terminal) environImpl(forPreview bool) []string {\n \tenv = append(env, fmt.Sprintf(\"FZF_LINES=%d\", t.areaLines))\n \tenv = append(env, fmt.Sprintf(\"FZF_COLUMNS=%d\", t.areaColumns))\n \tenv = append(env, fmt.Sprintf(\"FZF_POS=%d\", min(t.merger.Length(), t.cy+1)))\n+\tif item := t.currentItem(); item != nil {\n+\t\tenv = append(env, \"FZF_CURRENT_ITEM=\"+item.AsString(t.ansi))\n+\t}\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_HEADER_LINE=%d\", t.clickHeaderLine))\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_HEADER_COLUMN=%d\", t.clickHeaderColumn))\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_FOOTER_LINE=%d\", t.clickFooterLine))\ndiff --git a/test/test_core.rb b/test/test_core.rb\nindex d4acf1031e4..119b94cd117 100644\n--- a/test/test_core.rb\n+++ b/test/test_core.rb\n@@ -2286,6 +2286,7 @@ def env_vars\n       FZF_ACTION: 'start',\n       FZF_KEY: '',\n       FZF_POS: '1',\n+      FZF_CURRENT_ITEM: '1',\n       FZF_QUERY: '',\n       FZF_POINTER: '>',\n       FZF_PROMPT: '> ',\n@@ -2301,12 +2302,12 @@ def env_vars\n     end\n     tmux.send_keys :Tab, :Tab\n     tmux.until do\n-      expected.merge!(FZF_ACTION: 'toggle-down', FZF_KEY: 'tab', FZF_POS: '3', FZF_SELECT_COUNT: '2')\n+      expected.merge!(FZF_ACTION: 'toggle-down', FZF_KEY: 'tab', FZF_POS: '3', FZF_CURRENT_ITEM: '3', FZF_SELECT_COUNT: '2')\n       assert_equal expected, env_vars.slice(*expected.keys)\n     end\n     tmux.send_keys '99'\n     tmux.until do\n-      expected.merge!(FZF_ACTION: 'char', FZF_KEY: '9', FZF_QUERY: '99', FZF_MATCH_COUNT: '1', FZF_POS: '1')\n+      expected.merge!(FZF_ACTION: 'char', FZF_KEY: '9', FZF_QUERY: '99', FZF_MATCH_COUNT: '1', FZF_POS: '1', FZF_CURRENT_ITEM: '99')\n       assert_equal expected, env_vars.slice(*expected.keys)\n     end\n     tmux.send_keys :Space\n",
+      "changedFiles": 4,
+      "addedLines": 9,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "feature",
+        "docs",
+        "go",
+        "test"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0003",
+      "title": "Preview command runs for items containing a NUL byte when using a NUL field delimiter",
+      "preconditions": "fzf is invoked with a NUL byte as the field delimiter (--delimiter=$'\\0'), a common way to encode multiple fields per input line, and a --preview command is configured.",
+      "steps": [
+        "Pipe NUL-delimited input into fzf, e.g.: printf '\\0foo\\0/\\n' | fzf --delimiter=$'\\0' --preview 'echo ok'",
+        "Observe the preview window for the highlighted item."
+      ],
+      "expectedResult": "The preview window runs the configured command and shows its output (\"ok\"); fzf stays usable and does not report an error about the child process failing to start."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-05-23T13:28:03Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "cli",
+        "preview",
+        "environment-variables",
+        "fzf"
+      ],
+      "durationMs": null,
+      "feature": "preview/child-process invocation with NUL-containing items",
+      "platform": "cli",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/junegunn/fzf/pull/4803",
+        "issueUrl": "https://github.com/junegunn/fzf/issues/4806",
+        "evidenceTestFile": null,
+        "note": "PR #4803 (merged 2026-05-23, released in 0.73.0) added FZF_CURRENT_ITEM to the child-process environment by appending the raw current item text unconditionally. Issue #4806 ('Regression: FZF_CURRENT_ITEM breaks --preview when items contain NUL', filed against 0.73.0) states verbatim: 'The regression was introduced by #4803, which adds FZF_CURRENT_ITEM to the child environment by appending the raw item text' and explains Go's os/exec rejects any environment entry containing a NUL byte, so the preview child process fails to spawn whenever an item contains NUL (e.g. from --delimiter=$'\\0'). Maintainer junegunn confirmed the report ('Thanks for the report. I'll release a bug fix release shortly.') and closed it with 'Fixed in https://github.com/junegunn/fzf/releases/tag/v0.73.1', corresponding to commit 4b23aa4 ('Skip FZF_CURRENT_ITEM export when item contains NUL') which guards the export with `!strings.ContainsRune(s, 0)`."
+      }
+    }
+  },
+  {
+    "id": "rgf_0006",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0003",
+    "pr": {
+      "repository": "junegunn/fzf",
+      "number": 4803,
+      "baseSha": "677e854850a70b7243fd35703d4f03b6651961b3",
+      "headSha": "63a47a6b1f428e841d10bc4837d05db21896eb20",
+      "title": "Export FZF_CURRENT_ITEM to child processes",
+      "description": "Close #4802\r\n\r\n## Contribution Policy\r\n\r\nWe do not accept pull requests generated primarily by AI without genuine understanding or real-world usage context.\r\n\r\nAll contributions are expected to demonstrate:\r\n- A clear understanding of the codebase\r\n- Alignment with product direction\r\n- Thoughtful reasoning behind changes\r\n- Evidence of real-world usage or hands-on experience with the problem\r\n\r\nIf these expectations are not met, we would prefer to implement the changes ourselves rather than spend time reviewing low-effort submissions.\r\n\r\n---\r\n\r\n## Acknowledgement\r\n\r\n- [x] I confirm that this PR meets the above expectations and reflects my own understanding and real-world context.",
+      "diff": "diff --git a/CHANGELOG.md b/CHANGELOG.md\nindex 0cd8bea3e6a..cf93b0f7ede 100644\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -4,6 +4,7 @@ CHANGELOG\n 0.73.0\n ------\n - Timer-driven `every(N)` event for `--bind`, where `N` is seconds (fractional, floored to `0.01`). Ticks that overlap an in-flight action are coalesced, so a slow `reload` cannot accumulate a backlog.\n+- New `FZF_CURRENT_ITEM` environment variable exported to child processes, holding the text of the current item. Useful on shells where quoting `{}` is awkward (e.g. PowerShell on Windows). Unset when the list is empty (#4802).\n - New `FZF_IDLE_TIME` (whole seconds) and `FZF_IDLE_TIME_MS` (milliseconds) environment variables exported to child processes, holding the elapsed time since the last user activity. Pair with `every(N)` to build idle-based behavior such as auto-accept or auto-quit (#1211).\n       ```sh\n       # Live process list; --track --id-nth 2 keeps the cursor on the same PID across reloads\ndiff --git a/man/man1/fzf.1 b/man/man1/fzf.1\nindex 93f157fe6e0..18fc8525cc3 100644\n--- a/man/man1/fzf.1\n+++ b/man/man1/fzf.1\n@@ -1475,6 +1475,8 @@ fzf exports the following environment variables to its child processes.\n .br\n .BR FZF_POS \"             Vertical position of the cursor in the list starting from 1\"\n .br\n+.BR FZF_CURRENT_ITEM \"    Text of the current item (unset if the list is empty)\"\n+.br\n .BR FZF_WRAP \"            The line wrapping mode (char, word) when enabled\"\n .br\n .BR FZF_QUERY \"           Current query string\"\ndiff --git a/src/terminal.go b/src/terminal.go\nindex 2a11ea37fe5..47c41a5919c 100644\n--- a/src/terminal.go\n+++ b/src/terminal.go\n@@ -1438,6 +1438,9 @@ func (t *Terminal) environImpl(forPreview bool) []string {\n \tenv = append(env, fmt.Sprintf(\"FZF_LINES=%d\", t.areaLines))\n \tenv = append(env, fmt.Sprintf(\"FZF_COLUMNS=%d\", t.areaColumns))\n \tenv = append(env, fmt.Sprintf(\"FZF_POS=%d\", min(t.merger.Length(), t.cy+1)))\n+\tif item := t.currentItem(); item != nil {\n+\t\tenv = append(env, \"FZF_CURRENT_ITEM=\"+item.AsString(t.ansi))\n+\t}\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_HEADER_LINE=%d\", t.clickHeaderLine))\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_HEADER_COLUMN=%d\", t.clickHeaderColumn))\n \tenv = append(env, fmt.Sprintf(\"FZF_CLICK_FOOTER_LINE=%d\", t.clickFooterLine))\ndiff --git a/test/test_core.rb b/test/test_core.rb\nindex d4acf1031e4..119b94cd117 100644\n--- a/test/test_core.rb\n+++ b/test/test_core.rb\n@@ -2286,6 +2286,7 @@ def env_vars\n       FZF_ACTION: 'start',\n       FZF_KEY: '',\n       FZF_POS: '1',\n+      FZF_CURRENT_ITEM: '1',\n       FZF_QUERY: '',\n       FZF_POINTER: '>',\n       FZF_PROMPT: '> ',\n@@ -2301,12 +2302,12 @@ def env_vars\n     end\n     tmux.send_keys :Tab, :Tab\n     tmux.until do\n-      expected.merge!(FZF_ACTION: 'toggle-down', FZF_KEY: 'tab', FZF_POS: '3', FZF_SELECT_COUNT: '2')\n+      expected.merge!(FZF_ACTION: 'toggle-down', FZF_KEY: 'tab', FZF_POS: '3', FZF_CURRENT_ITEM: '3', FZF_SELECT_COUNT: '2')\n       assert_equal expected, env_vars.slice(*expected.keys)\n     end\n     tmux.send_keys '99'\n     tmux.until do\n-      expected.merge!(FZF_ACTION: 'char', FZF_KEY: '9', FZF_QUERY: '99', FZF_MATCH_COUNT: '1', FZF_POS: '1')\n+      expected.merge!(FZF_ACTION: 'char', FZF_KEY: '9', FZF_QUERY: '99', FZF_MATCH_COUNT: '1', FZF_POS: '1', FZF_CURRENT_ITEM: '99')\n       assert_equal expected, env_vars.slice(*expected.keys)\n     end\n     tmux.send_keys :Space\n",
+      "changedFiles": 4,
+      "addedLines": 9,
+      "deletedLines": 2,
+      "commits": 1,
+      "language": "Go",
+      "labels": [
+        "feature",
+        "docs",
+        "go",
+        "test"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0003",
+      "title": "Preview command runs for items containing a NUL byte when using a NUL field delimiter",
+      "preconditions": "fzf is invoked with a NUL byte as the field delimiter (--delimiter=$'\\0'), a common way to encode multiple fields per input line, and a --preview command is configured.",
+      "steps": [
+        "Pipe NUL-delimited input into fzf, e.g.: printf '\\0foo\\0/\\n' | fzf --delimiter=$'\\0' --preview 'echo ok'",
+        "Observe the preview window for the highlighted item."
+      ],
+      "expectedResult": "The preview window runs the configured command and shows its output (\"ok\"); fzf stays usable and does not report an error about the child process failing to start."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-05-23T13:28:03Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "cli",
+        "preview",
+        "environment-variables",
+        "fzf"
+      ],
+      "durationMs": null,
+      "feature": "preview/child-process invocation with NUL-containing items",
+      "platform": "cli",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/junegunn/fzf/pull/4803",
+        "issueUrl": "https://github.com/junegunn/fzf/issues/4806",
+        "evidenceTestFile": null,
+        "note": "PR #4803 (merged 2026-05-23, released in 0.73.0) added FZF_CURRENT_ITEM to the child-process environment by appending the raw current item text unconditionally. Issue #4806 ('Regression: FZF_CURRENT_ITEM breaks --preview when items contain NUL', filed against 0.73.0) states verbatim: 'The regression was introduced by #4803, which adds FZF_CURRENT_ITEM to the child environment by appending the raw item text' and explains Go's os/exec rejects any environment entry containing a NUL byte, so the preview child process fails to spawn whenever an item contains NUL (e.g. from --delimiter=$'\\0'). Maintainer junegunn confirmed the report ('Thanks for the report. I'll release a bug fix release shortly.') and closed it with 'Fixed in https://github.com/junegunn/fzf/releases/tag/v0.73.1', corresponding to commit 4b23aa4 ('Skip FZF_CURRENT_ITEM export when item contains NUL') which guards the export with `!strings.ContainsRune(s, 0)`."
+      }
+    }
+  },
+  {
+    "id": "rgf_0007",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0004",
+    "pr": {
+      "repository": "flutter/flutter",
+      "number": 183072,
+      "baseSha": "0f401eea04390dc08eb939b6c0fee17c7d15f6ec",
+      "headSha": "5086070914f157e97dce514b74e3d45acdebb734",
+      "title": "[Android] Use EdgeToEdge.enable/WindowCompat for edge-to-edge mode instead of deprecated View flags",
+      "description": "## Summary\n\nReplaces deprecated `View.SYSTEM_UI_FLAG_LAYOUT_*` flags and `setSystemUiVisibility()` with modern AndroidX APIs for edge-to-edge mode in `PlatformPlugin`.\n\n- For `ComponentActivity` instances (e.g. `FlutterFragmentActivity`), uses `EdgeToEdge.enable()` which also suppresses Android 15 edge-to-edge warnings\n- For plain `Activity` instances (e.g. `FlutterActivity`), falls back to `WindowCompat.setDecorFitsSystemWindows()` which achieves the same layout behavior\n- Tracks edge-to-edge state to prevent `setSystemUiVisibility()` from interfering with `WindowCompat` on API < 30\n- Properly restores normal inset behavior when switching away from edge-to-edge mode\n\nOther system UI modes (lean back, immersive, immersive sticky) are left unchanged as they are lower priority per [issue comment](https://github.com/flutter/flutter/issues/165328#issuecomment-2730332785) — those modes are ignored on API 36+ anyway.\n\nFixes https://github.com/flutter/flutter/issues/165328\n\n## Test plan\n\n- Updated existing `setSystemUiMode` test to remove deprecated EDGE_TO_EDGE flag verification\n- Updated `doNotEnableEdgeToEdgeOnOlderSdk` test to also verify `WindowCompat` is not called on API < 29\n- Added `setSystemUiMode_edgeToEdge_usesWindowCompat` test verifying `WindowCompat.setDecorFitsSystemWindows(window, false)` is called for plain Activity\n- Added `switchFromEdgeToEdgeToImmersive_restoresDecorFitsSystemWindows` test verifying mode switching restores `setDecorFitsSystemWindows(true)` then applies immersive flags\n- Added `updateSystemUiOverlays_inEdgeToEdge_reappliesModernApi` test verifying overlay restore re-applies `WindowCompat` instead of deprecated `setSystemUiVisibility`",
+      "diff": "diff --git a/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java b/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\nindex 8629b86bbc125..aabdc12ac403e 100644\n--- a/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\n+++ b/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\n@@ -25,6 +25,7 @@\n import androidx.annotation.NonNull;\n import androidx.annotation.Nullable;\n import androidx.annotation.VisibleForTesting;\n+import androidx.core.view.WindowCompat;\n import androidx.core.view.WindowInsetsControllerCompat;\n import io.flutter.Log;\n import io.flutter.embedding.engine.systemchannels.PlatformChannel;\n@@ -42,6 +43,7 @@ public class PlatformPlugin {\n   @Nullable private final PlatformPluginDelegate platformPluginDelegate;\n   private PlatformChannel.SystemChromeStyle currentTheme;\n   private int mEnabledOverlays;\n+  private boolean isEdgeToEdge = false;\n   private static final String TAG = \"PlatformPlugin\";\n \n   /**\n@@ -279,6 +281,12 @@ public void onSystemUiVisibilityChange(int visibility) {\n   private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode systemUiMode) {\n     int enabledOverlays;\n \n+    // If we were previously in edge-to-edge mode and are switching to a different mode,\n+    // restore the default window inset behavior.\n+    if (systemUiMode != PlatformChannel.SystemUiMode.EDGE_TO_EDGE) {\n+      disableEdgeToEdge();\n+    }\n+\n     if (systemUiMode == PlatformChannel.SystemUiMode.LEAN_BACK) {\n       // LEAN BACK\n       // Available starting at Android SDK 4.1 (API 16).\n@@ -358,13 +366,18 @@ private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode sys\n       // If the Flutter app targets Android SDK 15 (API 35) or later (Flutter does this by default),\n       // then this mode is used by default.\n       //\n+      // Uses WindowCompat.setDecorFitsSystemWindows (from AndroidX core) instead of deprecated\n+      // View.SYSTEM_UI_FLAG_LAYOUT_* flags.\n+      //\n       // SDK 29 and up will apply a translucent body scrim behind 2/3 button navigation bars\n       // to ensure contrast with buttons on the nav and status bars, unless the contrast is not\n       // enforced in the overlay styling.\n-      enabledOverlays =\n-          View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;\n+      isEdgeToEdge = true;\n+      enableEdgeToEdge();\n+      if (currentTheme != null) {\n+        setSystemChromeSystemUIOverlayStyle(currentTheme);\n+      }\n+      return;\n     } else {\n       // When none of the conditions are matched, return without updating the system UI overlays.\n       return;\n@@ -376,6 +389,10 @@ private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode sys\n \n   private void setSystemChromeEnabledSystemUIOverlays(\n       List<PlatformChannel.SystemUiOverlay> overlaysToShow) {\n+    // If we were in edge-to-edge mode, restore normal inset behavior since this\n+    // older API sets specific overlay flags that are incompatible with edge-to-edge.\n+    disableEdgeToEdge();\n+\n     // Start by assuming we want to hide all system overlays (like an immersive\n     // game).\n     int enabledOverlays =\n@@ -415,7 +432,13 @@ private void setSystemChromeEnabledSystemUIOverlays(\n    * PlatformPlugin}.\n    */\n   public void updateSystemUiOverlays() {\n-    activity.getWindow().getDecorView().setSystemUiVisibility(mEnabledOverlays);\n+    if (isEdgeToEdge) {\n+      // In edge-to-edge mode, re-apply the modern API instead of using deprecated\n+      // setSystemUiVisibility(), which could interfere with WindowCompat on API < 30.\n+      enableEdgeToEdge();\n+    } else {\n+      activity.getWindow().getDecorView().setSystemUiVisibility(mEnabledOverlays);\n+    }\n     if (currentTheme != null) {\n       setSystemChromeSystemUIOverlayStyle(currentTheme);\n     }\n@@ -425,6 +448,28 @@ private void restoreSystemChromeSystemUIOverlays() {\n     updateSystemUiOverlays();\n   }\n \n+  /**\n+   * Enables edge-to-edge mode using {@link WindowCompat#setDecorFitsSystemWindows}, which is the\n+   * modern replacement for the deprecated {@code View.SYSTEM_UI_FLAG_LAYOUT_*} flags. This works\n+   * with any {@link Activity} type, including both {@link\n+   * io.flutter.embedding.android.FlutterActivity} and {@link\n+   * io.flutter.embedding.android.FlutterFragmentActivity}.\n+   */\n+  private void enableEdgeToEdge() {\n+    WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), false);\n+  }\n+\n+  /**\n+   * Disables edge-to-edge mode when switching to a different {@link PlatformChannel.SystemUiMode}.\n+   * Restores the default decor-fits-system-windows behavior.\n+   */\n+  private void disableEdgeToEdge() {\n+    if (isEdgeToEdge) {\n+      isEdgeToEdge = false;\n+      WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), true);\n+    }\n+  }\n+\n   /**\n    * @deprecated This method is outdated because it calls {@code setStatusBarColor}, {@code\n    *     setNavigationBarColor} and {@code setNavigationBarDividerColor}, which are deprecated in\ndiff --git a/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java b/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\nindex 423176c80e3ab..00e729ad0bca3 100644\n--- a/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\n+++ b/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\n@@ -40,6 +40,7 @@\n import android.view.WindowInsetsController;\n import android.view.WindowManager;\n import androidx.activity.OnBackPressedCallback;\n+import androidx.core.view.WindowCompat;\n import androidx.fragment.app.FragmentActivity;\n import androidx.test.core.app.ActivityScenario;\n import androidx.test.core.app.ApplicationProvider;\n@@ -478,16 +479,6 @@ public void setSystemUiMode() {\n                   | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION\n                   | View.SYSTEM_UI_FLAG_FULLSCREEN);\n     }\n-\n-    if (Build.VERSION.SDK_INT >= API_LEVELS.API_29) {\n-      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n-          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n-      verify(fakeDecorView)\n-          .setSystemUiVisibility(\n-              View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n-    }\n   }\n \n   @SuppressWarnings(\"deprecation\")\n@@ -558,13 +549,98 @@ public void doNotEnableEdgeToEdgeOnOlderSdk() {\n     when(mockActivity.getWindow()).thenReturn(fakeWindow);\n     PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n \n-    platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n-        PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n-    verify(fakeDecorView, never())\n-        .setSystemUiVisibility(\n-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+\n+      // Should not enable edge-to-edge via any mechanism on API < 29.\n+      verify(fakeDecorView, never())\n+          .setSystemUiVisibility(\n+              View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n+      windowCompatMock.verifyNoInteractions();\n+    }\n+  }\n+\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void setSystemUiMode_edgeToEdge_usesWindowCompat() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+\n+      // For a plain Activity, should use WindowCompat instead of deprecated setSystemUiVisibility.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+    }\n+  }\n+\n+  @SuppressWarnings(\"deprecation\")\n+  // SYSTEM_UI_FLAG_*, setSystemUiVisibility\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void switchFromEdgeToEdgeToImmersive_restoresDecorFitsSystemWindows() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      // First, enter edge-to-edge mode.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+\n+      // Then switch to immersive.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.IMMERSIVE);\n+\n+      // Should restore decor fits system windows when leaving edge-to-edge.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, true));\n+\n+      // Should apply immersive flags via setSystemUiVisibility.\n+      verify(fakeDecorView)\n+          .setSystemUiVisibility(\n+              View.SYSTEM_UI_FLAG_IMMERSIVE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN\n+                  | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_FULLSCREEN);\n+    }\n+  }\n+\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void updateSystemUiOverlays_inEdgeToEdge_reappliesModernApi() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      // Enter edge-to-edge.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+      windowCompatMock.clearInvocations();\n+\n+      // Restore overlays (e.g., after returning from another activity).\n+      platformPlugin.updateSystemUiOverlays();\n+\n+      // Should re-apply WindowCompat, not setSystemUiVisibility.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+    }\n   }\n \n   @SuppressWarnings(\"deprecation\")\n",
+      "changedFiles": 2,
+      "addedLines": 143,
+      "deletedLines": 22,
+      "commits": 5,
+      "language": "Java",
+      "labels": [
+        "platform-android",
+        "engine",
+        "team-android",
+        "CICD"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0004",
+      "title": "Switching Android system UI mode from immersiveSticky back to edgeToEdge restores the system bars",
+      "preconditions": "A Flutter app is running on an Android device or emulator with edge-to-edge support (API 29+).",
+      "steps": [
+        "Call SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky) to hide the status bar and navigation bar.",
+        "Call SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge).",
+        "Observe the status bar and navigation bar."
+      ],
+      "expectedResult": "The status bar and navigation bar reappear (system bars are shown) after switching to edgeToEdge mode."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-04-02T20:26:44Z",
+      "testType": "E2E",
+      "tags": [
+        "android",
+        "system-ui",
+        "edge-to-edge",
+        "flutter"
+      ],
+      "durationMs": null,
+      "feature": "SystemChrome.setEnabledSystemUIMode on Android",
+      "platform": "android",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/flutter/flutter/pull/183072",
+        "issueUrl": "https://github.com/flutter/flutter/issues/186723",
+        "evidenceTestFile": "engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java",
+        "note": "PR #183072 (merged 2026-04-02, in Flutter 3.44.0) replaced deprecated View.SYSTEM_UI_FLAG_* handling with WindowCompat/EdgeToEdge APIs in PlatformPlugin.java for edge-to-edge mode. Issue #186723 ('[Regression][Android] Failed to switch SystemUIMode from immersiveSticky to edgeToEdge in Flutter 3.44.0') was bisected by a reporter to PR #183072; maintainer camsim99 confirmed: 'I can confirm that this is a regression caused by https://github.com/flutter/flutter/pull/183072. The problem is that calls to set system UI flags for non-edge-to-edge SystemUIModes conflict with the call to Window.setDecorFitsSystemWindows to set edge-to-edge mode.' Maintainer dbebawy then stated 'The fix landed in #187207 (merged to master 2026-05-28)', which corrects the interaction between the legacy setSystemUiVisibility path and the new WindowCompat-based edge-to-edge path added by #183072."
+      }
+    }
+  },
+  {
+    "id": "rgf_0008",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0004",
+    "pr": {
+      "repository": "flutter/flutter",
+      "number": 183072,
+      "baseSha": "0f401eea04390dc08eb939b6c0fee17c7d15f6ec",
+      "headSha": "5086070914f157e97dce514b74e3d45acdebb734",
+      "title": "[Android] Use EdgeToEdge.enable/WindowCompat for edge-to-edge mode instead of deprecated View flags",
+      "description": "## Summary\n\nReplaces deprecated `View.SYSTEM_UI_FLAG_LAYOUT_*` flags and `setSystemUiVisibility()` with modern AndroidX APIs for edge-to-edge mode in `PlatformPlugin`.\n\n- For `ComponentActivity` instances (e.g. `FlutterFragmentActivity`), uses `EdgeToEdge.enable()` which also suppresses Android 15 edge-to-edge warnings\n- For plain `Activity` instances (e.g. `FlutterActivity`), falls back to `WindowCompat.setDecorFitsSystemWindows()` which achieves the same layout behavior\n- Tracks edge-to-edge state to prevent `setSystemUiVisibility()` from interfering with `WindowCompat` on API < 30\n- Properly restores normal inset behavior when switching away from edge-to-edge mode\n\nOther system UI modes (lean back, immersive, immersive sticky) are left unchanged as they are lower priority per [issue comment](https://github.com/flutter/flutter/issues/165328#issuecomment-2730332785) — those modes are ignored on API 36+ anyway.\n\nFixes https://github.com/flutter/flutter/issues/165328\n\n## Test plan\n\n- Updated existing `setSystemUiMode` test to remove deprecated EDGE_TO_EDGE flag verification\n- Updated `doNotEnableEdgeToEdgeOnOlderSdk` test to also verify `WindowCompat` is not called on API < 29\n- Added `setSystemUiMode_edgeToEdge_usesWindowCompat` test verifying `WindowCompat.setDecorFitsSystemWindows(window, false)` is called for plain Activity\n- Added `switchFromEdgeToEdgeToImmersive_restoresDecorFitsSystemWindows` test verifying mode switching restores `setDecorFitsSystemWindows(true)` then applies immersive flags\n- Added `updateSystemUiOverlays_inEdgeToEdge_reappliesModernApi` test verifying overlay restore re-applies `WindowCompat` instead of deprecated `setSystemUiVisibility`",
+      "diff": "diff --git a/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java b/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\nindex 8629b86bbc125..aabdc12ac403e 100644\n--- a/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\n+++ b/engine/src/flutter/shell/platform/android/io/flutter/plugin/platform/PlatformPlugin.java\n@@ -25,6 +25,7 @@\n import androidx.annotation.NonNull;\n import androidx.annotation.Nullable;\n import androidx.annotation.VisibleForTesting;\n+import androidx.core.view.WindowCompat;\n import androidx.core.view.WindowInsetsControllerCompat;\n import io.flutter.Log;\n import io.flutter.embedding.engine.systemchannels.PlatformChannel;\n@@ -42,6 +43,7 @@ public class PlatformPlugin {\n   @Nullable private final PlatformPluginDelegate platformPluginDelegate;\n   private PlatformChannel.SystemChromeStyle currentTheme;\n   private int mEnabledOverlays;\n+  private boolean isEdgeToEdge = false;\n   private static final String TAG = \"PlatformPlugin\";\n \n   /**\n@@ -279,6 +281,12 @@ public void onSystemUiVisibilityChange(int visibility) {\n   private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode systemUiMode) {\n     int enabledOverlays;\n \n+    // If we were previously in edge-to-edge mode and are switching to a different mode,\n+    // restore the default window inset behavior.\n+    if (systemUiMode != PlatformChannel.SystemUiMode.EDGE_TO_EDGE) {\n+      disableEdgeToEdge();\n+    }\n+\n     if (systemUiMode == PlatformChannel.SystemUiMode.LEAN_BACK) {\n       // LEAN BACK\n       // Available starting at Android SDK 4.1 (API 16).\n@@ -358,13 +366,18 @@ private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode sys\n       // If the Flutter app targets Android SDK 15 (API 35) or later (Flutter does this by default),\n       // then this mode is used by default.\n       //\n+      // Uses WindowCompat.setDecorFitsSystemWindows (from AndroidX core) instead of deprecated\n+      // View.SYSTEM_UI_FLAG_LAYOUT_* flags.\n+      //\n       // SDK 29 and up will apply a translucent body scrim behind 2/3 button navigation bars\n       // to ensure contrast with buttons on the nav and status bars, unless the contrast is not\n       // enforced in the overlay styling.\n-      enabledOverlays =\n-          View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-              | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-              | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;\n+      isEdgeToEdge = true;\n+      enableEdgeToEdge();\n+      if (currentTheme != null) {\n+        setSystemChromeSystemUIOverlayStyle(currentTheme);\n+      }\n+      return;\n     } else {\n       // When none of the conditions are matched, return without updating the system UI overlays.\n       return;\n@@ -376,6 +389,10 @@ private void setSystemChromeEnabledSystemUIMode(PlatformChannel.SystemUiMode sys\n \n   private void setSystemChromeEnabledSystemUIOverlays(\n       List<PlatformChannel.SystemUiOverlay> overlaysToShow) {\n+    // If we were in edge-to-edge mode, restore normal inset behavior since this\n+    // older API sets specific overlay flags that are incompatible with edge-to-edge.\n+    disableEdgeToEdge();\n+\n     // Start by assuming we want to hide all system overlays (like an immersive\n     // game).\n     int enabledOverlays =\n@@ -415,7 +432,13 @@ private void setSystemChromeEnabledSystemUIOverlays(\n    * PlatformPlugin}.\n    */\n   public void updateSystemUiOverlays() {\n-    activity.getWindow().getDecorView().setSystemUiVisibility(mEnabledOverlays);\n+    if (isEdgeToEdge) {\n+      // In edge-to-edge mode, re-apply the modern API instead of using deprecated\n+      // setSystemUiVisibility(), which could interfere with WindowCompat on API < 30.\n+      enableEdgeToEdge();\n+    } else {\n+      activity.getWindow().getDecorView().setSystemUiVisibility(mEnabledOverlays);\n+    }\n     if (currentTheme != null) {\n       setSystemChromeSystemUIOverlayStyle(currentTheme);\n     }\n@@ -425,6 +448,28 @@ private void restoreSystemChromeSystemUIOverlays() {\n     updateSystemUiOverlays();\n   }\n \n+  /**\n+   * Enables edge-to-edge mode using {@link WindowCompat#setDecorFitsSystemWindows}, which is the\n+   * modern replacement for the deprecated {@code View.SYSTEM_UI_FLAG_LAYOUT_*} flags. This works\n+   * with any {@link Activity} type, including both {@link\n+   * io.flutter.embedding.android.FlutterActivity} and {@link\n+   * io.flutter.embedding.android.FlutterFragmentActivity}.\n+   */\n+  private void enableEdgeToEdge() {\n+    WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), false);\n+  }\n+\n+  /**\n+   * Disables edge-to-edge mode when switching to a different {@link PlatformChannel.SystemUiMode}.\n+   * Restores the default decor-fits-system-windows behavior.\n+   */\n+  private void disableEdgeToEdge() {\n+    if (isEdgeToEdge) {\n+      isEdgeToEdge = false;\n+      WindowCompat.setDecorFitsSystemWindows(activity.getWindow(), true);\n+    }\n+  }\n+\n   /**\n    * @deprecated This method is outdated because it calls {@code setStatusBarColor}, {@code\n    *     setNavigationBarColor} and {@code setNavigationBarDividerColor}, which are deprecated in\ndiff --git a/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java b/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\nindex 423176c80e3ab..00e729ad0bca3 100644\n--- a/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\n+++ b/engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java\n@@ -40,6 +40,7 @@\n import android.view.WindowInsetsController;\n import android.view.WindowManager;\n import androidx.activity.OnBackPressedCallback;\n+import androidx.core.view.WindowCompat;\n import androidx.fragment.app.FragmentActivity;\n import androidx.test.core.app.ActivityScenario;\n import androidx.test.core.app.ApplicationProvider;\n@@ -478,16 +479,6 @@ public void setSystemUiMode() {\n                   | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION\n                   | View.SYSTEM_UI_FLAG_FULLSCREEN);\n     }\n-\n-    if (Build.VERSION.SDK_INT >= API_LEVELS.API_29) {\n-      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n-          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n-      verify(fakeDecorView)\n-          .setSystemUiVisibility(\n-              View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n-    }\n   }\n \n   @SuppressWarnings(\"deprecation\")\n@@ -558,13 +549,98 @@ public void doNotEnableEdgeToEdgeOnOlderSdk() {\n     when(mockActivity.getWindow()).thenReturn(fakeWindow);\n     PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n \n-    platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n-        PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n-    verify(fakeDecorView, never())\n-        .setSystemUiVisibility(\n-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+\n+      // Should not enable edge-to-edge via any mechanism on API < 29.\n+      verify(fakeDecorView, never())\n+          .setSystemUiVisibility(\n+              View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);\n+      windowCompatMock.verifyNoInteractions();\n+    }\n+  }\n+\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void setSystemUiMode_edgeToEdge_usesWindowCompat() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+\n+      // For a plain Activity, should use WindowCompat instead of deprecated setSystemUiVisibility.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+    }\n+  }\n+\n+  @SuppressWarnings(\"deprecation\")\n+  // SYSTEM_UI_FLAG_*, setSystemUiVisibility\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void switchFromEdgeToEdgeToImmersive_restoresDecorFitsSystemWindows() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      // First, enter edge-to-edge mode.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+\n+      // Then switch to immersive.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.IMMERSIVE);\n+\n+      // Should restore decor fits system windows when leaving edge-to-edge.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, true));\n+\n+      // Should apply immersive flags via setSystemUiVisibility.\n+      verify(fakeDecorView)\n+          .setSystemUiVisibility(\n+              View.SYSTEM_UI_FLAG_IMMERSIVE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_STABLE\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN\n+                  | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION\n+                  | View.SYSTEM_UI_FLAG_FULLSCREEN);\n+    }\n+  }\n+\n+  @Config(sdk = API_LEVELS.API_29)\n+  @Test\n+  public void updateSystemUiOverlays_inEdgeToEdge_reappliesModernApi() {\n+    View fakeDecorView = mock(View.class);\n+    Window fakeWindow = mock(Window.class);\n+    Activity mockActivity = mock(Activity.class);\n+    when(fakeWindow.getDecorView()).thenReturn(fakeDecorView);\n+    when(mockActivity.getWindow()).thenReturn(fakeWindow);\n+    PlatformPlugin platformPlugin = new PlatformPlugin(mockActivity, mockPlatformChannel);\n+\n+    try (MockedStatic<WindowCompat> windowCompatMock = mockStatic(WindowCompat.class)) {\n+      // Enter edge-to-edge.\n+      platformPlugin.mPlatformMessageHandler.showSystemUiMode(\n+          PlatformChannel.SystemUiMode.EDGE_TO_EDGE);\n+      windowCompatMock.clearInvocations();\n+\n+      // Restore overlays (e.g., after returning from another activity).\n+      platformPlugin.updateSystemUiOverlays();\n+\n+      // Should re-apply WindowCompat, not setSystemUiVisibility.\n+      windowCompatMock.verify(() -> WindowCompat.setDecorFitsSystemWindows(fakeWindow, false));\n+    }\n   }\n \n   @SuppressWarnings(\"deprecation\")\n",
+      "changedFiles": 2,
+      "addedLines": 143,
+      "deletedLines": 22,
+      "commits": 5,
+      "language": "Java",
+      "labels": [
+        "platform-android",
+        "engine",
+        "team-android",
+        "CICD"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0004",
+      "title": "Switching Android system UI mode from immersiveSticky back to edgeToEdge restores the system bars",
+      "preconditions": "A Flutter app is running on an Android device or emulator with edge-to-edge support (API 29+).",
+      "steps": [
+        "Call SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky) to hide the status bar and navigation bar.",
+        "Call SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge).",
+        "Observe the status bar and navigation bar."
+      ],
+      "expectedResult": "The status bar and navigation bar reappear (system bars are shown) after switching to edgeToEdge mode."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-04-02T20:26:44Z",
+      "testType": "E2E",
+      "tags": [
+        "android",
+        "system-ui",
+        "edge-to-edge",
+        "flutter"
+      ],
+      "durationMs": null,
+      "feature": "SystemChrome.setEnabledSystemUIMode on Android",
+      "platform": "android",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/flutter/flutter/pull/183072",
+        "issueUrl": "https://github.com/flutter/flutter/issues/186723",
+        "evidenceTestFile": "engine/src/flutter/shell/platform/android/test/io/flutter/plugin/platform/PlatformPluginTest.java",
+        "note": "PR #183072 (merged 2026-04-02, in Flutter 3.44.0) replaced deprecated View.SYSTEM_UI_FLAG_* handling with WindowCompat/EdgeToEdge APIs in PlatformPlugin.java for edge-to-edge mode. Issue #186723 ('[Regression][Android] Failed to switch SystemUIMode from immersiveSticky to edgeToEdge in Flutter 3.44.0') was bisected by a reporter to PR #183072; maintainer camsim99 confirmed: 'I can confirm that this is a regression caused by https://github.com/flutter/flutter/pull/183072. The problem is that calls to set system UI flags for non-edge-to-edge SystemUIModes conflict with the call to Window.setDecorFitsSystemWindows to set edge-to-edge mode.' Maintainer dbebawy then stated 'The fix landed in #187207 (merged to master 2026-05-28)', which corrects the interaction between the legacy setSystemUiVisibility path and the new WindowCompat-based edge-to-edge path added by #183072."
+      }
+    }
+  },
+  {
+    "id": "rgf_0009",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0005",
+    "pr": {
+      "repository": "neovim/neovim",
+      "number": 40270,
+      "baseSha": "ebc69b387cfae18b55c87a37170fb499ecb7fbf2",
+      "headSha": "ad5894a1b8626d39c9bbf435ad85d2e53f931bfd",
+      "title": "fix(tui): late-arriving OSC11 response triggers OptionSet",
+      "description": "Problem:\r\nThis test is flaky since fff9897ce3f2 :\r\n\r\n    FAILED   ...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua @ 4359:\r\n    TUI bg color does not trigger OptionSet from automatic background processing\r\n    Expected values to be equal.\r\n    Expected:\r\n    { true, 0 }\r\n    Actual:\r\n    { true, 1 }\r\n    stack traceback:\r\n    ...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua:4380:\r\n    in function <...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua:4359>\r\n\r\n`apply_optionset_autocmd_now` does not emit `OptionSet` during startup:\r\n\r\n    void apply_optionset_autocmd_now(...) {\r\n      // Don't do this while starting up, failure or recursively.\r\n      if (starting || errmsg != NULL || *get_vim_var_str(VV_OPTION_TYPE) != NUL) {\r\n        return;\r\n      }\r\n      ...\r\n    }\r\n\r\nbut if OSC 11 response arrives AFTER VimEnter, then `nvim_set_option_value('background',…)` call triggers `OptionSet`.\r\n\r\nSolution:\r\nUse `:noautocmd` when setting 'background'.\r\nPer fff9897ce3f2, OSC11 is not intended to trigger OptionSet.\r\n\r\nfix https://github.com/neovim/neovim/issues/40235",
+      "diff": "diff --git a/runtime/lua/vim/_core/defaults.lua b/runtime/lua/vim/_core/defaults.lua\nindex 88f41c82d3c9a1..e1776ecf051d77 100644\n--- a/runtime/lua/vim/_core/defaults.lua\n+++ b/runtime/lua/vim/_core/defaults.lua\n@@ -921,7 +921,8 @@ do\n           if rr and gg and bb then\n             local luminance = (0.299 * rr) + (0.587 * gg) + (0.114 * bb)\n             local bg = luminance < 0.5 and 'dark' or 'light'\n-            vim.api.nvim_set_option_value('background', bg, {})\n+            -- Use :noautocmd to suppress OptionSet event; OSC11 response may arrive after VimEnter.\n+            vim.cmd('noautocmd set background=' .. bg)\n           end\n         end\n       end)\n",
+      "changedFiles": 1,
+      "addedLines": 2,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Lua",
+      "labels": [
+        "defaults",
+        "tui"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0005",
+      "title": "Terminal background color change after startup fires OptionSet and ColorScheme autocommands",
+      "preconditions": "Neovim is started in a terminal that reports background color via the OSC 11 escape sequence (e.g. a terminal that tracks the OS light/dark appearance), and the user has registered autocommands on the OptionSet event (pattern 'background') and on the ColorScheme event.",
+      "steps": [
+        "Start Neovim in a terminal that supports OSC 11 background color notifications and let it finish starting.",
+        "Add autocommands: an OptionSet autocommand for pattern 'background', and a ColorScheme autocommand, each printing a message when triggered.",
+        "Change the terminal's color mode (e.g. switch the terminal or OS from dark to light) so the terminal emits an updated OSC 11 background response."
+      ],
+      "expectedResult": "Neovim updates the 'background' option to match the new terminal color mode and both the OptionSet and ColorScheme autocommands fire."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2026-06-15T13:12:16Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "tui",
+        "autocmd",
+        "background",
+        "neovim"
+      ],
+      "durationMs": null,
+      "feature": "automatic background detection via OSC 11",
+      "platform": "terminal",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/neovim/neovim/pull/40270",
+        "issueUrl": "https://github.com/neovim/neovim/issues/41146",
+        "evidenceTestFile": "test/functional/terminal/tui_spec.lua",
+        "note": "PR #40270 (merged 2026-06-15) changed the automatic background-detection code in runtime/lua/vim/_core/defaults.lua from `vim.api.nvim_set_option_value('background', bg, {})` to `vim.cmd('noautocmd set background=' .. bg)`, to stop a late-arriving startup OSC11 response from firing OptionSet during startup. This unconditionally suppressed autocmd events for every future automatic background update, not only the startup one. Issue #41146 ('No events are emitted on background change caused by OSC signal') reports that OptionSet/ColorScheme no longer fire when the terminal's color mode changes after startup. Maintainer zeertzjq wrote: 'I think this is a regression from #40270 ... Perhaps #40270 should be reverted' and then 'So basically #40270 should be reverted.' PR #41242 ('fix(defaults): emit events on automatic background change', merged 2026-08-10) states 'After #40270, events are no longer emitted from the automatic background detection... BG change after startup still triggers autocmds #41146' and closes #41146."
+      }
+    }
+  },
+  {
+    "id": "rgf_0010",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0005",
+    "pr": {
+      "repository": "neovim/neovim",
+      "number": 40270,
+      "baseSha": "ebc69b387cfae18b55c87a37170fb499ecb7fbf2",
+      "headSha": "ad5894a1b8626d39c9bbf435ad85d2e53f931bfd",
+      "title": "fix(tui): late-arriving OSC11 response triggers OptionSet",
+      "description": "Problem:\r\nThis test is flaky since fff9897ce3f2 :\r\n\r\n    FAILED   ...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua @ 4359:\r\n    TUI bg color does not trigger OptionSet from automatic background processing\r\n    Expected values to be equal.\r\n    Expected:\r\n    { true, 0 }\r\n    Actual:\r\n    { true, 1 }\r\n    stack traceback:\r\n    ...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua:4380:\r\n    in function <...Xtest_xdg_terminal/test/functional/terminal/tui_spec.lua:4359>\r\n\r\n`apply_optionset_autocmd_now` does not emit `OptionSet` during startup:\r\n\r\n    void apply_optionset_autocmd_now(...) {\r\n      // Don't do this while starting up, failure or recursively.\r\n      if (starting || errmsg != NULL || *get_vim_var_str(VV_OPTION_TYPE) != NUL) {\r\n        return;\r\n      }\r\n      ...\r\n    }\r\n\r\nbut if OSC 11 response arrives AFTER VimEnter, then `nvim_set_option_value('background',…)` call triggers `OptionSet`.\r\n\r\nSolution:\r\nUse `:noautocmd` when setting 'background'.\r\nPer fff9897ce3f2, OSC11 is not intended to trigger OptionSet.\r\n\r\nfix https://github.com/neovim/neovim/issues/40235",
+      "diff": "diff --git a/runtime/lua/vim/_core/defaults.lua b/runtime/lua/vim/_core/defaults.lua\nindex 88f41c82d3c9a1..e1776ecf051d77 100644\n--- a/runtime/lua/vim/_core/defaults.lua\n+++ b/runtime/lua/vim/_core/defaults.lua\n@@ -921,7 +921,8 @@ do\n           if rr and gg and bb then\n             local luminance = (0.299 * rr) + (0.587 * gg) + (0.114 * bb)\n             local bg = luminance < 0.5 and 'dark' or 'light'\n-            vim.api.nvim_set_option_value('background', bg, {})\n+            -- Use :noautocmd to suppress OptionSet event; OSC11 response may arrive after VimEnter.\n+            vim.cmd('noautocmd set background=' .. bg)\n           end\n         end\n       end)\n",
+      "changedFiles": 1,
+      "addedLines": 2,
+      "deletedLines": 1,
+      "commits": 1,
+      "language": "Lua",
+      "labels": [
+        "defaults",
+        "tui"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0005",
+      "title": "Terminal background color change after startup fires OptionSet and ColorScheme autocommands",
+      "preconditions": "Neovim is started in a terminal that reports background color via the OSC 11 escape sequence (e.g. a terminal that tracks the OS light/dark appearance), and the user has registered autocommands on the OptionSet event (pattern 'background') and on the ColorScheme event.",
+      "steps": [
+        "Start Neovim in a terminal that supports OSC 11 background color notifications and let it finish starting.",
+        "Add autocommands: an OptionSet autocommand for pattern 'background', and a ColorScheme autocommand, each printing a message when triggered.",
+        "Change the terminal's color mode (e.g. switch the terminal or OS from dark to light) so the terminal emits an updated OSC 11 background response."
+      ],
+      "expectedResult": "Neovim updates the 'background' option to match the new terminal color mode and both the OptionSet and ColorScheme autocommands fire."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2026-06-15T13:12:16Z",
+      "testType": "INTEGRATION",
+      "tags": [
+        "tui",
+        "autocmd",
+        "background",
+        "neovim"
+      ],
+      "durationMs": null,
+      "feature": "automatic background detection via OSC 11",
+      "platform": "terminal",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/neovim/neovim/pull/40270",
+        "issueUrl": "https://github.com/neovim/neovim/issues/41146",
+        "evidenceTestFile": "test/functional/terminal/tui_spec.lua",
+        "note": "PR #40270 (merged 2026-06-15) changed the automatic background-detection code in runtime/lua/vim/_core/defaults.lua from `vim.api.nvim_set_option_value('background', bg, {})` to `vim.cmd('noautocmd set background=' .. bg)`, to stop a late-arriving startup OSC11 response from firing OptionSet during startup. This unconditionally suppressed autocmd events for every future automatic background update, not only the startup one. Issue #41146 ('No events are emitted on background change caused by OSC signal') reports that OptionSet/ColorScheme no longer fire when the terminal's color mode changes after startup. Maintainer zeertzjq wrote: 'I think this is a regression from #40270 ... Perhaps #40270 should be reverted' and then 'So basically #40270 should be reverted.' PR #41242 ('fix(defaults): emit events on automatic background change', merged 2026-08-10) states 'After #40270, events are no longer emitted from the automatic background detection... BG change after startup still triggers autocmds #41146' and closes #41146."
+      }
+    }
+  },
+  {
+    "id": "rgf_0011",
+    "revision": "base",
+    "flipPairId": "rgf_flip_0006",
+    "pr": {
+      "repository": "astral-sh/ruff",
+      "number": 16957,
+      "baseSha": "5697d21fca8e7146fb08ebe6eebf8c1402b7e4e3",
+      "headSha": "2e414cec073bc8294ad3853e39f3745ac8801abc",
+      "title": "[syntax-errors] Multiple assignments in `case` pattern",
+      "description": "Summary\r\n--\r\n\r\nThis PR detects multiple assignments to the same name in `case` patterns by recursively visiting each pattern.\r\n\r\nTest Plan\r\n--\r\n\r\nNew inline tests.\n\n(Diff shown below excludes two generated parser snapshot files under crates/ruff_python_parser/tests/snapshots/; the full PR also updated those snapshots to match the new diagnostics.)",
+      "diff": "diff --git a/crates/ruff_linter/src/checkers/ast/mod.rs b/crates/ruff_linter/src/checkers/ast/mod.rs\nindex c253f39e3eafb4..400b1142e0a72e 100644\n--- a/crates/ruff_linter/src/checkers/ast/mod.rs\n+++ b/crates/ruff_linter/src/checkers/ast/mod.rs\n@@ -549,6 +549,7 @@ impl SemanticSyntaxContext for Checker<'_> {\n             }\n             SemanticSyntaxErrorKind::ReboundComprehensionVariable\n             | SemanticSyntaxErrorKind::DuplicateTypeParameter\n+            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)\n             | SemanticSyntaxErrorKind::IrrefutableCasePattern(_)\n                 if self.settings.preview.is_enabled() =>\n             {\n@@ -556,6 +557,7 @@ impl SemanticSyntaxContext for Checker<'_> {\n             }\n             SemanticSyntaxErrorKind::ReboundComprehensionVariable\n             | SemanticSyntaxErrorKind::DuplicateTypeParameter\n+            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)\n             | SemanticSyntaxErrorKind::IrrefutableCasePattern(_) => {}\n         }\n     }\ndiff --git a/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py b/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py\nnew file mode 100644\nindex 00000000000000..45323edd662128\n--- /dev/null\n+++ b/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py\n@@ -0,0 +1,10 @@\n+match 2:\n+    case [y, z, y]: ...  # MatchSequence\n+    case [y, z, *y]: ...  # MatchSequence\n+    case [y, y, y]: ...  # MatchSequence multiple\n+    case {1: x, 2: x}: ...  # MatchMapping duplicate pattern\n+    case {1: x, **x}: ...  # MatchMapping duplicate in **rest\n+    case Class(x, x): ...  # MatchClass positional\n+    case Class(x=1, x=2): ...  # MatchClass keyword\n+    case [x] | {1: x} | Class(x=1, x=2): ...  # MatchOr\n+    case x as x: ...  # MatchAs\ndiff --git a/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py b/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py\nnew file mode 100644\nindex 00000000000000..05b1908b246d60\n--- /dev/null\n+++ b/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py\n@@ -0,0 +1,2 @@\n+match 2:\n+    case Class(x) | [x] | x: ...\ndiff --git a/crates/ruff_python_parser/src/semantic_errors.rs b/crates/ruff_python_parser/src/semantic_errors.rs\nindex 3d7918bee5e18c..4e2351a98351ea 100644\n--- a/crates/ruff_python_parser/src/semantic_errors.rs\n+++ b/crates/ruff_python_parser/src/semantic_errors.rs\n@@ -9,9 +9,10 @@ use std::fmt::Display;\n use ruff_python_ast::{\n     self as ast,\n     visitor::{walk_expr, Visitor},\n-    Expr, IrrefutablePatternKind, PythonVersion, Stmt, StmtExpr, StmtImportFrom,\n+    Expr, IrrefutablePatternKind, Pattern, PythonVersion, Stmt, StmtExpr, StmtImportFrom,\n };\n use ruff_text_size::{Ranged, TextRange};\n+use rustc_hash::FxHashSet;\n \n #[derive(Debug)]\n pub struct SemanticSyntaxChecker {\n@@ -62,6 +63,7 @@ impl SemanticSyntaxChecker {\n             }\n             Stmt::Match(match_stmt) => {\n                 Self::irrefutable_match_case(match_stmt, ctx);\n+                Self::multiple_case_assignment(match_stmt, ctx);\n             }\n             Stmt::FunctionDef(ast::StmtFunctionDef { type_params, .. })\n             | Stmt::ClassDef(ast::StmtClassDef { type_params, .. })\n@@ -112,6 +114,16 @@ impl SemanticSyntaxChecker {\n         }\n     }\n \n+    fn multiple_case_assignment<Ctx: SemanticSyntaxContext>(stmt: &ast::StmtMatch, ctx: &Ctx) {\n+        for case in &stmt.cases {\n+            let mut visitor = MultipleCaseAssignmentVisitor {\n+                names: FxHashSet::default(),\n+                ctx,\n+            };\n+            visitor.visit_pattern(&case.pattern);\n+        }\n+    }\n+\n     fn irrefutable_match_case<Ctx: SemanticSyntaxContext>(stmt: &ast::StmtMatch, ctx: &Ctx) {\n         // test_ok irrefutable_case_pattern_at_end\n         // match x:\n@@ -265,6 +277,9 @@ impl Display for SemanticSyntaxError {\n             SemanticSyntaxErrorKind::DuplicateTypeParameter => {\n                 f.write_str(\"duplicate type parameter\")\n             }\n+            SemanticSyntaxErrorKind::MultipleCaseAssignment(name) => {\n+                write!(f, \"multiple assignments to name `{name}` in pattern\")\n+            }\n             SemanticSyntaxErrorKind::IrrefutableCasePattern(kind) => match kind {\n                 // These error messages are taken from CPython's syntax errors\n                 IrrefutablePatternKind::Name(name) => {\n@@ -324,6 +339,18 @@ pub enum SemanticSyntaxErrorKind {\n     /// ```\n     DuplicateTypeParameter,\n \n+    /// Represents a duplicate binding in a `case` pattern of a `match` statement.\n+    ///\n+    /// ## Examples\n+    ///\n+    /// ```python\n+    /// match x:\n+    ///     case [x, y, x]: ...\n+    ///     case x as x: ...\n+    ///     case Class(x=1, x=2): ...\n+    /// ```\n+    MultipleCaseAssignment(ast::name::Name),\n+\n     /// Represents an irrefutable `case` pattern before the last `case` in a `match` statement.\n     ///\n     /// According to the [Python reference], \"a match statement may have at most one irrefutable\n@@ -369,6 +396,93 @@ impl Visitor<'_> for ReboundComprehensionVisitor<'_> {\n     }\n }\n \n+struct MultipleCaseAssignmentVisitor<'a, Ctx> {\n+    names: FxHashSet<&'a ast::name::Name>,\n+    ctx: &'a Ctx,\n+}\n+\n+impl<'a, Ctx: SemanticSyntaxContext> MultipleCaseAssignmentVisitor<'a, Ctx> {\n+    fn visit_pattern(&mut self, pattern: &'a Pattern) {\n+        // test_err multiple_assignment_in_case_pattern\n+        // match 2:\n+        //     case [y, z, y]: ...  # MatchSequence\n+        //     case [y, z, *y]: ...  # MatchSequence\n+        //     case [y, y, y]: ...  # MatchSequence multiple\n+        //     case {1: x, 2: x}: ...  # MatchMapping duplicate pattern\n+        //     case {1: x, **x}: ...  # MatchMapping duplicate in **rest\n+        //     case Class(x, x): ...  # MatchClass positional\n+        //     case Class(x=1, x=2): ...  # MatchClass keyword\n+        //     case [x] | {1: x} | Class(x=1, x=2): ...  # MatchOr\n+        //     case x as x: ...  # MatchAs\n+        match pattern {\n+            Pattern::MatchValue(_) | Pattern::MatchSingleton(_) => {}\n+            Pattern::MatchStar(ast::PatternMatchStar { name, .. }) => {\n+                if let Some(name) = name {\n+                    self.insert(name);\n+                }\n+            }\n+            Pattern::MatchSequence(ast::PatternMatchSequence { patterns, .. }) => {\n+                for pattern in patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+            }\n+            Pattern::MatchMapping(ast::PatternMatchMapping { patterns, rest, .. }) => {\n+                for pattern in patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+                if let Some(rest) = rest {\n+                    self.insert(rest);\n+                }\n+            }\n+            Pattern::MatchClass(ast::PatternMatchClass { arguments, .. }) => {\n+                for pattern in &arguments.patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+                for keyword in &arguments.keywords {\n+                    self.insert(&keyword.attr);\n+                    self.visit_pattern(&keyword.pattern);\n+                }\n+            }\n+            Pattern::MatchAs(ast::PatternMatchAs { pattern, name, .. }) => {\n+                if let Some(pattern) = pattern {\n+                    self.visit_pattern(pattern);\n+                }\n+                if let Some(name) = name {\n+                    self.insert(name);\n+                }\n+            }\n+            Pattern::MatchOr(ast::PatternMatchOr { patterns, .. }) => {\n+                // each of these patterns should be visited separately because patterns can only be\n+                // duplicated within a single arm of the or pattern. For example, the case below is\n+                // a valid pattern.\n+\n+                // test_ok multiple_assignment_in_case_pattern\n+                // match 2:\n+                //     case Class(x) | [x] | x: ...\n+                for pattern in patterns {\n+                    let mut visitor = Self {\n+                        names: FxHashSet::default(),\n+                        ctx: self.ctx,\n+                    };\n+                    visitor.visit_pattern(pattern);\n+                }\n+            }\n+        }\n+    }\n+\n+    /// Add an identifier to the set of visited names in `self` and emit a [`SemanticSyntaxError`]\n+    /// if `ident` has already been seen.\n+    fn insert(&mut self, ident: &'a ast::Identifier) {\n+        if !self.names.insert(&ident.id) {\n+            SemanticSyntaxChecker::add_error(\n+                self.ctx,\n+                SemanticSyntaxErrorKind::MultipleCaseAssignment(ident.id.clone()),\n+                ident.range(),\n+            );\n+        }\n+    }\n+}\n+\n pub trait SemanticSyntaxContext {\n     /// Returns `true` if a module's docstring boundary has been passed.\n     fn seen_docstring_boundary(&self) -> bool;\n",
+      "changedFiles": 4,
+      "addedLines": 129,
+      "deletedLines": 1,
+      "commits": 8,
+      "language": "Rust",
+      "labels": [
+        "rule",
+        "preview"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0006",
+      "title": "A case pattern binding a class keyword to a variable of the same name reports no syntax error",
+      "preconditions": "A Python 3.10+ file contains a match statement with a case clause matching a class pattern whose keyword argument name equals the variable it binds to (e.g. case ClassLabel(num_classes=num_classes):), and the checker is run with preview mode enabled.",
+      "steps": [
+        "Run the checker with preview mode enabled (ruff check --preview) on a file containing a match statement such as:\nmatch feature_type:\n    case ClassLabel(num_classes=num_classes):\n        return num_classes\n    case _:\n        raise TypeError",
+        "Inspect the reported diagnostics for that file."
+      ],
+      "expectedResult": "No syntax error is reported for the case pattern; the file passes the check cleanly, since a class-pattern keyword name matching the name it binds to is valid, unambiguous Python syntax."
+    },
+    "gold": {
+      "result": "PASS"
+    },
+    "metadata": {
+      "executedAt": "2025-03-26T17:02:42Z",
+      "testType": "OTHER",
+      "tags": [
+        "linter",
+        "syntax-errors",
+        "pattern-matching",
+        "ruff"
+      ],
+      "durationMs": null,
+      "feature": "preview syntax-error detection for match/case patterns",
+      "platform": "cli",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/astral-sh/ruff/pull/16957",
+        "issueUrl": "https://github.com/astral-sh/ruff/issues/17181",
+        "evidenceTestFile": "crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py",
+        "note": "PR #16957 (merged 2025-03-26, shipped as a preview feature in ruff 0.11.3 per the 0.11.3 release notes) added a MatchClass-pattern check that inserts each keyword's attribute name (e.g. `num_classes` in `num_classes=num_classes`) into the same 'seen names' set used for bound variables, so a keyword whose attribute name equals its bound variable name is wrongly flagged as a duplicate binding. Issue #17181 ('Regression: multiple assignments in match statement') and duplicate #17193 ('Regression 0.11.2 -> 0.11.3: SyntaxError on match statement') report this false positive. Verified directly: `pip install ruff==0.11.2` and `ruff check --preview --target-version py310` on `case ClassLabel(num_classes=num_classes):` passes cleanly, while the identical command with `ruff==0.11.3` reports 'SyntaxError: multiple assignments to name `num_classes` in pattern'. PR #17184 ('[syntax-errors] Fix multiple assignment for class keyword argument', merged 2025-04-03) states 'Fixes #17181' and explains the keyword-vs-binding conflation is the cause."
+      }
+    }
+  },
+  {
+    "id": "rgf_0012",
+    "revision": "head",
+    "flipPairId": "rgf_flip_0006",
+    "pr": {
+      "repository": "astral-sh/ruff",
+      "number": 16957,
+      "baseSha": "5697d21fca8e7146fb08ebe6eebf8c1402b7e4e3",
+      "headSha": "2e414cec073bc8294ad3853e39f3745ac8801abc",
+      "title": "[syntax-errors] Multiple assignments in `case` pattern",
+      "description": "Summary\r\n--\r\n\r\nThis PR detects multiple assignments to the same name in `case` patterns by recursively visiting each pattern.\r\n\r\nTest Plan\r\n--\r\n\r\nNew inline tests.\n\n(Diff shown below excludes two generated parser snapshot files under crates/ruff_python_parser/tests/snapshots/; the full PR also updated those snapshots to match the new diagnostics.)",
+      "diff": "diff --git a/crates/ruff_linter/src/checkers/ast/mod.rs b/crates/ruff_linter/src/checkers/ast/mod.rs\nindex c253f39e3eafb4..400b1142e0a72e 100644\n--- a/crates/ruff_linter/src/checkers/ast/mod.rs\n+++ b/crates/ruff_linter/src/checkers/ast/mod.rs\n@@ -549,6 +549,7 @@ impl SemanticSyntaxContext for Checker<'_> {\n             }\n             SemanticSyntaxErrorKind::ReboundComprehensionVariable\n             | SemanticSyntaxErrorKind::DuplicateTypeParameter\n+            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)\n             | SemanticSyntaxErrorKind::IrrefutableCasePattern(_)\n                 if self.settings.preview.is_enabled() =>\n             {\n@@ -556,6 +557,7 @@ impl SemanticSyntaxContext for Checker<'_> {\n             }\n             SemanticSyntaxErrorKind::ReboundComprehensionVariable\n             | SemanticSyntaxErrorKind::DuplicateTypeParameter\n+            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)\n             | SemanticSyntaxErrorKind::IrrefutableCasePattern(_) => {}\n         }\n     }\ndiff --git a/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py b/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py\nnew file mode 100644\nindex 00000000000000..45323edd662128\n--- /dev/null\n+++ b/crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py\n@@ -0,0 +1,10 @@\n+match 2:\n+    case [y, z, y]: ...  # MatchSequence\n+    case [y, z, *y]: ...  # MatchSequence\n+    case [y, y, y]: ...  # MatchSequence multiple\n+    case {1: x, 2: x}: ...  # MatchMapping duplicate pattern\n+    case {1: x, **x}: ...  # MatchMapping duplicate in **rest\n+    case Class(x, x): ...  # MatchClass positional\n+    case Class(x=1, x=2): ...  # MatchClass keyword\n+    case [x] | {1: x} | Class(x=1, x=2): ...  # MatchOr\n+    case x as x: ...  # MatchAs\ndiff --git a/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py b/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py\nnew file mode 100644\nindex 00000000000000..05b1908b246d60\n--- /dev/null\n+++ b/crates/ruff_python_parser/resources/inline/ok/multiple_assignment_in_case_pattern.py\n@@ -0,0 +1,2 @@\n+match 2:\n+    case Class(x) | [x] | x: ...\ndiff --git a/crates/ruff_python_parser/src/semantic_errors.rs b/crates/ruff_python_parser/src/semantic_errors.rs\nindex 3d7918bee5e18c..4e2351a98351ea 100644\n--- a/crates/ruff_python_parser/src/semantic_errors.rs\n+++ b/crates/ruff_python_parser/src/semantic_errors.rs\n@@ -9,9 +9,10 @@ use std::fmt::Display;\n use ruff_python_ast::{\n     self as ast,\n     visitor::{walk_expr, Visitor},\n-    Expr, IrrefutablePatternKind, PythonVersion, Stmt, StmtExpr, StmtImportFrom,\n+    Expr, IrrefutablePatternKind, Pattern, PythonVersion, Stmt, StmtExpr, StmtImportFrom,\n };\n use ruff_text_size::{Ranged, TextRange};\n+use rustc_hash::FxHashSet;\n \n #[derive(Debug)]\n pub struct SemanticSyntaxChecker {\n@@ -62,6 +63,7 @@ impl SemanticSyntaxChecker {\n             }\n             Stmt::Match(match_stmt) => {\n                 Self::irrefutable_match_case(match_stmt, ctx);\n+                Self::multiple_case_assignment(match_stmt, ctx);\n             }\n             Stmt::FunctionDef(ast::StmtFunctionDef { type_params, .. })\n             | Stmt::ClassDef(ast::StmtClassDef { type_params, .. })\n@@ -112,6 +114,16 @@ impl SemanticSyntaxChecker {\n         }\n     }\n \n+    fn multiple_case_assignment<Ctx: SemanticSyntaxContext>(stmt: &ast::StmtMatch, ctx: &Ctx) {\n+        for case in &stmt.cases {\n+            let mut visitor = MultipleCaseAssignmentVisitor {\n+                names: FxHashSet::default(),\n+                ctx,\n+            };\n+            visitor.visit_pattern(&case.pattern);\n+        }\n+    }\n+\n     fn irrefutable_match_case<Ctx: SemanticSyntaxContext>(stmt: &ast::StmtMatch, ctx: &Ctx) {\n         // test_ok irrefutable_case_pattern_at_end\n         // match x:\n@@ -265,6 +277,9 @@ impl Display for SemanticSyntaxError {\n             SemanticSyntaxErrorKind::DuplicateTypeParameter => {\n                 f.write_str(\"duplicate type parameter\")\n             }\n+            SemanticSyntaxErrorKind::MultipleCaseAssignment(name) => {\n+                write!(f, \"multiple assignments to name `{name}` in pattern\")\n+            }\n             SemanticSyntaxErrorKind::IrrefutableCasePattern(kind) => match kind {\n                 // These error messages are taken from CPython's syntax errors\n                 IrrefutablePatternKind::Name(name) => {\n@@ -324,6 +339,18 @@ pub enum SemanticSyntaxErrorKind {\n     /// ```\n     DuplicateTypeParameter,\n \n+    /// Represents a duplicate binding in a `case` pattern of a `match` statement.\n+    ///\n+    /// ## Examples\n+    ///\n+    /// ```python\n+    /// match x:\n+    ///     case [x, y, x]: ...\n+    ///     case x as x: ...\n+    ///     case Class(x=1, x=2): ...\n+    /// ```\n+    MultipleCaseAssignment(ast::name::Name),\n+\n     /// Represents an irrefutable `case` pattern before the last `case` in a `match` statement.\n     ///\n     /// According to the [Python reference], \"a match statement may have at most one irrefutable\n@@ -369,6 +396,93 @@ impl Visitor<'_> for ReboundComprehensionVisitor<'_> {\n     }\n }\n \n+struct MultipleCaseAssignmentVisitor<'a, Ctx> {\n+    names: FxHashSet<&'a ast::name::Name>,\n+    ctx: &'a Ctx,\n+}\n+\n+impl<'a, Ctx: SemanticSyntaxContext> MultipleCaseAssignmentVisitor<'a, Ctx> {\n+    fn visit_pattern(&mut self, pattern: &'a Pattern) {\n+        // test_err multiple_assignment_in_case_pattern\n+        // match 2:\n+        //     case [y, z, y]: ...  # MatchSequence\n+        //     case [y, z, *y]: ...  # MatchSequence\n+        //     case [y, y, y]: ...  # MatchSequence multiple\n+        //     case {1: x, 2: x}: ...  # MatchMapping duplicate pattern\n+        //     case {1: x, **x}: ...  # MatchMapping duplicate in **rest\n+        //     case Class(x, x): ...  # MatchClass positional\n+        //     case Class(x=1, x=2): ...  # MatchClass keyword\n+        //     case [x] | {1: x} | Class(x=1, x=2): ...  # MatchOr\n+        //     case x as x: ...  # MatchAs\n+        match pattern {\n+            Pattern::MatchValue(_) | Pattern::MatchSingleton(_) => {}\n+            Pattern::MatchStar(ast::PatternMatchStar { name, .. }) => {\n+                if let Some(name) = name {\n+                    self.insert(name);\n+                }\n+            }\n+            Pattern::MatchSequence(ast::PatternMatchSequence { patterns, .. }) => {\n+                for pattern in patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+            }\n+            Pattern::MatchMapping(ast::PatternMatchMapping { patterns, rest, .. }) => {\n+                for pattern in patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+                if let Some(rest) = rest {\n+                    self.insert(rest);\n+                }\n+            }\n+            Pattern::MatchClass(ast::PatternMatchClass { arguments, .. }) => {\n+                for pattern in &arguments.patterns {\n+                    self.visit_pattern(pattern);\n+                }\n+                for keyword in &arguments.keywords {\n+                    self.insert(&keyword.attr);\n+                    self.visit_pattern(&keyword.pattern);\n+                }\n+            }\n+            Pattern::MatchAs(ast::PatternMatchAs { pattern, name, .. }) => {\n+                if let Some(pattern) = pattern {\n+                    self.visit_pattern(pattern);\n+                }\n+                if let Some(name) = name {\n+                    self.insert(name);\n+                }\n+            }\n+            Pattern::MatchOr(ast::PatternMatchOr { patterns, .. }) => {\n+                // each of these patterns should be visited separately because patterns can only be\n+                // duplicated within a single arm of the or pattern. For example, the case below is\n+                // a valid pattern.\n+\n+                // test_ok multiple_assignment_in_case_pattern\n+                // match 2:\n+                //     case Class(x) | [x] | x: ...\n+                for pattern in patterns {\n+                    let mut visitor = Self {\n+                        names: FxHashSet::default(),\n+                        ctx: self.ctx,\n+                    };\n+                    visitor.visit_pattern(pattern);\n+                }\n+            }\n+        }\n+    }\n+\n+    /// Add an identifier to the set of visited names in `self` and emit a [`SemanticSyntaxError`]\n+    /// if `ident` has already been seen.\n+    fn insert(&mut self, ident: &'a ast::Identifier) {\n+        if !self.names.insert(&ident.id) {\n+            SemanticSyntaxChecker::add_error(\n+                self.ctx,\n+                SemanticSyntaxErrorKind::MultipleCaseAssignment(ident.id.clone()),\n+                ident.range(),\n+            );\n+        }\n+    }\n+}\n+\n pub trait SemanticSyntaxContext {\n     /// Returns `true` if a module's docstring boundary has been passed.\n     fn seen_docstring_boundary(&self) -> bool;\n",
+      "changedFiles": 4,
+      "addedLines": 129,
+      "deletedLines": 1,
+      "commits": 8,
+      "language": "Rust",
+      "labels": [
+        "rule",
+        "preview"
+      ]
+    },
+    "testCase": {
+      "id": "rgf_tc_0006",
+      "title": "A case pattern binding a class keyword to a variable of the same name reports no syntax error",
+      "preconditions": "A Python 3.10+ file contains a match statement with a case clause matching a class pattern whose keyword argument name equals the variable it binds to (e.g. case ClassLabel(num_classes=num_classes):), and the checker is run with preview mode enabled.",
+      "steps": [
+        "Run the checker with preview mode enabled (ruff check --preview) on a file containing a match statement such as:\nmatch feature_type:\n    case ClassLabel(num_classes=num_classes):\n        return num_classes\n    case _:\n        raise TypeError",
+        "Inspect the reported diagnostics for that file."
+      ],
+      "expectedResult": "No syntax error is reported for the case pattern; the file passes the check cleanly, since a class-pattern keyword name matching the name it binds to is valid, unambiguous Python syntax."
+    },
+    "gold": {
+      "result": "FAIL"
+    },
+    "metadata": {
+      "executedAt": "2025-03-26T17:02:42Z",
+      "testType": "OTHER",
+      "tags": [
+        "linter",
+        "syntax-errors",
+        "pattern-matching",
+        "ruff"
+      ],
+      "durationMs": null,
+      "feature": "preview syntax-error detection for match/case patterns",
+      "platform": "cli",
+      "specificity": "HIGH",
+      "ambiguity": "LOW",
+      "externalDependency": false,
+      "casePattern": "REGRESSION",
+      "provenance": {
+        "prUrl": "https://github.com/astral-sh/ruff/pull/16957",
+        "issueUrl": "https://github.com/astral-sh/ruff/issues/17181",
+        "evidenceTestFile": "crates/ruff_python_parser/resources/inline/err/multiple_assignment_in_case_pattern.py",
+        "note": "PR #16957 (merged 2025-03-26, shipped as a preview feature in ruff 0.11.3 per the 0.11.3 release notes) added a MatchClass-pattern check that inserts each keyword's attribute name (e.g. `num_classes` in `num_classes=num_classes`) into the same 'seen names' set used for bound variables, so a keyword whose attribute name equals its bound variable name is wrongly flagged as a duplicate binding. Issue #17181 ('Regression: multiple assignments in match statement') and duplicate #17193 ('Regression 0.11.2 -> 0.11.3: SyntaxError on match statement') report this false positive. Verified directly: `pip install ruff==0.11.2` and `ruff check --preview --target-version py310` on `case ClassLabel(num_classes=num_classes):` passes cleanly, while the identical command with `ruff==0.11.3` reports 'SyntaxError: multiple assignments to name `num_classes` in pattern'. PR #17184 ('[syntax-errors] Fix multiple assignment for class keyword argument', merged 2025-04-03) states 'Fixes #17181' and explains the keyword-vs-binding conflation is the cause."
+      }
+    }
+  }
+]

@@ -155,7 +155,7 @@ describe('cli end to end', () => {
     writeFileSync(
       answersPath,
       `${cases
-        .map((item) =>
+        .map((item: { caseId: string }) =>
           JSON.stringify({
             caseId: item.caseId,
             verdict: 'PASS',

@@ -170,6 +170,20 @@ pnpm build
 
 スコアリングは手計算できる値のゴールデンfixtureで検証しています（例: ECE = (0.6+0.3+0.8+0.1)/4 = 0.45）。ランナーは in-memory SQLite + mockアダプタでフル実行・再開・キャンセル・リトライ・goldリークを検証します。
 
+## Measuring a model through an agent harness
+
+APIキーがない環境では、`export-cases` / `import-run` を使ってエージェント経由でモデルに解かせられます。同梱の結果もこの方法で取得しています。
+
+```bash
+pnpm benchmark export-cases --prompt reasoning-v1 --split dev --out /tmp/cases.jsonl
+# エージェントに cases.jsonl を解かせ、answers.jsonl を書かせる
+pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl
+```
+
+**測定の妥当性のために必須の条件**: 解かせる側に「PRや結果を一切調べさせない」ことです。`gh`・Web検索・リポジトリの参照を許すと、実際の結果を見つけてしまい、予測ではなく検索を測ることになります。この違いは出力からは見分けがつかないので、指示で明示的に禁じる必要があります。
+
+**この数字の読み方に関する注意**: これはエージェントハーネス経由で駆動したモデルであって、生のAPI呼び出しではありません。したがって latency と cost はこの経路では意味を持ちません（`import-run` で取り込んだrunにトークン計測がないため、コスト指標は空になります）。比較して意味があるのは Accuracy・FAIL recall・flip pair accuracy・較正といった予測の質に関する指標だけです。実運用の速度・コストを測りたい場合は、APIキーを設定して `anthropic` / `openai` アダプタで回してください。
+
 ## Known limitations
 
 - **Gemini アダプタは非ストリーミング**です。したがってTTFTは常に `null` になります。総レイテンシから推定はしません。

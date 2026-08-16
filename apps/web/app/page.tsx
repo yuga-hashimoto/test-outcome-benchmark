@@ -99,7 +99,8 @@ export default function DashboardPage() {
             <tr>
               <th>#</th>
               <th className="wrap">Configuration</th>
-              <th>Data</th>
+              <th>Scope</th>
+              <th className="num">n</th>
               <th className="num">Accuracy</th>
               <th className="num">95% interval</th>
               <th className="num">FAIL recall</th>
@@ -118,7 +119,11 @@ export default function DashboardPage() {
                     {entry.summary.contextStrategy}
                   </span>
                 </td>
-                <td className="muted">v{entry.summary.datasetVersion}</td>
+                <td className="muted">
+                  v{entry.summary.datasetVersion}
+                  {entry.summary.split === null ? '' : ` · ${entry.summary.split}`}
+                </td>
+                <td className="num muted">{entry.summary.resolved}</td>
                 <td className="num">
                   {percent(entry.value)} <Bar value={entry.value} />
                 </td>

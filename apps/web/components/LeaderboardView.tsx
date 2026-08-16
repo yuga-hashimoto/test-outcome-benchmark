@@ -50,6 +50,8 @@ function Ranking({
               <tr>
                 <th>#</th>
                 <th className="wrap">Configuration</th>
+                <th>Scope</th>
+                <th className="num">n</th>
                 <th className="num">{METRIC_DESCRIPTORS[metric].label}</th>
                 <th className="num">Accuracy</th>
                 <th className="num">FAIL recall</th>
@@ -64,6 +66,11 @@ function Ranking({
                   <td className="wrap">
                     <Link href={`/runs/${entry.summary.runId}`}>{describe(entry.summary)}</Link>
                   </td>
+                  <td className="muted">
+                    v{entry.summary.datasetVersion}
+                    {entry.summary.split === null ? '' : ` · ${entry.summary.split}`}
+                  </td>
+                  <td className="num muted">{entry.summary.resolved}</td>
                   <td className="num">
                     {formatValue(metric, entry.value)}{' '}
                     {METRIC_DESCRIPTORS[metric].format === 'ratio' && <Bar value={entry.value} />}
@@ -188,6 +195,17 @@ export function LeaderboardView({
         the most recent run is shown.
       </p>
       <Heatmap matrix={buildModelPromptMatrix(summaries, metric)} />
+
+      {new Set(summaries.map((summary) => `${summary.datasetVersion}:${summary.split ?? 'all'}`)).size >
+        1 && (
+        <Note tone="warn">
+          These runs were not all scored on the same set of cases — the Scope column shows the
+          dataset version and split each one used. Accuracy on a 24-case dev split and accuracy on
+          the full dataset are estimates of the same quantity from different samples, so a gap
+          between them can be sampling rather than skill. The Compare page pairs two runs on the
+          cases they share, which is the reliable way to read a difference.
+        </Note>
+      )}
 
       <Note>
         A ranking is a starting point, not a verdict. Check the confidence interval on a run before

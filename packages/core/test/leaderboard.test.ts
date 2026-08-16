@@ -63,6 +63,8 @@ const summary = (
     contextStrategy: 'TEST_PLUS_DIFF',
     datasetVersionId: 'dv-1',
     datasetVersion: 1,
+    split: null,
+    resolved: 10,
     finishedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
     metrics: aggregateRunMetrics(predictions, { bootstrapResamples: 20 }),

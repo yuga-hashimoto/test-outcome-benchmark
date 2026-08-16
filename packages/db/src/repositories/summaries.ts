@@ -31,6 +31,8 @@ export const listRunSummaries = (db: Db, limit = 200): RunSummary[] =>
       contextStrategy: run.contextStrategy as ContextStrategy,
       datasetVersionId: run.datasetVersionId,
       datasetVersion: run.snapshot.datasetVersion,
+      split: run.config.split,
+      resolved: metrics.metrics.counts.resolved,
       finishedAt: run.finishedAt,
       metrics: metrics.metrics,
     }));
