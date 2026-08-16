@@ -12,6 +12,11 @@ coverage/
 *.sqlite3
 *.db
 
+# Committed intentionally: the published dashboard's data snapshot. See README
+# "Publishing the dashboard" — without it CI has nothing but the mock provider
+# to seed and sweep, and the real model results would not appear on the site.
+!data/benchmark.sqlite
+
 # SQLite sidecar files
 *.sqlite-shm
 *.sqlite-wal
