@@ -183,17 +183,20 @@ export const rankRuns = (
 export interface Scope {
   readonly datasetVersion: number;
   readonly split: string | null;
+  readonly contextStrategy: ContextStrategy;
 }
 
 const scopeKey = (summary: RunSummary): string =>
-  `${summary.datasetVersion}:${summary.split ?? 'all'}`;
+  `${summary.datasetVersion}:${summary.split ?? 'all'}:${summary.contextStrategy}`;
 
 /**
- * The (dataset version, split) pair used by the largest number of runs. A
- * run's accuracy is an estimate over the specific sample it was scored on,
- * so a 24-case dev-split run and a 124-case full-dataset run are estimates
- * of different quantities — this is what a ranking should hold fixed rather
- * than mix, the same way it already holds prompt and context strategy fixed.
+ * The (dataset version, split, context strategy) triple used by the largest
+ * number of runs. A run's accuracy is an estimate over the specific sample
+ * and question it was scored on — a 24-case dev-split run and a 124-case
+ * full-dataset run are estimates of different quantities, and a run scored
+ * on the full diff versus one scored on an implementation-only diff answered
+ * different questions even over the same cases. This is what a ranking
+ * should hold fixed rather than silently mix.
  */
 export const dominantScope = (summaries: readonly RunSummary[]): Scope | null => {
   if (summaries.length === 0) return null;
@@ -203,7 +206,11 @@ export const dominantScope = (summaries: readonly RunSummary[]): Scope | null =>
     const key = scopeKey(summary);
     const entry = counts.get(key);
     counts.set(key, {
-      scope: { datasetVersion: summary.datasetVersion, split: summary.split },
+      scope: {
+        datasetVersion: summary.datasetVersion,
+        split: summary.split,
+        contextStrategy: summary.contextStrategy,
+      },
       count: (entry?.count ?? 0) + 1,
     });
   }
@@ -217,13 +224,15 @@ const inScope = (summaries: readonly RunSummary[], scope: Scope | null): RunSumm
     ? []
     : summaries.filter(
         (summary) =>
-          summary.datasetVersion === scope.datasetVersion && summary.split === scope.split,
+          summary.datasetVersion === scope.datasetVersion &&
+          summary.split === scope.split &&
+          summary.contextStrategy === scope.contextStrategy,
       );
 
 export interface ScopedRanking {
   readonly scope: Scope | null;
   readonly ranked: RankedRun[];
-  /** Runs excluded because they were scored on a different dataset version or split. */
+  /** Runs excluded because they were scored on a different dataset version, split, or context strategy. */
   readonly excluded: readonly RunSummary[];
 }
 

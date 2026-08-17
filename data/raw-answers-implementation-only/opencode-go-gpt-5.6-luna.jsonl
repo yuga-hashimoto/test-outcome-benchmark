@@ -1,0 +1,26 @@
+{"caseId":"js_0001","verdict":"FAIL","confidence":0.99,"reason":"The base revision still matches unsupported Y tokens and lets them fall through to the timezone-offset fallback, so the lone Y and YYY outputs do not match the expected literals."}
+{"caseId":"js_0002","verdict":"PASS","confidence":0.99,"reason":"The revised format regex recognizes only YY and YYYY, so unsupported lone Y and YYY tokens remain literal as required."}
+{"caseId":"js_0011","verdict":"PASS","confidence":0.98,"reason":"The change only centralizes the existing percent-decoding check and preserves decoding of route parameters."}
+{"caseId":"js_0012","verdict":"PASS","confidence":0.99,"reason":"The new shared helper still decodes percent-encoded route parameters, while the refactor removes only duplicated logic."}
+{"caseId":"jvm_0003","verdict":"FAIL","confidence":0.99,"reason":"Before the fix, reschedule updates Redis but leaves the same SortedEntry's in-memory score and time stale, so the direct handle check fails."}
+{"caseId":"jvm_0004","verdict":"PASS","confidence":0.99,"reason":"The applied change assigns the new timestamp to @score after rescheduling, so score and at on the existing handle reflect it."}
+{"caseId":"jvm_0007","verdict":"PASS","confidence":0.96,"reason":"The pull request changes Range-header parsing only and does not affect Content-Type parsing or charset parameters."}
+{"caseId":"jvm_0008","verdict":"PASS","confidence":0.96,"reason":"The change is limited to whitespace handling in Range parsing and leaves Content-Type parsing behavior unchanged."}
+{"caseId":"kbc_0007","verdict":"PASS","confidence":0.94,"reason":"The pull request changes repository download error messages only, not Composer archive creation or zip timestamp preservation."}
+{"caseId":"kbc_0008","verdict":"PASS","confidence":0.94,"reason":"The logging-only change does not alter package archiving, so repeated archives retain the existing timestamp behavior described by the test."}
+{"caseId":"kbc_0009","verdict":"PASS","confidence":0.94,"reason":"The pull request concerns CredentialCache URI prefix comparison and is unrelated to JSON deserialization of nullable parent properties."}
+{"caseId":"kbc_0010","verdict":"PASS","confidence":0.94,"reason":"The CredentialCache path-comparison change does not affect synchronous or asynchronous JSON deserialization."}
+{"caseId":"kbd_0013","verdict":"PASS","confidence":0.94,"reason":"The cursor FETCH FIRST fix is unrelated to INET operators and quantified subquery execution."}
+{"caseId":"kbd_0014","verdict":"PASS","confidence":0.94,"reason":"The cursor fix does not modify INET containment operators, array handling, or ANY expression parsing."}
+{"caseId":"py_0001","verdict":"FAIL","confidence":0.99,"reason":"Before the change, an IPv6 NO_PROXY entry is treated as a wildcard domain and can produce an invalid URL pattern, causing client construction to fail."}
+{"caseId":"py_0002","verdict":"PASS","confidence":0.99,"reason":"The applied code detects IPv6 addresses and creates a bracketed bypass pattern, avoiding the construction error for ::1."}
+{"caseId":"py_0003","verdict":"FAIL","confidence":0.99,"reason":"The base implementation rejects regex flags such as DOTALL during Series.str.match validation, so the newline match request fails."}
+{"caseId":"py_0004","verdict":"PASS","confidence":0.99,"reason":"The revision explicitly preserves support for DOTALL both through flags and through a compiled pattern, yielding the expected match results."}
+{"caseId":"rg_0001","verdict":"FAIL","confidence":0.99,"reason":"Before the fix, preparing a chain with a group in the middle can lose recursive result-parent state, so reconstruction does not preserve all four group children."}
+{"caseId":"rg_0002","verdict":"PASS","confidence":0.99,"reason":"The fix updates the previous task and result after processing the middle group, preserving the recursive parent structure through serialization and reconstruction."}
+{"caseId":"rg_0005","verdict":"PASS","confidence":0.95,"reason":"The reported bug concerns -- as the first argument, whereas this case supplies values before --, so the existing parser behavior satisfies the expected handoff."}
+{"caseId":"rg_0006","verdict":"PASS","confidence":0.99,"reason":"The applied terminator-precedence change preserves the first positional's values and hands --check to the trailing positional without an error."}
+{"caseId":"rgf_0009","verdict":"PASS","confidence":0.99,"reason":"Before the patch, a late OSC11 response uses the ordinary option setter, which triggers OptionSet and the resulting background change triggers the expected events."}
+{"caseId":"rgf_0010","verdict":"FAIL","confidence":0.99,"reason":"The applied code deliberately uses noautocmd when setting background, suppressing OptionSet, so the test's requirement that both autocommands fire is not met."}
+{"caseId":"sa_0007","verdict":"PASS","confidence":0.94,"reason":"The pull request only changes compile-time handling of Inspect derives and does not affect required-field changeset validation."}
+{"caseId":"sa_0008","verdict":"PASS","confidence":0.94,"reason":"Reordering the conditional read of @derive does not change required-field validation, so the omitted field still produces the expected blank error."}

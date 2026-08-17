@@ -471,7 +471,7 @@ program
         heading(
           `${descriptor.label} (${descriptor.direction} is better) — dataset v${scope?.datasetVersion ?? '?'}${
             scope?.split === null || scope?.split === undefined ? '' : `/${scope.split}`
-          }`,
+          } · ${scope?.contextStrategy ?? '?'}`,
         ),
       );
       out(
@@ -501,15 +501,16 @@ program
         const otherScopes = [
           ...new Set(
             excluded.map(
-              (summary) => `v${summary.datasetVersion}${summary.split === null ? '' : `/${summary.split}`}`,
+              (summary) =>
+                `v${summary.datasetVersion}${summary.split === null ? '' : `/${summary.split}`} · ${summary.contextStrategy}`,
             ),
           ),
         ];
         out(
           `\n${excluded.length} run(s) were left out of this ranking because they were scored on a` +
-            `\ndifferent dataset version or split (${otherScopes.join(', ')}) than the rest — mixing them` +
-            `\nin would rank estimates from different samples against each other. Use \`benchmark compare\`` +
-            `\nto read a difference between two runs on different scopes.`,
+            `\ndifferent dataset version, split, or context strategy (${otherScopes.join(', ')}) than the rest —` +
+            `\nmixing them in would rank estimates from different samples or different questions against each` +
+            `\nother. Use \`benchmark compare\` to read a difference between two runs on different scopes.`,
         );
       }
 

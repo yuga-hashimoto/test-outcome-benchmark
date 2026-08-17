@@ -86,15 +86,15 @@ export default function DashboardPage() {
           note={
             scope === null
               ? undefined
-              : `${accuracyRanked.length} on dataset v${scope.datasetVersion}${scope.split === null ? '' : `/${scope.split}`}`
+              : `${accuracyRanked.length} on dataset v${scope.datasetVersion}${scope.split === null ? '' : `/${scope.split}`} · ${scope.contextStrategy}`
           }
         />
       </div>
 
       {excluded.length > 0 && (
         <Note tone="warn">
-          {excluded.length} completed run(s) were scored on a different dataset version or split
-          and are left out of the leaderboard below — scores from different case sets are not
+          {excluded.length} completed run(s) were scored on a different dataset version, split, or
+          context strategy and are left out of the leaderboard below — scores from different case sets or different questions are not
           directly comparable. See the Runs page for the full list.
         </Note>
       )}

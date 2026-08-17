@@ -45,7 +45,7 @@ function Ranking({
       <p className="lede">
         {explanation}
         {scope !== null &&
-          ` Scored on dataset v${scope.datasetVersion}${scope.split === null ? '' : `/${scope.split}`}.`}
+          ` Scored on dataset v${scope.datasetVersion}${scope.split === null ? '' : `/${scope.split}`} · ${scope.contextStrategy}.`}
       </p>
       {ranked.length === 0 ? (
         <Empty>Not enough runs for this comparison.</Empty>
@@ -92,9 +92,10 @@ function Ranking({
       )}
       {excluded.length > 0 && (
         <Note tone="warn">
-          {excluded.length} run(s) scored on a different dataset version or split are not shown
-          here — mixing them in would rank estimates from different samples against each other.
-          Open the Compare page to read a difference between runs on different scopes.
+          {excluded.length} run(s) scored on a different dataset version, split, or context
+          strategy are not shown here — mixing them in would rank estimates from different samples
+          or different questions against each other. Open the Compare page to read a difference
+          between runs on different scopes.
         </Note>
       )}
     </>

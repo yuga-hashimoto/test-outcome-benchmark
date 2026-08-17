@@ -1,0 +1,26 @@
+{"caseId":"js_0001","verdict":"FAIL","confidence":0.6,"reason":"A lone 'Y' in a date format pattern is typically interpreted as a year specifier rather than a literal letter output, so the test expecting literal 'Y' output would fail."}
+{"caseId":"js_0002","verdict":"FAIL","confidence":0.6,"reason":"Same as js_0001 - a single 'Y' character in date formatting is typically a year specifier, not a literal output."}
+{"caseId":"js_0011","verdict":"PASS","confidence":0.9,"reason":"Percent-encoded route parameters (e.g., %20 for space) are standardly decoded by web frameworks when read as path parameters."}
+{"caseId":"js_0012","verdict":"PASS","confidence":0.9,"reason":"Same as js_0011 - percent-encoding decoding is standard web behavior."}
+{"caseId":"jvm_0003","verdict":"PASS","confidence":0.7,"reason":"Rescheduling a queued job typically updates the in-memory job handle immediately without requiring a re-fetch from the queue."}
+{"caseId":"jvm_0004","verdict":"PASS","confidence":0.7,"reason":"Same as jvm_0003 - rescheduling operations generally reflect the new time on the same handle."}
+{"caseId":"jvm_0007","verdict":"PASS","confidence":0.95,"reason":"Content-Type header parsing standardly recognizes and extracts the charset parameter (e.g., charset=UTF-8 from 'text/plain; charset=UTF-8')."}
+{"caseId":"jvm_0008","verdict":"PASS","confidence":0.95,"reason":"Same as jvm_0007 - Content-Type with charset parameter is standard HTTP behavior."}
+{"caseId":"kbc_0007","verdict":"PASS","confidence":0.85,"reason":"Composer's zip archiving functionality preserves original file modification timestamps by default."}
+{"caseId":"kbc_0008","verdict":"PASS","confidence":0.8,"reason":"Re-archiving the same package version should yield consistent timestamps since source file timestamps haven't changed."}
+{"caseId":"kbc_0009","verdict":"PASS","confidence":0.85,"reason":"Async JSON deserialization into a list of objects with nullable parent properties is supported by standard JSON libraries."}
+{"caseId":"kbc_0010","verdict":"PASS","confidence":0.8,"reason":"Synchronous and asynchronous deserialization of the same JSON payload should produce equivalent results with the same type."}
+{"caseId":"kbd_0013","verdict":"PASS","confidence":0.9,"reason":"CockroachDB's INET <<= ANY operator correctly checks if an INET value is contained within or equal to a subnet."}
+{"caseId":"kbd_0014","verdict":"PASS","confidence":0.9,"reason":"CockroachDB's INET >>= ANY operator correctly checks if an INET network contains any of the specified addresses."}
+{"caseId":"py_0001","verdict":"PASS","confidence":0.8,"reason":"HTTP clients typically recognize ::1 (IPv6 loopback) in NO_PROXY and skip proxy configuration for loopback connections."}
+{"caseId":"py_0002","verdict":"PASS","confidence":0.8,"reason":"Same as py_0001 - NO_PROXY set to ::1 should allow direct client construction."}
+{"caseId":"py_0003","verdict":"PASS","confidence":0.95,"reason":"Regex with 'dot matches newline' option enabled allows '.' to match newline characters, so 'a.c' would match 'a\\nc'."}
+{"caseId":"py_0004","verdict":"PASS","confidence":0.95,"reason":"Same as py_0003 - regex dotall option makes '.' match newline characters."}
+{"caseId":"rg_0001","verdict":"PASS","confidence":0.7,"reason":"Serializing an async result for a task chain should preserve all task results through the tuple representation if the implementation is correct."}
+{"caseId":"rg_0002","verdict":"PASS","confidence":0.7,"reason":"Same as rg_0001 - task chain serialization should preserve results from parallel groups."}
+{"caseId":"rg_0005","verdict":"PASS","confidence":0.85,"reason":"A trailing '--' token typically hands off remaining arguments to the next positional collector in CLI argument parsing."}
+{"caseId":"rg_0006","verdict":"PASS","confidence":0.85,"reason":"Same as rg_0005 - trailing '--' followed by arguments is standard CLI behavior."}
+{"caseId":"rgf_0009","verdict":"PASS","confidence":0.75,"reason":"Neovim fires OptionSet and ColorScheme autocommands when the terminal sends OSC 11 background color notifications during startup."}
+{"caseId":"rgf_0010","verdict":"PASS","confidence":0.75,"reason":"Same as rgf_0009 - Neovim fires the autocommands on OSC 11 background color change during startup."}
+{"caseId":"sa_0007","verdict":"PASS","confidence":0.95,"reason":"Required field validation on a changeset typically flags the changeset as invalid when a mandatory field is omitted."}
+{"caseId":"sa_0008","verdict":"PASS","confidence":0.95,"reason":"Same as sa_0007 - required field validation flags a changeset invalid when a mandatory text field is left blank."}

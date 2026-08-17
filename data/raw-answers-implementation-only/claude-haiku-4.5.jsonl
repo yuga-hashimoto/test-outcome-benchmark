@@ -1,0 +1,26 @@
+{"caseId": "js_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "PR fixes Y token handling; before PR, single Y falls through to timezone offset fallback"}
+{"caseId": "js_0002", "verdict": "PASS", "confidence": 0.9, "reason": "After PR fix, REGEX_FORMAT only matches YYYY/YY, preserving single Y literally"}
+{"caseId": "js_0011", "verdict": "PASS", "confidence": 0.9, "reason": "Refactor only; percent-decoding logic unchanged, test passes before and after"}
+{"caseId": "js_0012", "verdict": "PASS", "confidence": 0.9, "reason": "After refactor; tryDecodeURIComponent preserves same decode behavior"}
+{"caseId": "jvm_0003", "verdict": "FAIL", "confidence": 0.9, "reason": "PR fixes missing @score update; before fix, score remains stale after reschedule"}
+{"caseId": "jvm_0004", "verdict": "PASS", "confidence": 0.9, "reason": "After fix, @score is updated after reschedule, entry reflects new time"}
+{"caseId": "jvm_0007", "verdict": "PASS", "confidence": 0.85, "reason": "Test about Content-Type parsing; PR changes only Range header trimming (unrelated)"}
+{"caseId": "jvm_0008", "verdict": "PASS", "confidence": 0.85, "reason": "Test about Content-Type parsing; PR changes only Range header trimming (unrelated)"}
+{"caseId": "kbc_0007", "verdict": "PASS", "confidence": 0.55, "reason": "Test about archive timestamps; PR only adds filename to error messages (unrelated)"}
+{"caseId": "kbc_0008", "verdict": "PASS", "confidence": 0.55, "reason": "Test about archive timestamps; PR only adds filename to error messages (unrelated)"}
+{"caseId": "kbc_0009", "verdict": "PASS", "confidence": 0.6, "reason": "Test about JSON async deserialization; PR changes CredentialCache prefix comparison (likely unrelated)"}
+{"caseId": "kbc_0010", "verdict": "PASS", "confidence": 0.6, "reason": "Test about JSON async/sync equivalence; PR changes CredentialCache prefix (likely unrelated)"}
+{"caseId": "kbd_0013", "verdict": "PASS", "confidence": 0.7, "reason": "Test about INET subnet comparison; PR fixes FETCH FIRST on empty cursor (unrelated)"}
+{"caseId": "kbd_0014", "verdict": "PASS", "confidence": 0.7, "reason": "Test about INET network containment; PR fixes FETCH FIRST on empty cursor (unrelated)"}
+{"caseId": "py_0001", "verdict": "FAIL", "confidence": 0.8, "reason": "PR fixes NO_PROXY IPv6 support; before fix, IPv6 loopback in NO_PROXY fails"}
+{"caseId": "py_0002", "verdict": "PASS", "confidence": 0.8, "reason": "After fix for NO_PROXY IPv6 support, client construction with IPv6 loopback succeeds"}
+{"caseId": "py_0003", "verdict": "FAIL", "confidence": 0.75, "reason": "PR fixes regex flags bug; before fix, Series.str.match with DOTALL flag raises"}
+{"caseId": "py_0004", "verdict": "PASS", "confidence": 0.75, "reason": "After fix for regex flags bug, DOTALL flag works correctly for dot-matches-newline"}
+{"caseId": "rg_0001", "verdict": "FAIL", "confidence": 0.7, "reason": "PR fixes recursive result parents; before fix, group in middle loses results"}
+{"caseId": "rg_0002", "verdict": "PASS", "confidence": 0.7, "reason": "After fix for recursive parents, async result serialization preserves all results"}
+{"caseId": "rg_0005", "verdict": "FAIL", "confidence": 0.75, "reason": "PR fixes value_terminator effect; before fix, trailing -- with first-argument terminator fails"}
+{"caseId": "rg_0006", "verdict": "PASS", "confidence": 0.75, "reason": "After fix, trailing -- correctly hands off to positional arg with value_terminator"}
+{"caseId": "rgf_0009", "verdict": "FAIL", "confidence": 0.8, "reason": "PR fixes late OSC11 response handling; before fix, late color response missing OptionSet autocommand"}
+{"caseId": "rgf_0010", "verdict": "PASS", "confidence": 0.8, "reason": "After fix for late OSC11 response, background color change triggers OptionSet autocommand"}
+{"caseId": "sa_0007", "verdict": "PASS", "confidence": 0.65, "reason": "Test about required field validation; PR changes compile-time dependency resolution (likely unrelated)"}
+{"caseId": "sa_0008", "verdict": "PASS", "confidence": 0.65, "reason": "Test about required field validation; PR changes compile-time dependency resolution (likely unrelated)"}

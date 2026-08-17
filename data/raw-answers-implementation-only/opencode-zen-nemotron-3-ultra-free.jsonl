@@ -1,0 +1,26 @@
+{"caseId":"js_0001","verdict":"PASS","confidence":0.7,"reason":"Test describes standard date formatting behavior where a single 'Y' outputs a literal 'Y' character; this is expected behavior in most date formatting libraries unless a breaking change specifically altered token parsing."}
+{"caseId":"js_0002","verdict":"PASS","confidence":0.7,"reason":"Duplicate of js_0001; same reasoning applies - single 'Y' pattern should output literal letter in standard date formatting implementations."}
+{"caseId":"js_0011","verdict":"PASS","confidence":0.75,"reason":"Percent-encoded path parameter decoding is standard web framework behavior; the test expects correct decoding which is the default correct implementation."}
+{"caseId":"js_0012","verdict":"PASS","confidence":0.75,"reason":"Duplicate of js_0011; percent-decoding of route parameters is fundamental routing behavior expected to work correctly."}
+{"caseId":"jvm_0003","verdict":"PASS","confidence":0.7,"reason":"Job rescheduling updating the in-memory handle is a typical design pattern for job queue libraries; test expects correct mutation behavior which is standard."}
+{"caseId":"jvm_0004","verdict":"PASS","confidence":0.7,"reason":"Duplicate of jvm_0003; same reasoning - in-memory handle update after reschedule is expected behavior."}
+{"caseId":"jvm_0007","verdict":"PASS","confidence":0.8,"reason":"Content-Type header parsing with charset parameter is a well-established HTTP standard; libraries correctly parse 'text/plain; charset=UTF-8' into type/subtype/charset."}
+{"caseId":"jvm_0008","verdict":"PASS","confidence":0.8,"reason":"Duplicate of jvm_0007; Content-Type parsing with charset is standard HTTP behavior."}
+{"caseId":"kbc_0007","verdict":"PASS","confidence":0.7,"reason":"Composer archive preserving file modification timestamps in zip is documented expected behavior; test validates correct timestamp preservation."}
+{"caseId":"kbc_0008","verdict":"PASS","confidence":0.7,"reason":"Re-archiving consistency is expected for deterministic builds; Composer's archive should produce identical timestamps across runs."}
+{"caseId":"kbc_0009","verdict":"PASS","confidence":0.75,"reason":"Async JSON deserialization with nullable parent property is standard System.Text.Json behavior; large arrays with nullable refs deserialize correctly."}
+{"caseId":"kbc_0010","verdict":"PASS","confidence":0.75,"reason":"Sync and async deserialization producing equivalent results is a correctness guarantee of System.Text.Json; nullable parent property doesn't change this."}
+{"caseId":"kbd_0013","verdict":"PASS","confidence":0.8,"reason":"CockroachDB INET <<= ANY operator with subnets is standard PostgreSQL-compatible syntax; '192.168.1.5' contained in '192.168.1.0/24' returns true."}
+{"caseId":"kbd_0014","verdict":"PASS","confidence":0.8,"reason":"CockroachDB INET >>= ANY with array syntax is standard; '10.0.0.0/8' contains '10.1.2.3' so query returns true."}
+{"caseId":"py_0001","verdict":"PASS","confidence":0.75,"reason":"HTTP client construction with NO_PROXY='::1' (IPv6 loopback) is valid proxy exclusion; standard libraries handle IPv6 addresses in NO_PROXY correctly."}
+{"caseId":"py_0002","verdict":"PASS","confidence":0.75,"reason":"Duplicate of py_0001; IPv6 loopback in NO_PROXY is valid and client construction should succeed."}
+{"caseId":"py_0003","verdict":"PASS","confidence":0.8,"reason":"Regex 'dot matches newline' option (re.DOTALL) making '.' match newlines is standard Python re behavior; both inline and compiled patterns work equivalently."}
+{"caseId":"py_0004","verdict":"PASS","confidence":0.8,"reason":"Duplicate of py_0003; DOTALL flag behavior is consistent between pattern string and compiled regex."}
+{"caseId":"rg_0001","verdict":"PASS","confidence":0.7,"reason":"Celery chain serialization with parallel groups preserving all task results on reconstruction is expected behavior for result backend serialization."}
+{"caseId":"rg_0002","verdict":"PASS","confidence":0.7,"reason":"Duplicate of rg_0001; chain result serialization round-trip should preserve all task results."}
+{"caseId":"rg_0005","verdict":"PASS","confidence":0.75,"reason":"Command-line parsing with trailing '--' handing off to later positional is standard argparse/click behavior; '--' terminates first positional, remaining go to second."}
+{"caseId":"rg_0006","verdict":"PASS","confidence":0.75,"reason":"Duplicate of rg_0005; double-dash delimiter behavior is well-defined in CLI parsing libraries."}
+{"caseId":"rgf_0009","verdict":"PASS","confidence":0.7,"reason":"Neovim OSC 11 background color change triggering OptionSet and ColorScheme autocommands is documented terminal integration behavior."}
+{"caseId":"rgf_0010","verdict":"PASS","confidence":0.7,"reason":"Duplicate of rgf_0009; terminal background change via OSC 11 fires the expected autocommands."}
+{"caseId":"sa_0007","verdict":"PASS","confidence":0.8,"reason":"Required field validation flagging changeset invalid when mandatory field omitted is core Ecto/ActiveRecord behavior; validation correctly catches missing required fields."}
+{"caseId":"sa_0008","verdict":"PASS","confidence":0.8,"reason":"Duplicate of sa_0007; required field validation on changeset is fundamental ORM behavior."}

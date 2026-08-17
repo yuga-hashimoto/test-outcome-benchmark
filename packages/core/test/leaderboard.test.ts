@@ -153,7 +153,46 @@ describe('scoped ranking', () => {
 
     const { scope, ranked, excluded } = rankRunsInScope([...full, dev], 'accuracy');
 
-    expect(scope).toEqual({ datasetVersion: 1, split: 'test' });
+    expect(scope).toEqual({
+      datasetVersion: 1,
+      split: 'test',
+      contextStrategy: 'TEST_PLUS_DIFF',
+    });
+    expect(ranked.map((entry) => entry.summary.modelName)).toEqual(['A', 'B']);
+    expect(excluded.map((entry) => entry.runId)).toEqual(['c']);
+  });
+
+  /**
+   * The bug this guards against: a run scored on the full diff and a run
+   * scored on an implementation-only diff answer different questions over
+   * the same cases. Mixing them into one ranked table would have been the
+   * same mistake the dataset-version/split scoping above already prevents.
+   */
+  it('ranks only within the scope shared by the most runs, excluding a different context strategy', () => {
+    const fullDiff = [
+      summary({
+        runId: 'a',
+        modelName: 'A',
+        accuracy: 0.8,
+        contextStrategy: 'TEST_PLUS_TITLE_DESCRIPTION_DIFF',
+      }),
+      summary({
+        runId: 'b',
+        modelName: 'B',
+        accuracy: 0.6,
+        contextStrategy: 'TEST_PLUS_TITLE_DESCRIPTION_DIFF',
+      }),
+    ];
+    const implOnly = summary({
+      runId: 'c',
+      modelName: 'C',
+      accuracy: 1,
+      contextStrategy: 'IMPLEMENTATION_ONLY_DIFF',
+    });
+
+    const { scope, ranked, excluded } = rankRunsInScope([...fullDiff, implOnly], 'accuracy');
+
+    expect(scope?.contextStrategy).toBe('TEST_PLUS_TITLE_DESCRIPTION_DIFF');
     expect(ranked.map((entry) => entry.summary.modelName)).toEqual(['A', 'B']);
     expect(excluded.map((entry) => entry.runId)).toEqual(['c']);
   });

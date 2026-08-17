@@ -85,7 +85,7 @@ PRのdiffには、そのケースが説明している assertion そのもの（
 pnpm benchmark run --model my-model --prompt reasoning-v1 --strategy IMPLEMENTATION_ONLY_DIFF
 ```
 
-**現状の位置づけ**: 仕組みとテストは実装・検証済みですが、下記の結果表はまだ `TEST_PLUS_TITLE_DESCRIPTION_DIFF`（通常のdiff）で取得したものです。このトラックでの再ベンチマークは今後の作業です。
+同じ18構成（17完走）を、同じdev splitに対してこの戦略で再実行しました。結果は下記の「Implementation-only diffでの結果」を参照してください。リーダーボードのスコープはコンテキスト戦略ごとに分離されており（[設計上の重要な選択](#設計上の重要な選択)参照）、通常diffのトラックと混ざって順位付けされることはありません。
 
 ## Results so far
 
@@ -134,6 +134,38 @@ n=26では正解数が整数（0〜26）しか取れないため、accuracyの�
 
 有意な差を測りたければ、より大きな split で回してください（`--split test` で122ケース）。量子化を細かくするには repetitions を増やすか、より大きな split で解かせるのが直接的な対処です。
 
+## Implementation-only diffでの結果
+
+同じ26ケース・同じ18構成（17完走、`opencode-zen-mimo-v2.5-free` はハーネスが応答なしで停止したため除外）を、テストファイルを除去したdiffで再度解かせました。生の回答は [`data/raw-answers-implementation-only/`](./data/raw-answers-implementation-only/) にあります。
+
+| # | 構成 | Accuracy (head) | 95%区間 (head) | Accuracy (base+head) | MCC* | FAIL recall* | False PASS* |
+|---|---|---|---|---|---|---|---|
+| 1 | **Claude Opus 5** | **84.6%** | 61.5–100.0% | 88.5% | 0.772 | 84.6% | 2 |
+| 2 | GLM-5.3（Z.AI） | 69.2% | 46.2–92.3% | 69.2% | 0.404 | 53.8% | 6 |
+| 3 | Claude Sonnet 5 | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 3 | Grok 4.6（xAI） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 3 | GPT-5.6 Luna（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 3 | DeepSeek V4 Flash（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | DeepSeek V4 Flash Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | DeepSeek V4 Pro（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 3 | GLM-5.2（Z.AI） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | Big Pickle（OpenCode Zen, free） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | MiniMax M3（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | Hy3（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | Kimi K3（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
+| 3 | Hy3 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
+| 15 | Claude Haiku 4.5 | 53.8% | 23.1–76.9% | 53.8% | 0.087 | 30.8% | 9 |
+| 15 | Nemotron 3 Ultra Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 50.0% | — | 0.0% | 13 |
+| 17 | Nemotron 3.5 Lightning Free（OpenCode Zen） | 46.2% | 15.4–76.9% | 50.0% | 0.000 | 7.7% | 12 |
+
+\* base+head合算の値。Nemotron 3 Ultra Freeは全ケースをFAILと予測したため分散がゼロになり、MCCが定義できず `—` です。
+
+### 通常diffとの比較: 抜け道は塞げたか
+
+**GLM-5.3が首位から陥落しました（84.6% → 69.2%、-15.4pt）。Claude Opus 5は逆に上昇し首位に立ちました（76.9% → 88.5%、base+head合算、+11.5pt）。** これはまさにこのトラックが検出しようとしていた種類のシグナルです——GLM-5.3の通常diffトラックでの高スコアの一部は、diffに含まれていたテストのassertionを読んでいたことに支えられていた可能性があります。
+
+ただし対応比較（`pnpm benchmark compare`）で見ると、**どちらの変化も統計的には有意ではありません**。GLM-5.3の-15.4ptは95%区間 -38.5%〜0.0%でゼロを含み、Opus 5の+11.5%も95%区間 -7.7%〜34.6%でゼロを含みます。n=26では、これだけ大きく見える点推定の変化ですら「たまたま」の範囲を否定できません。この観察は方向性としては筋が通っている（テスト除去でスコアが下がるのはリークがあった証拠、下がらない/上がるのは実際に推論していた証拠）とはいえ、確証ではなく仮説として扱ってください。より大きな split でこの比較を再現できれば、確証に近づきます。
+
 ## Architecture
 
 ```
@@ -159,7 +191,7 @@ apps/web            Next.js ダッシュボード。CLIと同じサービス層�
 
 **Accuracyの分母はpredictionモードに応じて決まる。** FORCEDモードでは棄権・不正出力も不正解として数える`accuracy`（= `strictAccuracy`）だけを見ます。SELECTIVEモードでは棄権が正当な選択肢なので、解決できたケースだけを分母にした`accuracy`と、カバレッジ（`selective.coverage`）を別々に報告します。どちらのモードでも、難しいケースへの無回答でリーダーボードの順位を上げることはできません。
 
-**リーダーボードは同一スコープでのみ順位付け。** データセットのバージョンやsplitが異なるrunを同じ表に混ぜて注記だけで済ませるのではなく、最も多くのrunが使っているスコープ（dominant scope）だけで順位付けし、それ以外は除外・件数を明示します。24ケースのdev split runと122ケースのtest split runを同じ表で1位・2位と並べることはありません。
+**リーダーボードは同一スコープ（データセット版・split・コンテキスト戦略）でのみ順位付け。** データセットのバージョンやsplitはもちろん、コンテキスト戦略が異なるrunを同じ表に混ぜて注記だけで済ませるのではなく、最も多くのrunが使っているスコープ（dominant scope）だけで順位付けし、それ以外は除外・件数を明示します。24ケースのdev split runと122ケースのtest split runを同じ表で1位・2位と並べることはなく、通常diffのrunとimplementation-only-diffのrunが同じランキングに混ざることもありません——後者は実装時、初回のimplementation-only-diffベンチマーク実行で実際に発生し、コンテキスト戦略もスコープに含めるよう修正しました。
 
 **信頼区間はPR単位のクラスターブートストラップ。** 同一PR由来のケースは差分も失敗モードも共有するため、独立標本として扱うと区間が実際より狭く出ます。
 
@@ -268,7 +300,7 @@ pnpm site:serve    # 出力をローカルで確認
 ## Testing
 
 ```bash
-pnpm test          # 268 tests
+pnpm test          # 269 tests
 pnpm coverage
 pnpm typecheck
 pnpm build
@@ -286,7 +318,7 @@ pnpm benchmark export-cases --prompt reasoning-v1 --split dev --out /tmp/cases.j
 pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split dev --file /tmp/answers.jsonl
 ```
 
-**測定の妥当性のために必須の条件**: 解かせる側に「PRや結果を一切調べさせない」ことです。`gh`・Web検索・リポジトリの参照を許すと、実際の結果を見つけてしまい、予測ではなく検索を測ることになります。この違いは出力からは見分けがつかないので、指示で明示的に禁じる必要があります。今回の全18構成はすべてこの制約（`gh` 禁止・Web検索禁止・リポジトリ参照禁止・実行禁止）のもとで取得しており、その条件は各runの `harnessConditions` として構造化して保存し、[`data/raw-answers/README.md`](./data/raw-answers/README.md) にも明記しています。
+**測定の妥当性のために必須の条件**: 解かせる側に「PRや結果を一切調べさせない」ことです。`gh`・Web検索・リポジトリの参照を許すと、実際の結果を見つけてしまい、予測ではなく検索を測ることになります。この違いは出力からは見分けがつかないので、指示で明示的に禁じる必要があります。今回の全構成（通常diffトラック18件・implementation-only-diffトラック17件、あわせて35run）はすべてこの制約（`gh` 禁止・Web検索禁止・リポジトリ参照禁止・実行禁止）のもとで取得しており、その条件は各runの `harnessConditions` として構造化して保存し、[`data/raw-answers/README.md`](./data/raw-answers/README.md) と [`data/raw-answers-implementation-only/README.md`](./data/raw-answers-implementation-only/README.md) にも明記しています。
 
 **この数字の読み方に関する注意**: これはエージェントハーネス経由で駆動したモデルであって、生のAPI呼び出しではありません。したがって latency と cost はこの経路では意味を持ちません（`import-run` で取り込んだrunにトークン計測がないため、コスト指標は空になります）。比較して意味があるのは Accuracy・FAIL recall・flip pair accuracy・較正といった予測の質に関する指標だけです。実運用の速度・コストを測りたい場合は、APIキーを設定して `anthropic` / `openai` アダプタで回してください。
 
@@ -298,7 +330,8 @@ pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split
 - `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
 - **MCC・FAIL recall・False PASSはhead-onlyで再計算していません。** `headAccuracy` は主指標として追加しましたが、分類指標（MCC等）の内訳はまだbase+head合算のままです。head-onlyの分類指標が必要な場合は `pnpm benchmark show <runId>` の `slices` セクションの `revision` バケットを参照してください（そちらはhead単体の値を持っています）。
 - **gold provenanceは現状すべてOSSの記録から再構築したもの**です（`CI_EXECUTED`/`HUMAN_EXECUTED` は0件）。「このベンチマーク自身が実行して確認した」トラックはまだ存在しません。
-- **`IMPLEMENTATION_ONLY_DIFF` 戦略はまだ実運用のベンチマークで使われていません。** テストファイル除去のロジックは実装・検証済みですが、上記の結果表はすべて通常のdiff（`TEST_PLUS_TITLE_DESCRIPTION_DIFF`）で取得したものです。
 - **テストファイル判定はヒューリスティックです。** ディレクトリ名・ファイル名の命名規則に基づく推定であり、リポジトリ独自の変則的な命名規則（例: スナップショット形式のfixtureファイル）は捕捉できないことがあります。
+- **implementation-only-diffトラックでの通常diffトラックとの差は、いずれも統計的に有意ではありません。** n=26では点推定の変化が大きく見えても対応比較の95%区間がゼロを含むことが多く、「テストを除去したら精度が落ちた/上がった」という言説は方向性の示唆であって確証ではありません（詳細は上記「Implementation-only diffでの結果」）。
+- **`opencode-zen-mimo-v2.5-free` はimplementation-only-diffトラックを完走できませんでした。** ハーネスセッションが応答なしで15分以上停止したため除外しています。通常diffトラックでは同モデルは完走しています。
 
 詳細仕様は [SPECIFICATION.md](./SPECIFICATION.md)、設計判断は [docs/superpowers/specs/](./docs/superpowers/specs/) を参照してください。
