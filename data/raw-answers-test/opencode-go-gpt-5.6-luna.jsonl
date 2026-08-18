@@ -1,0 +1,122 @@
+{"caseId":"js_0003","verdict":"FAIL","confidence":0.99,"reason":"The base JIT fastpass still assigns the value written by a swallowed issue for an absent optional property, so the successful result incorrectly contains the key."}
+{"caseId":"js_0004","verdict":"PASS","confidence":0.99,"reason":"The pull request guards the JIT assignment when an optional property is absent, while preserving failure for a present invalid value, matching the expected behavior."}
+{"caseId":"js_0005","verdict":"FAIL","confidence":0.99,"reason":"Before the change, the paragraph rule recognizes spaces-only blank lines but not a tab-only line, so the two text lines are merged."}
+{"caseId":"js_0006","verdict":"PASS","confidence":0.99,"reason":"The revised paragraph lookahead treats one or more spaces or tabs as a blank line, producing separate paragraphs."}
+{"caseId":"js_0007","verdict":"PASS","confidence":0.99,"reason":"The tested JSON response parsing is unrelated to the pull request's error-stack decoration change and remains normal behavior."}
+{"caseId":"js_0008","verdict":"PASS","confidence":0.99,"reason":"The pull request only hardens request error stack decoration and does not affect successful JSON response parsing."}
+{"caseId":"js_0009","verdict":"PASS","confidence":0.99,"reason":"Parsing a normal boolean flag does not depend on the negative-number exponent detector changed by this pull request."}
+{"caseId":"js_0010","verdict":"PASS","confidence":0.99,"reason":"The uppercase-exponent fix is unrelated to recognizing an ordinary boolean option flag, which continues to parse successfully."}
+{"caseId":"jvm_0001","verdict":"FAIL","confidence":0.98,"reason":"The base revision still accepts the non-ASCII digit string during tree-to-integer conversion, contrary to the expected rejection."}
+{"caseId":"jvm_0002","verdict":"PASS","confidence":0.99,"reason":"The revised integer readers reject non-ASCII digits in string values, matching the test expectation."}
+{"caseId":"jvm_0005","verdict":"FAIL","confidence":0.98,"reason":"Before the fix, the Postgres search-path parser splits the configured string rather than preserving a hyphenated or accented schema as one name."}
+{"caseId":"jvm_0006","verdict":"PASS","confidence":0.99,"reason":"The pull request fixes search-path parsing so the configured hyphenated or accented schema is applied as a single name."}
+{"caseId":"jvm_0009","verdict":"PASS","confidence":0.99,"reason":"Image transformation eligibility is unrelated to the ByteBuffer exception cleanup change."}
+{"caseId":"jvm_0010","verdict":"PASS","confidence":0.99,"reason":"The resource-leak fix does not change whether configured image transformations are eligible."}
+{"caseId":"jvm_0011","verdict":"PASS","confidence":0.98,"reason":"Caching the allowed-symbol character set does not change the naming rule's acceptance of a configured symbol."}
+{"caseId":"jvm_0012","verdict":"PASS","confidence":0.98,"reason":"The head revision only caches derived name-configuration data, preserving the configured-symbol behavior."}
+{"caseId":"kb_0001","verdict":"PASS","confidence":0.99,"reason":"SVG data-URI image loading is unrelated to adding the missing C++ standard header for GCC compilation."}
+{"caseId":"kb_00010","verdict":"PASS","confidence":0.99,"reason":"The Afrikaans locale translation change does not affect daylight-saving arithmetic."}
+{"caseId":"kb_0002","verdict":"PASS","confidence":0.99,"reason":"The GCC header fix has no effect on browser SVG data-URI loading."}
+{"caseId":"kb_0003","verdict":"PASS","confidence":0.98,"reason":"The form decoder's empty optional body behavior is unrelated to parsing multiple Cookie headers."}
+{"caseId":"kb_0004","verdict":"PASS","confidence":0.98,"reason":"The Cookie-header parsing change does not alter decoding an empty form body into an optional-only type."}
+{"caseId":"kb_0005","verdict":"PASS","confidence":0.99,"reason":"A spelling-only change does not affect removal of non-empty directories from an in-memory filesystem."}
+{"caseId":"kb_0006","verdict":"PASS","confidence":0.99,"reason":"The spelling corrections are unrelated to filesystem removal semantics."}
+{"caseId":"kb_0007","verdict":"PASS","confidence":0.98,"reason":"Passing JSON flags as depth is unrelated to schema comparison of equivalent indexes."}
+{"caseId":"kb_0008","verdict":"PASS","confidence":0.98,"reason":"The head change remains unrelated to the comparator's handling of equally valid index renames."}
+{"caseId":"kb_0009","verdict":"PASS","confidence":0.99,"reason":"Adding Afrikaans week translations does not affect daylight-saving datetime shifting."}
+{"caseId":"kb_0011","verdict":"PASS","confidence":0.98,"reason":"The circuit-breaker predicate exception fix is unrelated to rate-limiter replenishment after lowering its limit."}
+{"caseId":"kb_0012","verdict":"PASS","confidence":0.98,"reason":"The revised circuit-breaker cleanup does not change the independent rate-limiter behavior described by the test."}
+{"caseId":"kbc_0001","verdict":"PASS","confidence":0.97,"reason":"The prefer-template ASI autofix change is unrelated to var hoisting behavior in the described function."}
+{"caseId":"kbc_0002","verdict":"PASS","confidence":0.97,"reason":"The pull request only inserts semicolons for template-literal autofixes and does not alter declaration accessibility."}
+{"caseId":"kbc_0003","verdict":"PASS","confidence":0.98,"reason":"The logging argument-formatting change does not affect persisted sitemap-job restart behavior."}
+{"caseId":"kbc_0004","verdict":"PASS","confidence":0.98,"reason":"The head revision changes only log formatter argument handling, not spider restart lifecycle behavior."}
+{"caseId":"kbc_0005","verdict":"PASS","confidence":0.98,"reason":"Bidi-control sanitization is unrelated to narrow-terminal highlighted-line rendering."}
+{"caseId":"kbc_0006","verdict":"PASS","confidence":0.98,"reason":"The sanitize change does not affect whether a themed narrow terminal line aborts rendering."}
+{"caseId":"kbc_0011","verdict":"PASS","confidence":0.98,"reason":"Optimizing an RFC5424 regular expression does not change metadata-based output symlink creation."}
+{"caseId":"kbc_0012","verdict":"PASS","confidence":0.98,"reason":"The structured-data parsing optimization is unrelated to later symlink updates for a metadata key."}
+{"caseId":"kbc_0013","verdict":"PASS","confidence":0.98,"reason":"Changing platform-thread waiting behavior for virtual-thread efficiency is unrelated to connection-pool creation and system-property locking."}
+{"caseId":"kbc_0014","verdict":"PASS","confidence":0.98,"reason":"The ConcurrentBag virtual-thread optimization does not change the described concurrent pool startup behavior."}
+{"caseId":"kbd_0001","verdict":"PASS","confidence":0.98,"reason":"The SORT ACL key-check fix is unrelated to Redis background-save behavior on a growing 32-bit dataset."}
+{"caseId":"kbd_0002","verdict":"PASS","confidence":0.98,"reason":"The ACL parser change does not affect systemd persistence or background saves."}
+{"caseId":"kbd_0003","verdict":"PASS","confidence":0.98,"reason":"The current-directory bookkeeping fix is unrelated to preserving large-number digit editing with CTRL-A."}
+{"caseId":"kbd_0004","verdict":"PASS","confidence":0.98,"reason":"The head change concerns window CWD restoration and does not affect CTRL-X numeric editing."}
+{"caseId":"kbd_0005","verdict":"PASS","confidence":0.98,"reason":"The file-cache reclamation race fix is unrelated to array concatenation with NULL."}
+{"caseId":"kbd_0006","verdict":"PASS","confidence":0.98,"reason":"The cache-block lifetime change does not alter list concatenation result types."}
+{"caseId":"kbd_0007","verdict":"PASS","confidence":0.98,"reason":"Touchscreen ScrollBar input handling is unrelated to RefCounted pre-delete notification validity."}
+{"caseId":"kbd_0008","verdict":"PASS","confidence":0.98,"reason":"The ScrollBar input fix does not affect releasing the last RefCounted reference."}
+{"caseId":"kbd_0009","verdict":"PASS","confidence":0.98,"reason":"Rejecting categorical absolute-error features is unrelated to regression metrics on constant columns."}
+{"caseId":"kbd_0010","verdict":"PASS","confidence":0.98,"reason":"The categorical-feature validation change does not affect near-constant-column r_regression warnings."}
+{"caseId":"kbd_0011","verdict":"PASS","confidence":0.98,"reason":"The Swagger readonly-field fix is unrelated to Vault Agent token sink file modes."}
+{"caseId":"kbd_0012","verdict":"PASS","confidence":0.98,"reason":"Removing stale Swagger readonly attributes does not change token-file permissions."}
+{"caseId":"py_0005","verdict":"FAIL","confidence":0.98,"reason":"The base HelpFormatter still produces the spurious usage-line formatting that this test rejects."}
+{"caseId":"py_0006","verdict":"PASS","confidence":0.99,"reason":"The revised HelpFormatter normalizes separators and removes the spurious usage characters, matching the expected usage line."}
+{"caseId":"py_0007","verdict":"PASS","confidence":0.98,"reason":"Returning a plain dictionary as JSON is unrelated to IPv6 host/port parsing in the development server and test client."}
+{"caseId":"py_0008","verdict":"PASS","confidence":0.98,"reason":"The IPv6 parsing fix does not change dictionary-to-JSON response conversion."}
+{"caseId":"py_0009","verdict":"PASS","confidence":0.98,"reason":"Missing required-field reporting is unrelated to generic-alias hashability during schema generation."}
+{"caseId":"py_0010","verdict":"PASS","confidence":0.98,"reason":"The generic-alias fix does not alter the expected missing-field validation error."}
+{"caseId":"py_0011","verdict":"PASS","confidence":0.98,"reason":"Replacing logging.WARN with logging.WARNING preserves the logging level and does not change routine SQL echo suppression."}
+{"caseId":"py_0012","verdict":"PASS","confidence":0.98,"reason":"The logging constant rename is behavior-preserving for default SQL echo output."}
+{"caseId":"rg_0003","verdict":"PASS","confidence":0.97,"reason":"Making lazy attribute method definition thread-safe does not change computed-attribute access cost or semantics."}
+{"caseId":"rg_0004","verdict":"PASS","confidence":0.97,"reason":"The thread-safety refactor leaves the computed versus column attribute behavior unchanged."}
+{"caseId":"rg_0007","verdict":"PASS","confidence":0.95,"reason":"Before the change, each dispatch leaves a distinct called wrapper in the call stack, so two invocations yield two entries."}
+{"caseId":"rg_0008","verdict":"FAIL","confidence":0.96,"reason":"The new implementation deliberately deduplicates called listeners, so two invocations of one listener produce one entry rather than the expected two."}
+{"caseId":"rg_0009","verdict":"PASS","confidence":0.98,"reason":"The shellcheck cleanup does not change how custom completion hooks identify sibling subcommands."}
+{"caseId":"rg_0010","verdict":"PASS","confidence":0.98,"reason":"The revised completion script only preserves shell words and handles failed pushd, not the current-command selection logic."}
+{"caseId":"rg_0011","verdict":"PASS","confidence":0.97,"reason":"The existing query parser already combines repeated keys into an array, and the dependency update does not invalidate that expectation."}
+{"caseId":"rg_0012","verdict":"PASS","confidence":0.97,"reason":"The qs dependency update preserves repeated-key arrays in the default parser mode."}
+{"caseId":"rge_0001","verdict":"PASS","confidence":0.99,"reason":"In the base revision get_environ_proxies accepts a single URL argument and returns the proxy mapping as expected."}
+{"caseId":"rge_0002","verdict":"FAIL","confidence":0.99,"reason":"The head revision changes get_environ_proxies to require a no_proxy argument, so the documented one-argument call raises a missing-argument error."}
+{"caseId":"rge_0003","verdict":"PASS","confidence":0.98,"reason":"The parser change targets numeric unit values such as .5sec, not a bare .foons word in a list."}
+{"caseId":"rge_0004","verdict":"PASS","confidence":0.98,"reason":"Adding support for leading-dot numeric unit values does not make a bare .foons list item fail to parse as a string."}
+{"caseId":"rge_0005","verdict":"FAIL","confidence":0.92,"reason":"Before the change the cURL handler connects a sink for HEAD requests, which is the faulty path targeted by this regression fix."}
+{"caseId":"rge_0006","verdict":"PASS","confidence":0.96,"reason":"The head revision skips sink setup for HEAD requests, avoiding the cURL failure and allowing the request to complete."}
+{"caseId":"rge_0007","verdict":"FAIL","confidence":0.96,"reason":"The base diff formatter mishandles maps embedded in list assertions, causing the improper-list match failure to crash or lose its standard diff."}
+{"caseId":"rge_0008","verdict":"PASS","confidence":0.98,"reason":"The revised formatter converts inserted and deleted maps to the appropriate AST representation, preserving a clear match-failure diff."}
+{"caseId":"rgf_0001","verdict":"FAIL","confidence":0.96,"reason":"The base implementation has the dynamic CSS-prop hydration bug, so the nested component loses its scoped custom property after re-rendering."}
+{"caseId":"rgf_0002","verdict":"PASS","confidence":0.98,"reason":"The head revision applies the dynamic CSS property hydration fix and preserves the scoped property after re-rendering."}
+{"caseId":"rgf_0003","verdict":"PASS","confidence":0.98,"reason":"Using hook filters in internal plugins is unrelated to static-asset handling for a multiline new URL expression."}
+{"caseId":"rgf_0004","verdict":"PASS","confidence":0.98,"reason":"The plugin hook refactor does not alter the bundler's multiline new URL asset detection."}
+{"caseId":"rgf_0005","verdict":"FAIL","confidence":0.96,"reason":"The base version does not export the current NUL-delimited item to child preview processes, so the preview command cannot run with the required item."}
+{"caseId":"rgf_0006","verdict":"PASS","confidence":0.98,"reason":"The head revision exports FZF_CURRENT_ITEM, allowing preview commands to receive items containing NUL data under the NUL delimiter."}
+{"caseId":"rgf_0007","verdict":"FAIL","confidence":0.94,"reason":"The pre-change deprecated-view-flag implementation leaves system bars unrestored when switching from immersiveSticky to edgeToEdge."}
+{"caseId":"rgf_0008","verdict":"PASS","confidence":0.97,"reason":"The revised implementation uses the edge-to-edge APIs and restores the system bars on the mode switch."}
+{"caseId":"rgf_0011","verdict":"FAIL","confidence":0.95,"reason":"The base pattern parser still reports the multiple-assignment syntax error for the class-keyword binding case."}
+{"caseId":"rgf_0012","verdict":"PASS","confidence":0.97,"reason":"The head revision contains the syntax-error fix, so the valid case pattern is accepted without an error."}
+{"caseId":"sa_0001","verdict":"FAIL","confidence":0.98,"reason":"The base decoder assumes the pre-populated slice is already large enough and panics when decoding the two nested blocks."}
+{"caseId":"sa_0002","verdict":"PASS","confidence":0.99,"reason":"The revised decoder grows the destination slice as needed, so repeated nested blocks decode successfully."}
+{"caseId":"sa_0003","verdict":"FAIL","confidence":0.98,"reason":"Before the fix, mocked now retains the mock moment's timezone when no timezone is requested instead of using the application default."}
+{"caseId":"sa_0004","verdict":"PASS","confidence":0.99,"reason":"The head revision falls back to the application's default timezone for an unqualified mocked current time."}
+{"caseId":"sa_0005","verdict":"FAIL","confidence":0.98,"reason":"The base protocol-relative URL regular expression misses the unusual leading-slash forms described by the test."}
+{"caseId":"sa_0006","verdict":"PASS","confidence":0.99,"reason":"The expanded regular expression recognizes the additional protocol-relative slash and whitespace forms."}
+{"caseId":"sa_0009","verdict":"PASS","confidence":0.99,"reason":"Changing hash-combination internals from a copying accessor to an internal accessor does not change MD5 digest values."}
+{"caseId":"sa_0010","verdict":"PASS","confidence":0.99,"reason":"The performance refactor is value-preserving and unrelated to computing the well-known MD5 digest."}
+{"caseId":"sa_0011","verdict":"PASS","confidence":0.98,"reason":"Moving diagnostic descriptors to a dedicated class preserves supported HTTP-method client generation."}
+{"caseId":"sa_0012","verdict":"PASS","confidence":0.98,"reason":"The diagnostic refactor does not change successful generation for an interface with a supported HTTP verb."}
+{"caseId":"sa_0013","verdict":"PASS","confidence":0.98,"reason":"Removing redundant final continue statements does not change HTTP/1.1 response-body fetching."}
+{"caseId":"sa_0014","verdict":"PASS","confidence":0.98,"reason":"The loop cleanup preserves control flow, so fetching a plain response body remains successful."}
+{"caseId":"sb_0001","verdict":"FAIL","confidence":0.98,"reason":"The base conversion loses the requested basic format when converting a non-ISO calendar date."}
+{"caseId":"sb_0002","verdict":"PASS","confidence":0.99,"reason":"The fix preserves the requested basic ISO format for dates using a custom calendar."}
+{"caseId":"sb_0003","verdict":"FAIL","confidence":0.98,"reason":"Before the fix, changing the period end date leaves the native end property at its original value."}
+{"caseId":"sb_0004","verdict":"PASS","confidence":0.99,"reason":"The revised period update synchronizes the native end property with the changed end date."}
+{"caseId":"sb_0005","verdict":"FAIL","confidence":0.98,"reason":"The base URL normalizer permits embedded whitespace in the request path, so a newline can reach the request line instead of being rejected."}
+{"caseId":"sb_0006","verdict":"PASS","confidence":0.99,"reason":"The head revision rejects whitespace in the resolved path or host before sending the request."}
+{"caseId":"sb_0007","verdict":"PASS","confidence":0.98,"reason":"The Albanian million pluralization change is unrelated to converting whole numbers to English words."}
+{"caseId":"sb_0008","verdict":"PASS","confidence":0.98,"reason":"The locale-specific Albanian change does not affect English number-to-words output."}
+{"caseId":"sb_0009","verdict":"PASS","confidence":0.98,"reason":"Ignoring non-string system properties is unrelated to resolving a singleton dependency from a DI module."}
+{"caseId":"sb_0010","verdict":"PASS","confidence":0.98,"reason":"The property-loading fix does not change normal singleton dependency resolution."}
+{"caseId":"sb_0011","verdict":"PASS","confidence":0.98,"reason":"The shared replace primitive is described as behavior-preserving and does not change ordered-dictionary element replacement."}
+{"caseId":"sb_0012","verdict":"PASS","confidence":0.98,"reason":"The refactored implementation preserves the ordered dictionary replace operation's behavior."}
+{"caseId":"sb_0013","verdict":"PASS","confidence":0.98,"reason":"Replacing the manual nonnegative clamp with built-in max preserves invalid size parsing behavior."}
+{"caseId":"sb_0014","verdict":"PASS","confidence":0.98,"reason":"The max/min simplification is semantically equivalent for the invalid size value described."}
+{"caseId":"sys_0001","verdict":"FAIL","confidence":0.98,"reason":"The base case-insensitive path search can select the static child instead of the trailing wildcard child and panic for this route layout."}
+{"caseId":"sys_0002","verdict":"PASS","confidence":0.99,"reason":"The head revision selects the wildcard child from the end of the child list, preventing the invalid-node panic and resolving the redirect."}
+{"caseId":"sys_0003","verdict":"FAIL","confidence":0.99,"reason":"The base Numeric.Int64Value path dereferences a nil Int for a valid empty numeric and panics instead of returning zero."}
+{"caseId":"sys_0004","verdict":"PASS","confidence":0.99,"reason":"The nil guard in toBigInt makes a valid numeric with no integer value convert to zero."}
+{"caseId":"sys_0005","verdict":"PASS","confidence":0.98,"reason":"Restoring hard-tab renderer tab stops is unrelated to prompt shutdown from outside the update loop."}
+{"caseId":"sys_0006","verdict":"PASS","confidence":0.98,"reason":"The renderer tab-stop initialization change does not alter the program's external-quit handling."}
+{"caseId":"sys_0007","verdict":"FAIL","confidence":0.98,"reason":"Before the cancellation-order fix, an already-cancelled token can still poll the wrapped future rather than skip it entirely."}
+{"caseId":"sys_0008","verdict":"PASS","confidence":0.99,"reason":"The revised cancellation wrapper checks the token first and skips polling an already-cancelled operation."}
+{"caseId":"sys_0009","verdict":"PASS","confidence":0.98,"reason":"Skipping unreachable ignore files does not change case-insensitive matching for a reachable file."}
+{"caseId":"sys_0010","verdict":"PASS","confidence":0.98,"reason":"The ignore-file traversal optimization is unrelated to the case-insensitive pattern matcher."}
+{"caseId":"sys_0011","verdict":"PASS","confidence":0.97,"reason":"Removing one nesting level is presented as a refactor and does not change the default value supplied to a skipped field."}
+{"caseId":"sys_0012","verdict":"PASS","confidence":0.97,"reason":"The head refactor preserves deserialization semantics for an omitted skipped field."}

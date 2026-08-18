@@ -1,0 +1,122 @@
+{"caseId": "js_0003", "verdict": "FAIL", "confidence": 0.82, "reason": "The PR fixes a JIT fastpass bug where a swallowed issue's value leaked into the result; at base the absent optional key still appears with the leaked value, violating the expectation."}
+{"caseId": "js_0004", "verdict": "PASS", "confidence": 0.82, "reason": "After the PR the JIT branch guards both issue concat and value assignment on presence, so an absent optional key is dropped cleanly."}
+{"caseId": "js_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "At base a tab-only line is swallowed as a lazy continuation so the two paragraphs merge into one; the fix widens the blank-line lookahead to include tabs."}
+{"caseId": "js_0006", "verdict": "PASS", "confidence": 0.85, "reason": "The paragraph continuation lookahead now treats a tab-only line as blank, producing two distinct paragraph elements."}
+{"caseId": "js_0007", "verdict": "PASS", "confidence": 0.75, "reason": "The JSON response parsing is standard axios behavior and the stack-decoration change only affects the error path, so the request still resolves to a parsed object."}
+{"caseId": "js_0008", "verdict": "PASS", "confidence": 0.75, "reason": "Same unrelated change; successful JSON responses are unaffected by the stack-decoration fix."}
+{"caseId": "js_0009", "verdict": "PASS", "confidence": 0.75, "reason": "Boolean flag parsing is core commander functionality, unrelated to the uppercase-E negative-number change."}
+{"caseId": "js_0010", "verdict": "PASS", "confidence": 0.75, "reason": "Same; the negative-number regex change does not affect boolean flag recognition."}
+{"caseId": "jvm_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "At base JsonTreeReader.nextInt goes straight to Integer.parseInt which coerces full-width digits to 123; the test expects a parsing error."}
+{"caseId": "jvm_0002", "verdict": "PASS", "confidence": 0.85, "reason": "The PR adds validateAscii for string tokens in JsonTreeReader, so full-width digits now raise MalformedJsonException."}
+{"caseId": "jvm_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "At base the alphanumeric-only regex splits 'test-db' into 'test' and 'db'; the test expects a single schema name."}
+{"caseId": "jvm_0006", "verdict": "PASS", "confidence": 0.85, "reason": "The new blocklist regex keeps the hyphen so 'test-db' is applied as one schema name."}
+{"caseId": "jvm_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The ByteBufferUtil resource-leak fix is unrelated to ImageView transformation eligibility, so the default transform behavior is unchanged."}
+{"caseId": "jvm_0010", "verdict": "PASS", "confidence": 0.7, "reason": "Same unrelated change; transformations remain applied by default."}
+{"caseId": "jvm_0011", "verdict": "PASS", "confidence": 0.7, "reason": "Caching the allowed-symbols CharacterSet is behavior-preserving; identifiers with allowed symbols still pass."}
+{"caseId": "jvm_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the cached set yields identical results to the rebuilt union."}
+{"caseId": "kb_0001", "verdict": "PASS", "confidence": 0.7, "reason": "The <cstdint> include is a compile fix unrelated to SVG data-URI decoding; the image still loads."}
+{"caseId": "kb_00010", "verdict": "PASS", "confidence": 0.7, "reason": "The Afrikaans locale addition is unrelated to DST-aware datetime shifting; shift still works correctly."}
+{"caseId": "kb_0002", "verdict": "PASS", "confidence": 0.7, "reason": "Same <cstdint> change; SVG percent-encoded data URI loading is unaffected."}
+{"caseId": "kb_0003", "verdict": "PASS", "confidence": 0.7, "reason": "The cookie-header parsing fix is unrelated to form-urlencoded body decoding; empty-body decode still succeeds."}
+{"caseId": "kb_0004", "verdict": "PASS", "confidence": 0.7, "reason": "Same; cookie parsing does not affect form decoding of an empty body."}
+{"caseId": "kb_0005", "verdict": "PASS", "confidence": 0.7, "reason": "The spelling fix is unrelated to filesystem Remove semantics; removing a non-empty dir still returns an error."}
+{"caseId": "kb_0006", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the spelling changes do not alter Remove behavior."}
+{"caseId": "kb_0007", "verdict": "FAIL", "confidence": 0.45, "reason": "The test describes an index-rename ambiguity bug (undefined array key) that the JSON-flag test change does not touch; the warning likely persists."}
+{"caseId": "kb_0008", "verdict": "FAIL", "confidence": 0.45, "reason": "Same; the JSON-flag change is unrelated to schema comparator index rename handling."}
+{"caseId": "kb_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The Afrikaans locale change is unrelated to datetime shift; DST-aware shifting still works correctly at base."}
+{"caseId": "kb_0011", "verdict": "PASS", "confidence": 0.5, "reason": "The CircuitBreaker permit-leak fix is unrelated to the rate limiter's scheduled replenishment; behavior is unchanged."}
+{"caseId": "kb_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Same; the rate limiter is a different component unaffected by the circuit breaker change."}
+{"caseId": "kbc_0001", "verdict": "PASS", "confidence": 0.7, "reason": "The prefer-template ASI fix is unrelated to the no-var autofix rule; hoisting semantics are unchanged."}
+{"caseId": "kbc_0002", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the var->block-scoped autofix still preserves hoisting behavior."}
+{"caseId": "kbc_0003", "verdict": "PASS", "confidence": 0.7, "reason": "The log-formatter fix is unrelated to sitemap spider resume; resumption behavior is unchanged."}
+{"caseId": "kbc_0004", "verdict": "PASS", "confidence": 0.7, "reason": "Same; log formatting does not affect spider job persistence."}
+{"caseId": "kbc_0005", "verdict": "PASS", "confidence": 0.5, "reason": "The --sanitize bidi-control change is unrelated to double-width rendering at width 1; behavior is unchanged."}
+{"caseId": "kbc_0006", "verdict": "PASS", "confidence": 0.5, "reason": "Same; sanitize preprocessing does not affect row-background rendering."}
+{"caseId": "kbc_0011", "verdict": "PASS", "confidence": 0.7, "reason": "The RFC5424 regex optimization is unrelated to the file output plugin's symlink creation; behavior is unchanged."}
+{"caseId": "kbc_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; syslog parser regex does not affect symlink updates."}
+{"caseId": "kbc_0013", "verdict": "PASS", "confidence": 0.7, "reason": "The ConcurrentBag virtual-thread change is unrelated to pool-name generation; construction behavior is unchanged."}
+{"caseId": "kbc_0014", "verdict": "PASS", "confidence": 0.7, "reason": "Same; pool-name generation does not acquire a shared system-properties lock in either revision."}
+{"caseId": "kbd_0001", "verdict": "PASS", "confidence": 0.7, "reason": "The SORT ACL fix is unrelated to 32-bit BGSAVE persistence; background save still succeeds."}
+{"caseId": "kbd_0002", "verdict": "PASS", "confidence": 0.7, "reason": "Same; ACL key checks do not affect background save behavior."}
+{"caseId": "kbd_0003", "verdict": "PASS", "confidence": 0.7, "reason": "The CWD fix is unrelated to CTRL-A number incrementing; behavior is unchanged."}
+{"caseId": "kbd_0004", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the CWD bookkeeping change does not affect CTRL-X decrement."}
+{"caseId": "kbd_0005", "verdict": "PASS", "confidence": 0.7, "reason": "The file-cache race fix is unrelated to array || NULL type inference; behavior is unchanged."}
+{"caseId": "kbd_0006", "verdict": "PASS", "confidence": 0.7, "reason": "Same; type inference for list concat is unaffected."}
+{"caseId": "kbd_0007", "verdict": "PASS", "confidence": 0.7, "reason": "The ScrollBar drag fix is unrelated to RefCounted NOTIFICATION_PREDELETE; behavior is unchanged."}
+{"caseId": "kbd_0008", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the scroll input change does not affect refcount notification."}
+{"caseId": "kbd_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The DecisionTree categorical absolute_error change is unrelated to f_regression; behavior is unchanged."}
+{"caseId": "kbd_0010", "verdict": "PASS", "confidence": 0.7, "reason": "Same; r_regression is unaffected by the tree criterion validation."}
+{"caseId": "kbd_0011", "verdict": "PASS", "confidence": 0.7, "reason": "The Swagger UI readonly fix is unrelated to Vault Agent file sink permissions; behavior is unchanged."}
+{"caseId": "kbd_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the file sink mode is unaffected by the UI change."}
+{"caseId": "py_0005", "verdict": "FAIL", "confidence": 0.82, "reason": "At base write_usage with empty args emits only a blank line, so the first line is not 'Usage: cli'."}
+{"caseId": "py_0006", "verdict": "PASS", "confidence": 0.82, "reason": "The PR writes the prefix and program name even with no args and strips the trailing space, yielding 'Usage: cli'."}
+{"caseId": "py_0007", "verdict": "PASS", "confidence": 0.75, "reason": "The IPv6 partition fix is unrelated to dict-to-JSON response handling; the response is still serialized as JSON."}
+{"caseId": "py_0008", "verdict": "PASS", "confidence": 0.75, "reason": "Same; response JSON serialization is unaffected."}
+{"caseId": "py_0009", "verdict": "PASS", "confidence": 0.75, "reason": "The unhashable-alias fix is unrelated to required-field validation; omitting a required field still errors."}
+{"caseId": "py_0010", "verdict": "PASS", "confidence": 0.75, "reason": "Same; required-field validation is unchanged."}
+{"caseId": "py_0011", "verdict": "PASS", "confidence": 0.7, "reason": "WARN and WARNING are the same numeric level, so the rename is a no-op; echo-off still suppresses SQL logs."}
+{"caseId": "py_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the level rename does not change echo behavior."}
+{"caseId": "rg_0003", "verdict": "PASS", "confidence": 0.55, "reason": "The thread-safety method_missing change adds minor overhead but the 20x threshold is very loose; computed attribute access stays inexpensive."}
+{"caseId": "rg_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Same; the ratio remains well under 20x after the change."}
+{"caseId": "rg_0007", "verdict": "PASS", "confidence": 0.82, "reason": "At base getCalledListeners reads the accumulating callStack, reporting one entry per invocation (count 2)."}
+{"caseId": "rg_0008", "verdict": "FAIL", "confidence": 0.82, "reason": "The PR deduplicates called listeners so the same listener dispatched twice is reported once, not the two entries the test expects."}
+{"caseId": "rg_0009", "verdict": "PASS", "confidence": 0.55, "reason": "The shellcheck COMPREPLY refactor is unrelated to custom subcommand completion; scoped values are still returned correctly."}
+{"caseId": "rg_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same; custom completion hooks still identify the active subcommand."}
+{"caseId": "rg_0011", "verdict": "FAIL", "confidence": 0.6, "reason": "qs defaults to arrayLimit 20, so 25 repeated keys become an object keyed by index rather than an array."}
+{"caseId": "rg_0012", "verdict": "FAIL", "confidence": 0.6, "reason": "The qs 6.13->6.14 bump does not change arrayLimit, so the behavior is unchanged."}
+{"caseId": "rge_0001", "verdict": "PASS", "confidence": 0.8, "reason": "At base get_environ_proxies accepts a single URL argument and works."}
+{"caseId": "rge_0002", "verdict": "FAIL", "confidence": 0.8, "reason": "The PR makes no_proxy a required positional argument, so a single-argument call raises TypeError."}
+{"caseId": "rge_0003", "verdict": "PASS", "confidence": 0.55, "reason": "The parse_unit_value change only affects valid unit suffixes; '.foons' is not a unit and still parses as a string."}
+{"caseId": "rge_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Same; '.foons' remains a bare-word string at head."}
+{"caseId": "rge_0005", "verdict": "FAIL", "confidence": 0.65, "reason": "At base a HEAD request with a sink and Accept-Encoding gzip can fail; the test expects it to complete."}
+{"caseId": "rge_0006", "verdict": "PASS", "confidence": 0.65, "reason": "The PR skips connecting a sink for HEAD requests, so the request completes successfully."}
+{"caseId": "rge_0007", "verdict": "PASS", "confidence": 0.5, "reason": "The map-in-list formatting change is unrelated to an improper list inside a map; the match failure formats without crashing."}
+{"caseId": "rge_0008", "verdict": "PASS", "confidence": 0.5, "reason": "Same; the improper-list map assertion still produces a standard match error."}
+{"caseId": "rgf_0001", "verdict": "FAIL", "confidence": 0.8, "reason": "At base the dynamic css-props component teardown removes the element/hydration fails, so the red color is lost after toggle."}
+{"caseId": "rgf_0002", "verdict": "PASS", "confidence": 0.8, "reason": "The PR removes the teardown and fixes dynamic component css_props hydration, preserving the CSS custom property."}
+{"caseId": "rgf_0003", "verdict": "PASS", "confidence": 0.82, "reason": "At base the string-includes check handles multi-line new URL references, so the asset is emitted."}
+{"caseId": "rgf_0004", "verdict": "FAIL", "confidence": 0.82, "reason": "The new filter regex /new\\s+URL.+import\\.meta\\.url/ does not match across newlines, so multi-line references are no longer bundled."}
+{"caseId": "rgf_0005", "verdict": "PASS", "confidence": 0.72, "reason": "At base no FZF_CURRENT_ITEM is exported, so the NUL-containing item does not break the preview child process."}
+{"caseId": "rgf_0006", "verdict": "FAIL", "confidence": 0.72, "reason": "The PR exports FZF_CURRENT_ITEM with the NUL-containing item text, which can break spawning the preview command."}
+{"caseId": "rgf_0007", "verdict": "FAIL", "confidence": 0.55, "reason": "At base switching to edge-to-edge reuses deprecated LAYOUT flags that do not properly restore the system bars."}
+{"caseId": "rgf_0008", "verdict": "PASS", "confidence": 0.55, "reason": "The PR uses WindowCompat to properly manage edge-to-edge state, restoring the bars."}
+{"caseId": "rgf_0011", "verdict": "PASS", "confidence": 0.78, "reason": "At base there is no multiple-assignment check, so ClassLabel(num_classes=num_classes) reports no error."}
+{"caseId": "rgf_0012", "verdict": "FAIL", "confidence": 0.78, "reason": "The visitor inserts the keyword attr name and the bound pattern name, flagging the valid pattern as a duplicate assignment."}
+{"caseId": "sa_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "At base decoding two blocks into a length-1 slice panics with index out of range."}
+{"caseId": "sa_0002", "verdict": "PASS", "confidence": 0.85, "reason": "The PR grows the destination slice as needed, producing exactly two entries."}
+{"caseId": "sa_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "At base setTestNow with an LA moment returns it in LA timezone, not the default UTC."}
+{"caseId": "sa_0004", "verdict": "PASS", "confidence": 0.85, "reason": "The PR falls back to date_default_timezone_get, so the mocked now is presented in UTC."}
+{"caseId": "sa_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "At base the regex only matches exactly two leading slashes, missing ///test.com, tab-separated, and mixed slash forms."}
+{"caseId": "sa_0006", "verdict": "PASS", "confidence": 0.85, "reason": "The expanded regex recognizes all three protocol-relative forms."}
+{"caseId": "sa_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The getBytesInternal micro-optimization produces identical values; MD5 of 'abc' is unaffected."}
+{"caseId": "sa_0010", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the MD5 digest is unchanged."}
+{"caseId": "sa_0011", "verdict": "PASS", "confidence": 0.7, "reason": "Moving diagnostic descriptors is a pure refactor; source generation still produces a working GET client."}
+{"caseId": "sa_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; generated client behavior is unchanged."}
+{"caseId": "sa_0013", "verdict": "PASS", "confidence": 0.7, "reason": "Removing redundant continue statements does not change control flow; HTTP/1.1 body fetch still works."}
+{"caseId": "sa_0014", "verdict": "PASS", "confidence": 0.7, "reason": "Same; body reading is unaffected."}
+{"caseId": "sb_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "At base to_iso8601 with :basic on a non-ISO calendar silently returns the :extended form."}
+{"caseId": "sb_0002", "verdict": "PASS", "confidence": 0.85, "reason": "The PR passes the requested format through after converting to the ISO calendar."}
+{"caseId": "sb_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "At base setEndDate leaves the native end property stale on PHP 8.2+."}
+{"caseId": "sb_0004", "verdict": "PASS", "confidence": 0.85, "reason": "The PR re-synchronizes the native DatePeriod so end reports the new value."}
+{"caseId": "sb_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "At base the client transmits a request line with an embedded newline instead of rejecting it."}
+{"caseId": "sb_0006", "verdict": "PASS", "confidence": 0.85, "reason": "The PR raises RequestError before sending when the path or host contains whitespace."}
+{"caseId": "sb_0007", "verdict": "PASS", "confidence": 0.7, "reason": "The Albanian locale change is unrelated to English number-to-words; English pluralization is unchanged."}
+{"caseId": "sb_0008", "verdict": "PASS", "confidence": 0.7, "reason": "Same; English 'one million'/'two million' output is unaffected."}
+{"caseId": "sb_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The property-loading fix is unrelated to singleton scope; resolving twice returns the same instance."}
+{"caseId": "sb_0010", "verdict": "PASS", "confidence": 0.7, "reason": "Same; singleton resolution is unaffected."}
+{"caseId": "sb_0011", "verdict": "PASS", "confidence": 0.7, "reason": "The shared replace primitive is behavior-preserving; replaceElement and duplicate-key precondition are unchanged."}
+{"caseId": "sb_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the refactored replace preserves order and duplicate-key rejection."}
+{"caseId": "sb_0013", "verdict": "PASS", "confidence": 0.7, "reason": "Replacing the manual clamp with builtin max is equivalent; '-5MB' still yields 0."}
+{"caseId": "sb_0014", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the max() call clamps negative sizes to zero identically."}
+{"caseId": "sys_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "At base findCaseInsensitivePathRec grabs children[0] and panics when a node has both static and wildcard children."}
+{"caseId": "sys_0002", "verdict": "PASS", "confidence": 0.85, "reason": "The PR prefers static children via indices and falls back to the wildcard child at the end, avoiding the panic."}
+{"caseId": "sys_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "At base Int64Value dereferences a nil Int and panics for a valid Numeric with nil Int."}
+{"caseId": "sys_0004", "verdict": "PASS", "confidence": 0.85, "reason": "The PR guards toBigInt to return zero when Int is nil."}
+{"caseId": "sys_0005", "verdict": "PASS", "confidence": 0.7, "reason": "The tab-stop renderer fix is unrelated to quit handling; external quit still returns promptly."}
+{"caseId": "sys_0006", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the run loop still returns after quit."}
+{"caseId": "sys_0007", "verdict": "FAIL", "confidence": 0.85, "reason": "At base the already-cancelled token still polls the wrapped future, which panics."}
+{"caseId": "sys_0008", "verdict": "PASS", "confidence": 0.85, "reason": "The PR checks cancellation first, returning None without polling the future."}
+{"caseId": "sys_0009", "verdict": "PASS", "confidence": 0.7, "reason": "The ignore-file loading optimization is unrelated to case-insensitive matching; matches are still found."}
+{"caseId": "sys_0010", "verdict": "PASS", "confidence": 0.7, "reason": "Same; case-insensitive search results are unaffected."}
+{"caseId": "sys_0011", "verdict": "PASS", "confidence": 0.7, "reason": "The nesting removal is behavior-preserving; skip_deserializing still defaults the field."}
+{"caseId": "sys_0012", "verdict": "PASS", "confidence": 0.7, "reason": "Same; the skipped field still receives its type's default."}

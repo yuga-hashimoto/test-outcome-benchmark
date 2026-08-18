@@ -1,0 +1,122 @@
+{"caseId":"js_0003","verdict":"FAIL","confidence":0.75,"reason":"The test checks optional object field omission with validation rules; the PR fixes a JIT fastpass bug that kept swallowed values, so the base revision likely fails this test."}
+{"caseId":"js_0004","verdict":"PASS","confidence":0.85,"reason":"The PR fixes the JIT fastpass keeping swallowed issue values, so after the fix the optional field omission should work correctly."}
+{"caseId":"js_0005","verdict":"FAIL","confidence":0.9,"reason":"The test expects a tab-only line to split paragraphs; the PR title explicitly says 'treat a line of only tabs as a blank line', meaning this was broken before the fix."}
+{"caseId":"js_0006","verdict":"PASS","confidence":0.95,"reason":"The PR directly fixes treating tab-only lines as paragraph separators, so the test should pass after the fix."}
+{"caseId":"js_0007","verdict":"PASS","confidence":0.7,"reason":"The test checks JSON response parsing which is unrelated to the PR's fix for tolerating non-string stack in error decoration; the test behavior is unaffected."}
+{"caseId":"js_0008","verdict":"PASS","confidence":0.7,"reason":"The PR fixes error decoration with non-string stack, which does not affect JSON response body parsing; the test should pass at both revisions."}
+{"caseId":"js_0009","verdict":"PASS","confidence":0.7,"reason":"The test checks boolean flag parsing on the command line; the PR fixes uppercase E exponent handling in negative numbers, which is unrelated to boolean flag recognition."}
+{"caseId":"js_0010","verdict":"PASS","confidence":0.7,"reason":"The PR changes exponent parsing for negative numbers, which does not affect boolean flag recognition; the test should still pass."}
+{"caseId":"jvm_0001","verdict":"FAIL","confidence":0.9,"reason":"The test expects non-ASCII digit rejection in JSON tree deserialization; the PR adds this rejection, so it was missing before the fix."}
+{"caseId":"jvm_0002","verdict":"PASS","confidence":0.95,"reason":"The PR explicitly implements rejection of non-ASCII digits in JsonTreeReader.nextInt/nextLong, so the test should pass after the fix."}
+{"caseId":"jvm_0005","verdict":"FAIL","confidence":0.9,"reason":"The test checks that Postgres schema search paths with hyphens are applied correctly; the PR fixes parsing of this config, meaning it was broken before."}
+{"caseId":"jvm_0006","verdict":"PASS","confidence":0.95,"reason":"The PR directly fixes parsing of database.connections.pgsql.search_path, so the schema search path handling should work correctly after the fix."}
+{"caseId":"jvm_0009","verdict":"PASS","confidence":0.65,"reason":"The test checks image transformation eligibility which is unrelated to the PR's fix for a resource leak in ByteBufferUtil.fromStream."}
+{"caseId":"jvm_0010","verdict":"PASS","confidence":0.65,"reason":"The PR fixes a resource leak, which does not affect image transformation behavior; the test should pass at both revisions."}
+{"caseId":"jvm_0011","verdict":"PASS","confidence":0.65,"reason":"The test checks allowed symbol characters in naming rules; the PR caches allowedSymbolsAndAlphanumerics, a performance optimization that should preserve behavior."}
+{"caseId":"jvm_0012","verdict":"PASS","confidence":0.65,"reason":"The PR is a caching optimization for allowedSymbolsAndAlphanumerics which should not change the naming rule behavior tested here."}
+{"caseId":"kb_0001","verdict":"PASS","confidence":0.6,"reason":"The test checks SVG data URI loading which is unrelated to the PR's fix for GCC 15 compilation by including cstdint."}
+{"caseId":"kb_00010","verdict":"PASS","confidence":0.6,"reason":"The test checks datetime shifting across DST transitions which is unrelated to the PR adding weeks to the Afrikaans locale."}
+{"caseId":"kb_0002","verdict":"PASS","confidence":0.6,"reason":"The PR fixes GCC 15 compilation, which does not affect SVG data URI loading behavior."}
+{"caseId":"kb_0003","verdict":"PASS","confidence":0.6,"reason":"The test checks form-urlencoded empty body decoding; the PR changes cookie header parsing which is a different subsystem."}
+{"caseId":"kb_0004","verdict":"PASS","confidence":0.6,"reason":"The PR modifies cookie header parsing, not form-urlencoded body decoding; the test should pass at both revisions."}
+{"caseId":"kb_0005","verdict":"PASS","confidence":0.6,"reason":"The test checks in-memory filesystem directory removal rejection; the PR only fixes spelling errors which should not affect this behavior."}
+{"caseId":"kb_0006","verdict":"PASS","confidence":0.6,"reason":"The PR fixes spelling errors in the codebase, which should not change filesystem behavior."}
+{"caseId":"kb_0007","verdict":"PASS","confidence":0.6,"reason":"The test checks schema comparison with index renames; the PR changes JSON flag passing which is unrelated to schema comparison logic."}
+{"caseId":"kb_0008","verdict":"PASS","confidence":0.6,"reason":"The PR modifies JSON flag handling, not schema comparison; the test should pass at both revisions."}
+{"caseId":"kb_0009","verdict":"PASS","confidence":0.6,"reason":"The test checks DST-aware datetime shifting; the PR adds Afrikaans locale weeks which is unrelated."}
+{"caseId":"kb_0011","verdict":"PASS","confidence":0.65,"reason":"The test checks rate limiter permit replenishment; the PR fixes CircuitBreaker predicate exception handling, a different component."}
+{"caseId":"kb_0012","verdict":"PASS","confidence":0.65,"reason":"The PR addresses CircuitBreaker record/ignore predicate exceptions, not rate limiter permit behavior."}
+{"caseId":"kbc_0001","verdict":"PASS","confidence":0.65,"reason":"The test checks var-to-block-scoped autofix preserving hoisting; the PR prevents ASI hazard in prefer-template autofix, a different rule."}
+{"caseId":"kbc_0002","verdict":"PASS","confidence":0.65,"reason":"The PR fixes prefer-template autofix ASI issues, not var declaration autofixing; the test should pass at both revisions."}
+{"caseId":"kbc_0003","verdict":"PASS","confidence":0.6,"reason":"The test checks sitemap spider resumption with JOBDIR; the PR fixes log message formatting which is unrelated."}
+{"caseId":"kbc_0004","verdict":"PASS","confidence":0.6,"reason":"The PR fixes log formatter handling, not spider resumption; the test should pass at both revisions."}
+{"caseId":"kbc_0005","verdict":"PASS","confidence":0.6,"reason":"The test checks bat double-width character rendering; the PR fixes bidi control character sanitization which is a different feature."}
+{"caseId":"kbc_0006","verdict":"PASS","confidence":0.6,"reason":"The PR fixes bidi sanitization, not character wrapping or theme rendering; the test should pass at both revisions."}
+{"caseId":"kbc_0011","verdict":"PASS","confidence":0.6,"reason":"The test checks symlink creation for multi-key batches; the PR optimizes RFC5424 structured data parsing which is unrelated."}
+{"caseId":"kbc_0012","verdict":"PASS","confidence":0.6,"reason":"The PR optimizes syslog parsing, not file output plugin symlinks; the test should pass at both revisions."}
+{"caseId":"kbc_0013","verdict":"PASS","confidence":0.65,"reason":"The test checks connection pool creation not locking on system properties; the PR avoids virtual-thread yield spin in ConcurrentBag, a different concern."}
+{"caseId":"kbc_0014","verdict":"PASS","confidence":0.65,"reason":"The PR addresses ConcurrentBag yield spinning, not system property locking during pool creation."}
+{"caseId":"kbd_0001","verdict":"PASS","confidence":0.6,"reason":"The test checks 32-bit Redis background save; the PR fixes ACL key checks for SORT which is unrelated."}
+{"caseId":"kbd_0002","verdict":"PASS","confidence":0.6,"reason":"The PR fixes ACL key checks, not 32-bit Redis persistence; the test should pass at both revisions."}
+{"caseId":"kbd_0003","verdict":"PASS","confidence":0.6,"reason":"The test checks Neovim CTRL-A increment with big numbers; the PR fixes CWD changes on buffer switch which is unrelated."}
+{"caseId":"kbd_0004","verdict":"PASS","confidence":0.6,"reason":"The PR fixes CWD behavior on buffer switch, not number increment; the test should pass at both revisions."}
+{"caseId":"kbd_0005","verdict":"PASS","confidence":0.6,"reason":"The test checks DuckDB array concatenation with NULL; the PR fixes a race condition in file cache block reclaiming which is unrelated."}
+{"caseId":"kbd_0006","verdict":"PASS","confidence":0.6,"reason":"The PR fixes a file cache race condition, not DuckDB array operations; the test should pass at both revisions."}
+{"caseId":"kbd_0007","verdict":"PASS","confidence":0.6,"reason":"The test checks Godot RefCounted NOTIFICATION_PREDELETE; the PR fixes scrollbar drag on touchscreen which is unrelated."}
+{"caseId":"kbd_0008","verdict":"PASS","confidence":0.6,"reason":"The PR fixes scrollbar touch behavior, not RefCounted notifications; the test should pass at both revisions."}
+{"caseId":"kbd_0009","verdict":"PASS","confidence":0.65,"reason":"The test checks f_regression with constant features; the PR raises errors for categorical features with absolute_error criterion, a different issue."}
+{"caseId":"kbd_0010","verdict":"PASS","confidence":0.65,"reason":"The PR adds categorical feature validation, not constant feature handling in regression; the test should pass at both revisions."}
+{"caseId":"kbd_0011","verdict":"PASS","confidence":0.6,"reason":"The test checks Vault Agent file sink permissions; the PR fixes Swagger UI input which is unrelated."}
+{"caseId":"kbd_0012","verdict":"PASS","confidence":0.6,"reason":"The PR fixes Swagger input, not Vault Agent file permissions; the test should pass at both revisions."}
+{"caseId":"py_0005","verdict":"FAIL","confidence":0.85,"reason":"The test checks that help text shows the program name correctly; the PR fixes HelpFormatter.write_usage producing spurious characters, so it was broken before."}
+{"caseId":"py_0006","verdict":"PASS","confidence":0.9,"reason":"The PR directly fixes HelpFormatter.write_usage spurious character output, so the usage line should display correctly after the fix."}
+{"caseId":"py_0007","verdict":"PASS","confidence":0.65,"reason":"The test checks JSON response from dictionary views; the PR fixes .partition(':') usage on IPv6 addresses which is unrelated to response serialization."}
+{"caseId":"py_0008","verdict":"PASS","confidence":0.65,"reason":"The PR fixes IPv6 address handling, not JSON response behavior; the test should pass at both revisions."}
+{"caseId":"py_0009","verdict":"PASS","confidence":0.65,"reason":"The test checks required field validation in models; the PR prevents errors on unhashable generic aliases during schema generation, a different issue."}
+{"caseId":"py_0010","verdict":"PASS","confidence":0.65,"reason":"The PR addresses generic alias hashing errors, not required field validation; the test should pass at both revisions."}
+{"caseId":"py_0011","verdict":"PASS","confidence":0.7,"reason":"The test checks default engine logging suppressing SQL echo; the PR replaces logging.WARN with logging.WARNING, a constant rename that should preserve behavior."}
+{"caseId":"py_0012","verdict":"PASS","confidence":0.7,"reason":"The PR replaces deprecated logging constant, which should not change SQL echo suppression behavior."}
+{"caseId":"rg_0003","verdict":"PASS","confidence":0.6,"reason":"The test checks computed attribute access performance; the PR fixes lazy attribute thread safety which is a correctness fix, not a performance regression."}
+{"caseId":"rg_0004","verdict":"PASS","confidence":0.6,"reason":"The PR fixes thread safety in lazy attributes, not attribute access performance characteristics."}
+{"caseId":"rg_0007","verdict":"PASS","confidence":0.65,"reason":"The test checks debug event dispatcher invocation counting; the PR fixes a memory leak in TraceableEventDispatcher which is a different concern."}
+{"caseId":"rg_0008","verdict":"PASS","confidence":0.65,"reason":"The PR fixes a memory leak, not event dispatcher invocation counting behavior."}
+{"caseId":"rg_0009","verdict":"PASS","confidence":0.6,"reason":"The test checks shell-completion hook behavior; the PR fixes shellcheck errors which are code quality fixes, not functional changes."}
+{"caseId":"rg_0010","verdict":"PASS","confidence":0.6,"reason":"The PR fixes shellcheck warnings, not shell completion functionality; the test should pass at both revisions."}
+{"caseId":"rg_0011","verdict":"FAIL","confidence":0.85,"reason":"The test checks repeated query-string key handling; the PR updates the qs dependency to 6.14.0 which may change query string parsing behavior."}
+{"caseId":"rg_0012","verdict":"PASS","confidence":0.85,"reason":"The PR updates the qs dependency which likely fixes the repeated key array behavior tested here."}
+{"caseId":"rge_0001","verdict":"PASS","confidence":0.65,"reason":"The test checks get_environ_proxies with URL-only argument; the PR adds no_proxy support in proxies argument which is a separate feature."}
+{"caseId":"rge_0002","verdict":"PASS","confidence":0.65,"reason":"The PR adds no_proxy argument support, not changes to get_environ_proxies URL-only calling convention."}
+{"caseId":"rge_0003","verdict":"PASS","confidence":0.7,"reason":"The test checks list literal parsing with period-prefixed bare words; the PR fixes parse_unit_value edge case which may be related to parsing."}
+{"caseId":"rge_0004","verdict":"PASS","confidence":0.7,"reason":"The PR fixes a parser edge case in parse_unit_value, which may affect how bare words starting with period are handled."}
+{"caseId":"rge_0005","verdict":"FAIL","confidence":0.85,"reason":"The test checks HEAD request with Accept-Encoding via cURL handler; the PR says 'Do not connect a sink for HEAD requests', suggesting HEAD handling was broken."}
+{"caseId":"rge_0006","verdict":"PASS","confidence":0.9,"reason":"The PR fixes HEAD request handling by not connecting a sink, so HEAD requests should complete successfully after the fix."}
+{"caseId":"rge_0007","verdict":"PASS","confidence":0.65,"reason":"The test checks ExUnit match-failure diff for improper lists; the PR formats inserted/deleted maps in list assertions which is a different formatting feature."}
+{"caseId":"rge_0008","verdict":"PASS","confidence":0.65,"reason":"The PR adds map formatting in list assertions, not improper list diff formatting; the test should pass at both revisions."}
+{"caseId":"rgf_0001","verdict":"FAIL","confidence":0.85,"reason":"The test checks nested dynamic component CSS custom property retention; the PR fixes dynamic css props hydration, suggesting this was broken before."}
+{"caseId":"rgf_0002","verdict":"PASS","confidence":0.9,"reason":"The PR directly fixes dynamic CSS props component hydration, so scoped CSS custom properties should be preserved after the fix."}
+{"caseId":"rgf_0003","verdict":"PASS","confidence":0.6,"reason":"The test checks multi-line URL asset bundling; the PR refactors to use hook filters in internal plugins which is unrelated to asset bundling."}
+{"caseId":"rgf_0004","verdict":"PASS","confidence":0.6,"reason":"The PR refactors plugin internals, not asset bundling behavior; the test should pass at both revisions."}
+{"caseId":"rgf_0005","verdict":"PASS","confidence":0.6,"reason":"The test checks fzf preview with NUL delimiters; the PR exports FZF_CURRENT_ITEM to child processes which is a different feature."}
+{"caseId":"rgf_0006","verdict":"PASS","confidence":0.6,"reason":"The PR adds FZF_CURRENT_ITEM export, not NUL delimiter preview handling; the test should pass at both revisions."}
+{"caseId":"rgf_0007","verdict":"FAIL","confidence":0.8,"reason":"The test checks Android UI mode switching from immersiveSticky to edgeToEdge; the PR changes edge-to-edge implementation, suggesting it was broken before."}
+{"caseId":"rgf_0008","verdict":"PASS","confidence":0.85,"reason":"The PR updates Android edge-to-edge implementation to use EdgeToEdge.enable/WindowCompat, which should fix the UI mode switching."}
+{"caseId":"rgf_0011","verdict":"PASS","confidence":0.7,"reason":"The test checks case pattern binding syntax; the PR adds syntax error detection for multiple assignments in case patterns which is a different check."}
+{"caseId":"rgf_0012","verdict":"PASS","confidence":0.7,"reason":"The PR adds multiple assignment error detection, not changes to class keyword variable binding in case patterns."}
+{"caseId":"sa_0001","verdict":"FAIL","confidence":0.85,"reason":"The test checks decoding repeated nested blocks into a pre-populated list; the PR fixes decoding value slices, suggesting this was broken before."}
+{"caseId":"sa_0002","verdict":"PASS","confidence":0.9,"reason":"The PR directly fixes gohcl value slice decoding, so decoding repeated nested blocks should work correctly after the fix."}
+{"caseId":"sa_0003","verdict":"FAIL","confidence":0.85,"reason":"The test checks mocked current time honoring default timezone; the PR adds fallback to default timezone for mocked now, suggesting it was missing before."}
+{"caseId":"sa_0004","verdict":"PASS","confidence":0.9,"reason":"The PR directly adds default timezone fallback for mocked now, so the test should pass after the fix."}
+{"caseId":"sa_0005","verdict":"FAIL","confidence":0.85,"reason":"The test checks protocol-relative URL classification with unusual slash patterns; the PR expands the protocol-relative URL regexp, suggesting it was too narrow before."}
+{"caseId":"sa_0006","verdict":"PASS","confidence":0.9,"reason":"The PR expands the hasProtocol regexp to handle more protocol-relative URL patterns, so the test should pass after the fix."}
+{"caseId":"sa_0009","verdict":"PASS","confidence":0.65,"reason":"The test checks MD5 digest computation; the PR changes HashCode.getBytesInternal usage in combined functions which may not affect MD5."}
+{"caseId":"sa_0010","verdict":"PASS","confidence":0.65,"reason":"The PR modifies hash code internal methods, not MD5 digest computation directly."}
+{"caseId":"sa_0011","verdict":"PASS","confidence":0.65,"reason":"The test checks client method generation for annotated interfaces; the PR refactors diagnostics to a dedicated class which is a code organization change."}
+{"caseId":"sa_0012","verdict":"PASS","confidence":0.65,"reason":"The PR refactors diagnostic code, not client method generation functionality."}
+{"caseId":"sa_0013","verdict":"PASS","confidence":0.7,"reason":"The test checks HTTP/1.1 response body fetching; the PR removes redundant continue statements and clippy warnings, a code cleanup."}
+{"caseId":"sa_0014","verdict":"PASS","confidence":0.7,"reason":"The PR is a code cleanup removing redundant statements, which should not affect HTTP response handling."}
+{"caseId":"sb_0001","verdict":"FAIL","confidence":0.85,"reason":"The test checks non-Gregorian calendar date formatting in ISO 8601; the PR fixes Date.to_iso8601/2 losing format with custom calendar, suggesting it was broken."}
+{"caseId":"sb_0002","verdict":"PASS","confidence":0.9,"reason":"The PR directly fixes Date.to_iso8601/2 losing format with custom calendar, so the test should pass after the fix."}
+{"caseId":"sb_0003","verdict":"FAIL","confidence":0.9,"reason":"The test checks date range end value after setEndDate; the PR fixes ->end property not updating after setEndDate(), confirming this was broken."}
+{"caseId":"sb_0004","verdict":"PASS","confidence":0.95,"reason":"The PR directly fixes ->end property not updating after setEndDate(), so the test should pass after the fix."}
+{"caseId":"sb_0005","verdict":"FAIL","confidence":0.85,"reason":"The test checks URL with embedded newline handling; the PR prevents CRLF injection due to broken URL normalizer, suggesting this was vulnerable before."}
+{"caseId":"sb_0006","verdict":"PASS","confidence":0.9,"reason":"The PR fixes CRLF injection in URL normalizer, so URLs with embedded newlines should be handled correctly after the fix."}
+{"caseId":"sb_0007","verdict":"PASS","confidence":0.6,"reason":"The test checks English number-to-words conversion; the PR fixes Albanian million pluralization which is a different locale."}
+{"caseId":"sb_0008","verdict":"PASS","confidence":0.6,"reason":"The PR fixes Albanian locale pluralization, not English number conversion."}
+{"caseId":"sb_0009","verdict":"PASS","confidence":0.65,"reason":"The test checks singleton dependency resolution; the PR fixes ClassCastException for non-String environment properties which is a different issue."}
+{"caseId":"sb_0010","verdict":"PASS","confidence":0.65,"reason":"The PR fixes environment property type handling, not dependency injection singleton behavior."}
+{"caseId":"sb_0011","verdict":"FAIL","confidence":0.85,"reason":"The test checks ordered dictionary key replacement; the PR shares OrderedSet replace primitive with OrderedDictionary, suggesting this feature was missing."}
+{"caseId":"sb_0012","verdict":"PASS","confidence":0.9,"reason":"The PR shares the replace primitive with OrderedDictionary, so key replacement should work correctly after the fix."}
+{"caseId":"sb_0013","verdict":"PASS","confidence":0.65,"reason":"The test checks size-in-bytes config parsing for invalid values; the PR refactors to use built-in max/min, a code simplification."}
+{"caseId":"sb_0014","verdict":"PASS","confidence":0.65,"reason":"The PR refactors code to use built-in functions, which should not change config value parsing behavior."}
+{"caseId":"sys_0001","verdict":"FAIL","confidence":0.85,"reason":"The test checks case-insensitive redirect with mixed static/parameterized routes; the PR fixes a panic in findCaseInsensitivePathRec, suggesting it crashed before."}
+{"caseId":"sys_0002","verdict":"PASS","confidence":0.9,"reason":"The PR fixes the panic in case-insensitive path matching with Redirect, so the test should pass after the fix."}
+{"caseId":"sys_0003","verdict":"FAIL","confidence":0.9,"reason":"The test checks valid-but-empty numeric value conversion returns zero; the PR fixes nil pointer panic in Numeric.Int64Value, confirming it crashed before."}
+{"caseId":"sys_0004","verdict":"PASS","confidence":0.95,"reason":"The PR directly fixes nil pointer panic in Numeric.Int64Value when Int is nil, so the test should pass after the fix."}
+{"caseId":"sys_0005","verdict":"PASS","confidence":0.65,"reason":"The test checks program shutdown from outside update loop; the PR fixes tab stop restoration which is unrelated to program lifecycle."}
+{"caseId":"sys_0006","verdict":"PASS","confidence":0.65,"reason":"The PR fixes tab stop restoration in renderer, not program shutdown behavior."}
+{"caseId":"sys_0007","verdict":"FAIL","confidence":0.85,"reason":"The test checks already-cancelled signal skipping operation; the PR fixes CancellationToken failing to cancel ready function, suggesting cancellation was broken."}
+{"caseId":"sys_0008","verdict":"PASS","confidence":0.9,"reason":"The PR directly fixes CancellationToken cancellation behavior, so the test should pass after the fix."}
+{"caseId":"sys_0009","verdict":"PASS","confidence":0.6,"reason":"The test checks case-insensitive file search; the PR skips loading unreachable ignore files which is a different optimization."}
+{"caseId":"sys_0010","verdict":"PASS","confidence":0.6,"reason":"The PR optimizes ignore file loading, not case-insensitive search functionality."}
+{"caseId":"sys_0011","verdict":"PASS","confidence":0.65,"reason":"The test checks struct field skip deserialization default value; the PR removes one level of nesting, a code structure change."}
+{"caseId":"sys_0012","verdict":"PASS","confidence":0.65,"reason":"The PR simplifies code nesting, which should not change deserialization behavior for skipped fields."}

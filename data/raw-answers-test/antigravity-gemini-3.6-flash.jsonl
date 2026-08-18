@@ -1,0 +1,122 @@
+{"caseId": "js_0003", "verdict": "FAIL", "confidence": 0.9, "reason": "Tested against base revision prior to PR fix handling undefined values in optional fields during JIT compilation."}
+{"caseId": "js_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Tested against head revision containing the PR fix for optional fields in JIT engine."}
+{"caseId": "js_0005", "verdict": "FAIL", "confidence": 0.95, "reason": "Tested against base revision before the PR fix, where a tab-only line was swallowed instead of separating paragraphs."}
+{"caseId": "js_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Tested against head revision containing the PR fix that treats tab-only lines as paragraph separators."}
+{"caseId": "js_0007", "verdict": "PASS", "confidence": 0.9, "reason": "Checks standard successful GET JSON response parsing, which functions correctly on base revision and is unrelated to the error stack bugfix."}
+{"caseId": "js_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Standard JSON response parsing is unaffected by error stack decoration changes and passes on head."}
+{"caseId": "js_0009", "verdict": "PASS", "confidence": 0.9, "reason": "Test evaluates simple boolean flag parsing, which is unaffected by the negative exponent parsing fix and passes on base."}
+{"caseId": "js_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Test evaluates simple boolean flag parsing, which passes on head."}
+{"caseId": "jvm_0001", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; JsonTreeReader accepts non-ASCII digits instead of throwing an error."}
+{"caseId": "jvm_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix, so non-ASCII digits are correctly rejected."}
+{"caseId": "jvm_0005", "verdict": "FAIL", "confidence": 0.95, "reason": "Tested against base revision where search_path with hyphens/accents is wrongly parsed before the PR fix."}
+{"caseId": "jvm_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Tested against head revision containing the fix for parsing search_path values with special characters."}
+{"caseId": "jvm_0009", "verdict": "PASS", "confidence": 0.9, "reason": "Tests normal image transformation behavior, which is unrelated to the ByteBufferUtil resource leak fix and passes on base."}
+{"caseId": "jvm_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Tests normal image transformation behavior and passes on head."}
+{"caseId": "jvm_0011", "verdict": "PASS", "confidence": 0.9, "reason": "Tests naming rule logic with extra allowed symbols, which operated correctly even before the caching optimization in the PR."}
+{"caseId": "jvm_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Tests naming rule logic with extra allowed symbols, which passes on head revision."}
+{"caseId": "kb_0001", "verdict": "PASS", "confidence": 0.9, "reason": "PR only adds a missing cstdint header for GCC 15 compatibility; SVG data URI parsing functionality is unaffected and passes on base."}
+{"caseId": "kb_00010", "verdict": "PASS", "confidence": 0.95, "reason": "PR adds week translations for Afrikaans locale, which is completely unrelated to DST datetime shifting and passes on head."}
+{"caseId": "kb_0002", "verdict": "PASS", "confidence": 0.95, "reason": "SVG data URI parsing functionality passes on head."}
+{"caseId": "kb_0003", "verdict": "PASS", "confidence": 0.9, "reason": "Form body decoding with an empty body is unrelated to the multi-Cookie header parsing fix and passes on base."}
+{"caseId": "kb_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Form body decoding with an empty body passes on head."}
+{"caseId": "kb_0005", "verdict": "PASS", "confidence": 0.95, "reason": "PR only fixes typos in documentation, leaving filesystem logic untouched; test passes on base."}
+{"caseId": "kb_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Test passes on head revision as PR only fixes typos."}
+{"caseId": "kb_0007", "verdict": "PASS", "confidence": 0.9, "reason": "Tests schema comparison logic, which is unaffected by the Json type flag diff and passes on base."}
+{"caseId": "kb_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Schema comparison passes on head."}
+{"caseId": "kb_0009", "verdict": "PASS", "confidence": 0.95, "reason": "Tests DST datetime shifting in Arrow, which functions correctly on base and is unrelated to the Afrikaans locale PR."}
+{"caseId": "kb_0011", "verdict": "PASS", "confidence": 0.9, "reason": "Tests RateLimiter replenishment after limit decrease, which is unrelated to the CircuitBreaker exception predicate fix and passes on base."}
+{"caseId": "kb_0012", "verdict": "PASS", "confidence": 0.95, "reason": "RateLimiter test passes on head."}
+{"caseId": "kbc_0001", "verdict": "PASS", "confidence": 0.9, "reason": "Tests block-scoped var autofix hoisting, which is unrelated to the prefer-template ASI hazard fix and passes on base."}
+{"caseId": "kbc_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Test passes on head."}
+{"caseId": "kbc_0003", "verdict": "PASS", "confidence": 0.95, "reason": "Sitemap-based spider resuming is unrelated to log message formatting changes and passes on base."}
+{"caseId": "kbc_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Restarting spider with persisted job state passes on head."}
+{"caseId": "kbc_0005", "verdict": "PASS", "confidence": 0.95, "reason": "Double-width character printing with highlighted line background is unrelated to bidi control char sanitization and passes on base."}
+{"caseId": "kbc_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Theme background filling test passes on head."}
+{"caseId": "kbc_0011", "verdict": "PASS", "confidence": 0.95, "reason": "Metadata-based symlink creation for log files is unrelated to RFC5424 regex optimization and passes on base."}
+{"caseId": "kbc_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Sending additional records for known metadata passes on head."}
+{"caseId": "kbc_0013", "verdict": "PASS", "confidence": 0.95, "reason": "Creating connection pool without global JVM locks passes on base and is unaffected by virtual-thread yield spin optimization."}
+{"caseId": "kbc_0014", "verdict": "PASS", "confidence": 0.95, "reason": "Concurrently starting connection pools passes on head."}
+{"caseId": "kbd_0001", "verdict": "PASS", "confidence": 0.9, "reason": "Background save on 32-bit Redis is unrelated to SORT command ACL key checks and passes on base."}
+{"caseId": "kbd_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Redis 32-bit background save under systemd passes on head."}
+{"caseId": "kbd_0003", "verdict": "PASS", "confidence": 0.9, "reason": "CTRL-A number incrementing in Neovim is unrelated to nvim_win_set_buf global CWD handling and passes on base."}
+{"caseId": "kbd_0004", "verdict": "PASS", "confidence": 0.95, "reason": "CTRL-X number decrementing passes on head."}
+{"caseId": "kbd_0005", "verdict": "PASS", "confidence": 0.9, "reason": "Array literal concatenation with NULL in SQL engine is unrelated to external file cache block race condition fix and passes on base."}
+{"caseId": "kbd_0006", "verdict": "PASS", "confidence": 0.95, "reason": "list_concat and || operator consistency check passes on head."}
+{"caseId": "kbd_0007", "verdict": "PASS", "confidence": 0.9, "reason": "RefCounted subclass notification handling in Godot is unrelated to ScrollBar drag-scrolling touch changes and passes on base."}
+{"caseId": "kbd_0008", "verdict": "PASS", "confidence": 0.95, "reason": "RefCounted object reference releasing passes on head."}
+{"caseId": "kbd_0009", "verdict": "PASS", "confidence": 0.9, "reason": "f_regression scoring is unrelated to categorical feature absolute_error validation and passes on base."}
+{"caseId": "kbd_0010", "verdict": "PASS", "confidence": 0.95, "reason": "r_regression warning-free operation passes on head."}
+{"caseId": "kbd_0011", "verdict": "PASS", "confidence": 0.9, "reason": "Vault Agent file sink octal file permissions are unrelated to Swagger UI front-end input fixes and pass on base."}
+{"caseId": "kbd_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Vault Agent token sink permission mode 600 passes on head."}
+{"caseId": "py_0005", "verdict": "PASS", "confidence": 0.9, "reason": "Tests basic program name presence in usage help text, which operates properly on base revision."}
+{"caseId": "py_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Usage help text test passes on head."}
+{"caseId": "py_0007", "verdict": "PASS", "confidence": 0.9, "reason": "View returning dict to JSON response test is unrelated to IPv6 partition fix and passes on base."}
+{"caseId": "py_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Dict-to-JSON view response test passes on head."}
+{"caseId": "py_0009", "verdict": "PASS", "confidence": 0.9, "reason": "Omitting required field validation is standard Pydantic logic and passes on base."}
+{"caseId": "py_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Required field validation passes on head."}
+{"caseId": "py_0011", "verdict": "PASS", "confidence": 0.9, "reason": "SQL echo logging behavior is unchanged by the logging.WARN deprecation cleanup and passes on base."}
+{"caseId": "py_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Engine logging test passes on head."}
+{"caseId": "rg_0003", "verdict": "PASS", "confidence": 0.9, "reason": "Basic computed attribute access is functional on base and unaffected by multi-thread safety fix."}
+{"caseId": "rg_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Computed attribute access passes on head."}
+{"caseId": "rg_0007", "verdict": "PASS", "confidence": 0.9, "reason": "Event dispatcher profiling output is unaffected by the memory leak fix and passes on base."}
+{"caseId": "rg_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Event dispatcher profiling passes on head."}
+{"caseId": "rg_0009", "verdict": "PASS", "confidence": 0.95, "reason": "Shell-completion hook receives correct word context on base as shellcheck fixes do not alter runtime behavior."}
+{"caseId": "rg_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Shell completion test passes on head."}
+{"caseId": "rg_0011", "verdict": "PASS", "confidence": 0.9, "reason": "Query string parameter parsing passes on base."}
+{"caseId": "rg_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Query string parameter parsing passes on head."}
+{"caseId": "rge_0001", "verdict": "PASS", "confidence": 0.9, "reason": "Calling get_environ_proxies with empty dict is standard behavior that passes on base."}
+{"caseId": "rge_0002", "verdict": "PASS", "confidence": 0.95, "reason": "get_environ_proxies test passes on head."}
+{"caseId": "rge_0003", "verdict": "FAIL", "confidence": 0.95, "reason": "Tested against base revision before PR fix for parsing duration unit values starting with a decimal point like .5sec."}
+{"caseId": "rge_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Tested against head revision containing the fix for unit values starting with a decimal point."}
+{"caseId": "rge_0005", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; sending a HEAD request with Accept-Encoding causes an error."}
+{"caseId": "rge_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision containing the fix for HEAD requests with Accept-Encoding headers."}
+{"caseId": "rge_0007", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; map formatting in list assertion error diff causes a crash."}
+{"caseId": "rge_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision where ExUnit properly formats maps in list assertions without crashing."}
+{"caseId": "rgf_0001", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix, leading to dynamic CSS props hydration failure."}
+{"caseId": "rgf_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision where dynamic CSS props components hydrate correctly."}
+{"caseId": "rgf_0003", "verdict": "PASS", "confidence": 0.9, "reason": "Multi-line asset URL resolution is unrelated to internal plugin hook filter refactoring and passes on base."}
+{"caseId": "rgf_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Asset URL resolution passes on head."}
+{"caseId": "rgf_0005", "verdict": "PASS", "confidence": 0.9, "reason": "Preview command execution for NUL-byte items is functional on base and unaffected by FZF_CURRENT_ITEM export PR."}
+{"caseId": "rgf_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Preview command test passes on head."}
+{"caseId": "rgf_0007", "verdict": "PASS", "confidence": 0.9, "reason": "Android system UI mode switching is functional on base and unaffected by EdgeToEdge API migration."}
+{"caseId": "rgf_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Android system UI mode switching passes on head."}
+{"caseId": "rgf_0011", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; Ruff incorrectly reports a syntax error for class keyword binding in case pattern."}
+{"caseId": "rgf_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision where Ruff correctly accepts valid case pattern bindings without reporting syntax errors."}
+{"caseId": "sa_0001", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; decoding into a struct slice shorter than the block count triggers a panic."}
+{"caseId": "sa_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; decoding grows slice dynamically and succeeds."}
+{"caseId": "sa_0003", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; mocked current time retains original timezone instead of falling back to default."}
+{"caseId": "sa_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision containing the fallback to default timezone fix."}
+{"caseId": "sa_0005", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; failed to classify unusual protocol-relative URLs correctly."}
+{"caseId": "sa_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; protocol-relative URLs with unusual slashes/spaces are classified correctly."}
+{"caseId": "sa_0009", "verdict": "PASS", "confidence": 0.9, "reason": "MD5 digest computation is functional on base and unaffected by HashCode internal refactoring."}
+{"caseId": "sa_0010", "verdict": "PASS", "confidence": 0.95, "reason": "MD5 digest computation passes on head."}
+{"caseId": "sa_0011", "verdict": "PASS", "confidence": 0.95, "reason": "Client method generation is unchanged by diagnostic class refactoring and passes on base."}
+{"caseId": "sa_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Client method generation passes on head."}
+{"caseId": "sa_0013", "verdict": "PASS", "confidence": 0.95, "reason": "HTTP/1.1 response body fetching passes on base as PR only cleans up redundant control flow."}
+{"caseId": "sa_0014", "verdict": "PASS", "confidence": 0.95, "reason": "HTTP/1.1 response body fetching passes on head."}
+{"caseId": "sb_0001", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; Date.to_iso8601 loses format options for non-Gregorian calendars."}
+{"caseId": "sb_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; non-Gregorian dates retain ISO 8601 format options."}
+{"caseId": "sb_0003", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; end property does not update when setEndDate() is called."}
+{"caseId": "sb_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision containing the fix to update end property on setEndDate()."}
+{"caseId": "sb_0005", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; embedded newline in URL path is not rejected with InvalidArgumentException."}
+{"caseId": "sb_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision where embedded newlines in URL paths properly throw InvalidArgumentException."}
+{"caseId": "sb_0007", "verdict": "PASS", "confidence": 0.95, "reason": "Converting numbers to English words is unaffected by the Albanian locale pluralization fix and passes on base."}
+{"caseId": "sb_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Converting numbers to English words passes on head."}
+{"caseId": "sb_0009", "verdict": "PASS", "confidence": 0.9, "reason": "Resolving singleton dependencies is standard behavior unaffected by non-String environment property handling and passes on base."}
+{"caseId": "sb_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Singleton dependency resolution passes on head."}
+{"caseId": "sb_0011", "verdict": "PASS", "confidence": 0.95, "reason": "OrderedSet element key replacement functions on base as PR only refactors shared primitives with OrderedDictionary."}
+{"caseId": "sb_0012", "verdict": "PASS", "confidence": 0.95, "reason": "OrderedSet element replacement passes on head."}
+{"caseId": "sb_0013", "verdict": "PASS", "confidence": 0.95, "reason": "Parsing byte size configuration strings passes on base as PR is a pure refactor simplifying code with min/max."}
+{"caseId": "sb_0014", "verdict": "PASS", "confidence": 0.95, "reason": "Byte size configuration parsing passes on head."}
+{"caseId": "sys_0001", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; findCaseInsensitivePathRec panics on case-insensitive redirect resolution."}
+{"caseId": "sys_0002", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; case-insensitive redirect resolves without panic."}
+{"caseId": "sys_0003", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision before PR fix; converting valid-but-empty numeric value triggers a nil pointer panic."}
+{"caseId": "sys_0004", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; Int64Value handles empty numeric value safely without panic."}
+{"caseId": "sys_0005", "verdict": "PASS", "confidence": 0.9, "reason": "Program shutdown behavior is unrelated to the renderer hard tabs fix and passes on base."}
+{"caseId": "sys_0006", "verdict": "PASS", "confidence": 0.95, "reason": "Program shutdown behavior passes on head."}
+{"caseId": "sys_0007", "verdict": "FAIL", "confidence": 0.95, "reason": "Executed on base revision prior to PR fix; CancellationToken fails to properly cancel the operation."}
+{"caseId": "sys_0008", "verdict": "PASS", "confidence": 0.95, "reason": "Executed on head revision after PR fix; CancellationToken cancels the wrapped operation correctly."}
+{"caseId": "sys_0009", "verdict": "PASS", "confidence": 0.9, "reason": "Case-insensitive pattern searching passes on base as ignore file skipping optimization does not alter search results."}
+{"caseId": "sys_0010", "verdict": "PASS", "confidence": 0.95, "reason": "Case-insensitive pattern searching passes on head."}
+{"caseId": "sys_0011", "verdict": "PASS", "confidence": 0.95, "reason": "Struct deserialization skip behavior passes on base as PR is a pure refactor removing nesting."}
+{"caseId": "sys_0012", "verdict": "PASS", "confidence": 0.95, "reason": "Struct deserialization skip behavior passes on head."}

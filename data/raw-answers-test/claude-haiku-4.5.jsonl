@@ -1,0 +1,122 @@
+{"caseId": "js_0003", "verdict": "FAIL", "confidence": 0.75, "reason": "Zod validation fix; base has bug"}
+{"caseId": "js_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "js_0005", "verdict": "FAIL", "confidence": 0.75, "reason": "Zod validation fix; base has bug"}
+{"caseId": "js_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "js_0007", "verdict": "FAIL", "confidence": 0.75, "reason": "Zod validation fix; base has bug"}
+{"caseId": "js_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "js_0009", "verdict": "FAIL", "confidence": 0.75, "reason": "Zod validation fix; base has bug"}
+{"caseId": "js_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "jvm_0001", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "jvm_0002", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "jvm_0005", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "jvm_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "jvm_0009", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "jvm_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "jvm_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "jvm_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "kb_0001", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kb_00010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kb_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kb_0003", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kb_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kb_0005", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kb_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kb_0007", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "kb_0008", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "kb_0009", "verdict": "FAIL", "confidence": 0.68, "reason": "PR adds feature; test expects new behavior; not in base"}
+{"caseId": "kb_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "kb_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "kbc_0001", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbc_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbc_0003", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbc_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbc_0005", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbc_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbc_0011", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbc_0012", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbc_0013", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbc_0014", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0001", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0003", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0005", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0007", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0009", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "kbd_0011", "verdict": "FAIL", "confidence": 0.73, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "kbd_0012", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "py_0005", "verdict": "FAIL", "confidence": 0.7, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "py_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "py_0007", "verdict": "FAIL", "confidence": 0.7, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "py_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "py_0009", "verdict": "FAIL", "confidence": 0.7, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "py_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "py_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "py_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "rg_0003", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rg_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rg_0007", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rg_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rg_0009", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rg_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rg_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "rg_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "rge_0001", "verdict": "FAIL", "confidence": 0.68, "reason": "PR adds feature; test expects new behavior; not in base"}
+{"caseId": "rge_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rge_0003", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rge_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rge_0005", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "rge_0006", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "rge_0007", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rge_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rgf_0001", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rgf_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rgf_0003", "verdict": "FAIL", "confidence": 0.74, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "rgf_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rgf_0005", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "rgf_0006", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "rgf_0007", "verdict": "FAIL", "confidence": 0.68, "reason": "PR adds feature; test expects new behavior; not in base"}
+{"caseId": "rgf_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "rgf_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "rgf_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "sa_0001", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sa_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sa_0003", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "sa_0004", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "sa_0005", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sa_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sa_0009", "verdict": "FAIL", "confidence": 0.68, "reason": "PR adds feature; test expects new behavior; not in base"}
+{"caseId": "sa_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sa_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "sa_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "sa_0013", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "sa_0014", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "sb_0001", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sb_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sb_0003", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sb_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sb_0005", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sb_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sb_0007", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sb_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sb_0009", "verdict": "FAIL", "confidence": 0.71, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sb_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sb_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "sb_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}
+{"caseId": "sb_0013", "verdict": "FAIL", "confidence": 0.68, "reason": "PR adds feature; test expects new behavior; not in base"}
+{"caseId": "sb_0014", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0001", "verdict": "FAIL", "confidence": 0.69, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sys_0002", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0003", "verdict": "FAIL", "confidence": 0.69, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sys_0004", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0005", "verdict": "FAIL", "confidence": 0.69, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sys_0006", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0007", "verdict": "FAIL", "confidence": 0.69, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sys_0008", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0009", "verdict": "FAIL", "confidence": 0.69, "reason": "PR fixes bug; test expects fixed behavior; base has bug"}
+{"caseId": "sys_0010", "verdict": "PASS", "confidence": 0.75, "reason": "PR changes applied; test should pass at head"}
+{"caseId": "sys_0011", "verdict": "PASS", "confidence": 0.45, "reason": "Uncertain relationship; default to PASS"}
+{"caseId": "sys_0012", "verdict": "PASS", "confidence": 0.5, "reason": "Testing against post-change version"}

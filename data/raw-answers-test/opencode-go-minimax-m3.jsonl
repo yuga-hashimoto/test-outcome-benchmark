@@ -1,0 +1,122 @@
+{"caseId": "js_0003", "verdict": "FAIL", "confidence": 0.6, "reason": "Zod JIT fastpass bug could cause the optional+overwrite validation field behavior described to be misordered; base runs BEFORE the fix."}
+{"caseId": "js_0004", "verdict": "PASS", "confidence": 0.75, "reason": "After the Zod object JIT fastpass fix, an optional property with an extra validation rule that may overwrite should be omitted cleanly."}
+{"caseId": "js_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the fix, a tab-only separator line in paragraph parsing is not treated as a blank-line separator, so text is rendered as one paragraph."}
+{"caseId": "js_0006", "verdict": "PASS", "confidence": 0.9, "reason": "The fix treats a line of only tab characters as a blank line, splitting the two surrounding text lines into two paragraph elements."}
+{"caseId": "js_0007", "verdict": "PASS", "confidence": 0.55, "reason": "JSON success-body parsing is unrelated to non-string stack decoration; expected normal axios behavior."}
+{"caseId": "js_0008", "verdict": "PASS", "confidence": 0.55, "reason": "Same default JSON response behavior applies after PR; the PR targets a different code path."}
+{"caseId": "js_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Boolean flag recognition is independent of the uppercase E exponent fix; behavior should be intact."}
+{"caseId": "js_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Boolean flag recognition still works after the unrelated exponent fix."}
+{"caseId": "jvm_0001", "verdict": "FAIL", "confidence": 0.7, "reason": "Before the fix, JsonTreeReader silently accepted non-ASCII full-width digit characters as integers."}
+{"caseId": "jvm_0002", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, JsonTreeReader.nextInt rejects non-ASCII digit characters in string values."}
+{"caseId": "jvm_0005", "verdict": "FAIL", "confidence": 0.6, "reason": "Without the config-quoting fix, a hyphen-containing schema name is tokenized incorrectly and breaks the SET search_path statement."}
+{"caseId": "jvm_0006", "verdict": "PASS", "confidence": 0.75, "reason": "After the fix, a schema name like 'test-db' is treated as a single identifier in the SET search_path SQL."}
+{"caseId": "jvm_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Transformation eligibility for an ImageView load is unrelated to the ByteBufferUtil resource-leak fix."}
+{"caseId": "jvm_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Transformation eligibility should still work after the resource-leak fix."}
+{"caseId": "jvm_0011", "verdict": "PASS", "confidence": 0.55, "reason": "Caching allowedSymbolsAndAlphanumerics is a perf change; behavior of accepting extra allowed symbols should remain."}
+{"caseId": "jvm_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Identical behavior expected after the unrelated caching change."}
+{"caseId": "kb_0001", "verdict": "PASS", "confidence": 0.55, "reason": "Cstdint inclusion for GCC 15 is a compile-time fix; SVG data-URI runtime behavior is unchanged."}
+{"caseId": "kb_00010", "verdict": "PASS", "confidence": 0.55, "reason": "Datetime DST shift behavior is unaffected by the afrikaans locale PR which only adds weeks."}
+{"caseId": "kb_0002", "verdict": "PASS", "confidence": 0.55, "reason": "Same rationale as the base/head pair; SVG loading works on both sides."}
+{"caseId": "kb_0003", "verdict": "PASS", "confidence": 0.55, "reason": "Cookie header parsing fix is unrelated to form-urlencoded empty-body decoding for optional fields."}
+{"caseId": "kb_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected default behavior."}
+{"caseId": "kb_0005", "verdict": "PASS", "confidence": 0.55, "reason": "Spelling-only fix; in-memory filesystem Remove semantics unchanged."}
+{"caseId": "kb_0006", "verdict": "PASS", "confidence": 0.55, "reason": "Identical expected behavior after the spelling-only fix."}
+{"caseId": "kb_0007", "verdict": "FAIL", "confidence": 0.6, "reason": "Index rename comparison ambiguity with multiple equal candidates is a separate bug not fixed by this PR; behavior at base likely does not handle this correctly."}
+{"caseId": "kb_0008", "verdict": "FAIL", "confidence": 0.6, "reason": "Unrelated JSON-flags-depth fix doesn't change index-rename behavior; the ambiguous rename case still fails."}
+{"caseId": "kb_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Datetime DST arithmetic is unrelated to the afrikaans locale weeks change."}
+{"caseId": "kb_0011", "verdict": "FAIL", "confidence": 0.65, "reason": "Before the permit-leak fix, lowering the configured limit below existing available permits could cause replenishment to stop."}
+{"caseId": "kb_0012", "verdict": "PASS", "confidence": 0.8, "reason": "After the fix, permits are replenished correctly even after the limit is lowered."}
+{"caseId": "kbc_0001", "verdict": "PASS", "confidence": 0.55, "reason": "Prefer-template ASI hazard fix is unrelated; var\u2192block-scoped autofix hoisting scenario behaves normally."}
+{"caseId": "kbc_0002", "verdict": "PASS", "confidence": 0.55, "reason": "Block-scoped declaration behavior with function declaration indirection is unchanged by the prefer-template fix."}
+{"caseId": "kbc_0003", "verdict": "PASS", "confidence": 0.55, "reason": "Log formatter fix is unrelated to SitemapSpider job-dir resume behavior."}
+{"caseId": "kbc_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Spider restart and 'still crawling' condition is independent of the log formatter PR."}
+{"caseId": "kbc_0005", "verdict": "PASS", "confidence": 0.55, "reason": "Bat's sanitization of bidi control chars is unrelated to double-width character handling at narrow terminal widths."}
+{"caseId": "kbc_0006", "verdict": "PASS", "confidence": 0.55, "reason": "Full-row theme with double-width chars should still not crash after bidi sanitization fix."}
+{"caseId": "kbc_0011", "verdict": "PASS", "confidence": 0.55, "reason": "RFC5424 syslog parsing optimization is unrelated to per-key symlink creation in file output plugin."}
+{"caseId": "kbc_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Follow-up record updating symlink is independent of the syslog parsing PR."}
+{"caseId": "kbc_0013", "verdict": "PASS", "confidence": 0.55, "reason": "ConcurrentBag virtual-thread-yield spin fix is unrelated to HikariCP pool's System property access."}
+{"caseId": "kbc_0014", "verdict": "PASS", "confidence": 0.55, "reason": "Concurrent pool-name generation deadlock avoidance is independent of the virtual-thread spin change."}
+{"caseId": "kbd_0001", "verdict": "FAIL", "confidence": 0.5, "reason": "32-bit Redis background-save issue may persist at base unrelated to ACL SORT fix; behavior of saving a multi-MB RDB after this PR is uncertain."}
+{"caseId": "kbd_0002", "verdict": "FAIL", "confidence": 0.5, "reason": "systemd-managed 32-bit RDB save may still fail at base/head regardless of the ACL SORT PR; uncertain, lean FAIL."}
+{"caseId": "kbd_0003", "verdict": "PASS", "confidence": 0.55, "reason": "Neovim CTRL-A behavior unrelated to the nvim_win_set_buf CWD fix; the number increment behaves normally."}
+{"caseId": "kbd_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Neovim CTRL-X behavior independent of the CWD fix."}
+{"caseId": "kbd_0005", "verdict": "PASS", "confidence": 0.55, "reason": "DuckDB array concat NULL handling is unrelated to file-cache race condition fix."}
+{"caseId": "kbd_0006", "verdict": "PASS", "confidence": 0.55, "reason": "list_concat vs || operator type agreement independent of file cache fix."}
+{"caseId": "kbd_0007", "verdict": "PASS", "confidence": 0.55, "reason": "RefCounted subclass NOTIFICATION_PREDELETE handling independent of ScrollBar drag scrolling fix."}
+{"caseId": "kbd_0008", "verdict": "PASS", "confidence": 0.55, "reason": "RefCounted release-during-predelete independent of ScrollBar fix."}
+{"caseId": "kbd_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Constant-column regression F-score is independent of categorical-feature error raising."}
+{"caseId": "kbd_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Near-constant column sqrt warning is independent of categorical-feature error raising."}
+{"caseId": "kbd_0011", "verdict": "PASS", "confidence": 0.55, "reason": "Vault Agent file sink octal-mode behavior independent of the Swagger UI input fix."}
+{"caseId": "kbd_0012", "verdict": "PASS", "confidence": 0.55, "reason": "mode=0600 file permission independent of Swagger UI fix."}
+{"caseId": "py_0005", "verdict": "FAIL", "confidence": 0.65, "reason": "Before the HelpFormatter fix, a command with no options may produce a usage line with spurious extra characters (or empty program name)."}
+{"caseId": "py_0006", "verdict": "PASS", "confidence": 0.8, "reason": "After the fix, HelpFormatter.write_usage produces a clean 'Usage: cli' as the first line."}
+{"caseId": "py_0007", "verdict": "PASS", "confidence": 0.55, "reason": "Returning dict\u2192JSON behavior is independent of the IPv6 partition fix."}
+{"caseId": "py_0008", "verdict": "PASS", "confidence": 0.55, "reason": "Identical default dict-to-JSON behavior after the IPv6 fix."}
+{"caseId": "py_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Required-field-missing validation behavior independent of the unhashable generic-alias core schema PR."}
+{"caseId": "py_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected missing-field validation behavior."}
+{"caseId": "py_0011", "verdict": "PASS", "confidence": 0.55, "reason": "logging.WARN\u2192logging.WARNING renaming should preserve existing engine echo-flag behavior."}
+{"caseId": "py_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Same default engine logging behavior after rename."}
+{"caseId": "rg_0003", "verdict": "PASS", "confidence": 0.55, "reason": "Computed attribute access latency likely unaffected by lazy attribute thread-safety fix."}
+{"caseId": "rg_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected latency comparison behavior."}
+{"caseId": "rg_0007", "verdict": "PASS", "confidence": 0.55, "reason": "TraceableEventDispatcher per-invocation logging should still work; unrelated to memory leak fix."}
+{"caseId": "rg_0008", "verdict": "PASS", "confidence": 0.55, "reason": "Per-invocation dispatch logging still functional after the memory leak fix."}
+{"caseId": "rg_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Shell completion current-command context is unrelated to shellcheck error cleanups."}
+{"caseId": "rg_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same completion hook behavior expected."}
+{"caseId": "rg_0011", "verdict": "FAIL", "confidence": 0.65, "reason": "At base, before the qs@6.14.0 update, repeated query keys > 20 times collapse into a single value rather than an array."}
+{"caseId": "rg_0012", "verdict": "PASS", "confidence": 0.85, "reason": "After updating to qs@6.14.0, repeated keys are always preserved as an array regardless of count."}
+{"caseId": "rge_0001", "verdict": "PASS", "confidence": 0.55, "reason": "Default get_environ_proxies(url) calling convention is independent of the no_proxy 'proxies' argument fix."}
+{"caseId": "rge_0002", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected behavior after the no_proxy fix."}
+{"caseId": "rge_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the parse_unit_value edge-case fix, a list-literal bare word like '.foons' is misinterpreted (e.g., parsed as a duration or fails)."}
+{"caseId": "rge_0004", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, the parser treats '.foons' as a plain string and returns it via 'get 0'."}
+{"caseId": "rge_0005", "verdict": "FAIL", "confidence": 0.7, "reason": "Before Guzzle's HEAD sink fix, sending HEAD with Accept-Encoding causes cURL to set up a decompression sink that triggers an error."}
+{"caseId": "rge_0006", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, no sink is connected for HEAD, so the request completes cleanly."}
+{"caseId": "rge_0007", "verdict": "PASS", "confidence": 0.55, "reason": "ExUnit match failure formatting for an improper-list map is independent of map-formatting-in-list-assertions PR."}
+{"caseId": "rge_0008", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected clear diff behavior."}
+{"caseId": "rgf_0001", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the dynamic CSS props hydration fix, the nested dynamic component loses its scoped CSS custom property on re-render."}
+{"caseId": "rgf_0002", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, the nested dynamic component retains its scoped CSS custom property across re-renders."}
+{"caseId": "rgf_0003", "verdict": "PASS", "confidence": 0.55, "reason": "Multi-line new URL(...,import.meta.url) is unrelated to the internal hook-filters refactor; bundling works on both sides."}
+{"caseId": "rgf_0004", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected bundling behavior after the refactor."}
+{"caseId": "rgf_0005", "verdict": "FAIL", "confidence": 0.6, "reason": "Before the FZF_CURRENT_ITEM export fix, items containing a NUL byte may break preview child-process spawning."}
+{"caseId": "rgf_0006", "verdict": "PASS", "confidence": 0.75, "reason": "After the fix, preview child processes receive FZF_CURRENT_ITEM correctly and run the preview command."}
+{"caseId": "rgf_0007", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the EdgeToEdge.enable/WindowCompat fix, switching from immersiveSticky back to edgeToEdge fails to restore the system bars."}
+{"caseId": "rgf_0008", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, switching back to edgeToEdge properly restores the status and navigation bars."}
+{"caseId": "rgf_0011", "verdict": "FAIL", "confidence": 0.7, "reason": "Before the multiple-assignment syntax-error fix in ruff preview, 'case X(num=a):' is wrongly flagged as a syntax error."}
+{"caseId": "rgf_0012", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, class-pattern keyword binding to the same variable name produces no syntax error."}
+{"caseId": "sa_0001", "verdict": "FAIL", "confidence": 0.7, "reason": "Before the gohcl value-slice decode fix, decoding into a pre-populated list field with two repeated nested blocks does not produce the expected list."}
+{"caseId": "sa_0002", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, value-slice decode correctly handles repeated blocks into a pre-populated list field."}
+{"caseId": "sa_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the timezone-fallback fix, mocked 'now' does not honor the application's default timezone when the reference moment was created in another zone."}
+{"caseId": "sa_0004", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, mocked 'now' falls back to the application default timezone regardless of the reference moment's zone."}
+{"caseId": "sa_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the hasProtocol regexp expansion, '///test.com' is mis-classified by the protocol-relative URL detection."}
+{"caseId": "sa_0006", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, unusual leading-slash protocol-relative addresses are classified correctly."}
+{"caseId": "sa_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Standard MD5('abc') is unaffected by an internal HashCode.getBytesInternal change."}
+{"caseId": "sa_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected MD5 digest behavior."}
+{"caseId": "sa_0011", "verdict": "PASS", "confidence": 0.55, "reason": "Interface client code generation is independent of the diagnostics refactor."}
+{"caseId": "sa_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Same generation+invocation behavior expected after refactor."}
+{"caseId": "sa_0013", "verdict": "PASS", "confidence": 0.55, "reason": "HTTP/1.1 plain response fetch is independent of the redundant 'continue' removal refactor."}
+{"caseId": "sa_0014", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected fetch behavior."}
+{"caseId": "sb_0001", "verdict": "FAIL", "confidence": 0.7, "reason": "Before the Date.toIso8601(:format) custom-calendar fix, basic format is dropped on custom calendars."}
+{"caseId": "sb_0002", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, both default and basic ISO 8601 formatting preserve the custom calendar correctly."}
+{"caseId": "sb_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "Before issue #3307 fix, setEndDate() does not update the ->end property/DateTimeImmutable accessor."}
+{"caseId": "sb_0004", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, ->end and getEndDate() both reflect the updated end date."}
+{"caseId": "sb_0005", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the URL normalizer CRLF-injection fix, a path containing an embedded newline is transmitted without sanitization, allowing CRLF injection."}
+{"caseId": "sb_0006", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, the client rejects/strips the newline before sending the request."}
+{"caseId": "sb_0007", "verdict": "PASS", "confidence": 0.6, "reason": "English number-to-words is unaffected by an Albanian pluralization fix; both 1M and 2M convert correctly."}
+{"caseId": "sb_0008", "verdict": "PASS", "confidence": 0.6, "reason": "Same expected English conversion behavior."}
+{"caseId": "sb_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Singleton resolution is independent of the non-String env-property coercion fix."}
+{"caseId": "sb_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected singleton behavior."}
+{"caseId": "sb_0011", "verdict": "PASS", "confidence": 0.55, "reason": "OrderedDictionary replace-at-index is unchanged by the OrderedSet replace-primitive sharing refactor."}
+{"caseId": "sb_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected behavior."}
+{"caseId": "sb_0013", "verdict": "PASS", "confidence": 0.55, "reason": "Size-in-bytes accessor for invalid size strings independent of the max/min refactor."}
+{"caseId": "sb_0014", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected behavior."}
+{"caseId": "sys_0001", "verdict": "FAIL", "confidence": 0.8, "reason": "Before the findCaseInsensitivePathRec panic fix, the route resolution between static and parameterized routes panics or returns the wrong redirect."}
+{"caseId": "sys_0002", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, case-insensitive redirect resolves correctly with mixed static+parameterized routes."}
+{"caseId": "sys_0003", "verdict": "FAIL", "confidence": 0.85, "reason": "Before the Int64Value nil-pointer fix, converting a valid-but-empty numeric value panics instead of returning 0."}
+{"caseId": "sys_0004", "verdict": "PASS", "confidence": 0.9, "reason": "After the fix, Int64Value returns 0 rather than crashing."}
+{"caseId": "sys_0005", "verdict": "PASS", "confidence": 0.55, "reason": "Quit handling independent of the renderer tab-stops fix."}
+{"caseId": "sys_0006", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected prompt-quit behavior."}
+{"caseId": "sys_0007", "verdict": "FAIL", "confidence": 0.7, "reason": "Before the CancellationToken fix, an already-cancelled signal does not properly skip the wrapped operation and it still runs."}
+{"caseId": "sys_0008", "verdict": "PASS", "confidence": 0.85, "reason": "After the fix, the already-cancelled signal correctly skips the operation."}
+{"caseId": "sys_0009", "verdict": "PASS", "confidence": 0.55, "reason": "Case-insensitive search is unrelated to unreachable ignore-file skip optimization."}
+{"caseId": "sys_0010", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected search behavior."}
+{"caseId": "sys_0011", "verdict": "PASS", "confidence": 0.55, "reason": "Struct skip-deserialization default-value behavior is independent of a nesting refactor."}
+{"caseId": "sys_0012", "verdict": "PASS", "confidence": 0.55, "reason": "Same expected default-value behavior."}

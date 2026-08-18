@@ -126,55 +126,63 @@ pnpm benchmark run --model my-model --prompt reasoning-v1 --strategy IMPLEMENTAT
 
 ## Results so far
 
-dev split（**26ケース / 13 PRクラスタ、gold 13 PASS / 13 FAIL**）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。24構成を試し、うち21構成が完走しました。生の回答は [`data/raw-answers/`](./data/raw-answers/) にモデルごとにJSONLで残っており、誰でも同じ結果を再現できます。
+test split（**122ケース / 61 PRクラスタ、head側61ケース**）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。これが現在の主結果です——理由は次の節で説明しますが、要するに26ケースのdev splitではAccuracy (head)の分母が13ケースしかなく、モデル間の実力差を見分けるだけの分解能がありませんでした。test splitでは分母が61ケースになり、分解能が約5倍細かくなります。
 
-主指標である **Accuracy (head)** で並べています。MCC・FAIL recall・False PASSは副次トラック（base+head合算）の値です。
+22構成が完走しました。生の回答は [`data/raw-answers-test/`](./data/raw-answers-test/) にモデルごとにJSONLで残っており、誰でも同じ結果を再現できます。この回にだけ挑戦して完走できなかった構成（nvidiaゲートウェイの複数モデル、Antigravity経由のGemini 2構成、レート制限が解消しなかったOpenRouterの無料モデル、出力が壊れていたと判明した2構成）は [`data/raw-answers-test/README.md`](./data/raw-answers-test/README.md) に理由付きで記録しています。
 
-| # | 構成 | Accuracy (head) | 95%区間 (head) | Accuracy (base+head) | MCC* | FAIL recall* | False PASS* |
+主指標である **Accuracy (head)** で並べています。MCC・FAIL recallは今回からhead-onlyで計算しています（revisionスライスの混同行列を再構成——[Known limitations](#known-limitations)参照）。
+
+| # | 構成 | Accuracy (head) | 95%区間 (head) | Accuracy (base+head) | MCC (head) | FAIL recall (head) | False PASS (head) |
 |---|---|---|---|---|---|---|---|
-| 1 | **GLM-5.3**（Z.AI） | **84.6%** | 61.5–100.0% | 84.6% | 0.692 | 84.6% | 2 |
-| 2 | Claude Opus 5 | 76.9% | 46.2–92.3% | 76.9% | 0.566 | 61.5% | 5 |
-| 3 | GLM-5.2（Z.AI） | 69.2% | 38.5–92.3% | 73.1% | 0.500 | 53.8% | 6 |
-| 4 | Claude Sonnet 5 | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Grok 4.6（xAI） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | GPT-5.6 Luna（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | DeepSeek V4 Flash（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | DeepSeek V4 Flash Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
-| 4 | DeepSeek V4 Pro（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Big Pickle（OpenCode Zen, free） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
-| 4 | MiniMax M3（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Hy3（OpenCode/go） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Kimi K3（OpenCode/go） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
-| 4 | Hy3 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | MiMo V2.5 Free（OpenCode Zen） | 61.5% | 30.8–84.6% | 61.5% | 0.260 | 38.5% | 8 |
-| 4 | Qwen3.8 Max（Alibaba Token Plan） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Qwen3.7 Max（Alibaba Token Plan） | 61.5% | 30.8–84.6% | 65.4% | 0.365 | 38.5% | 8 |
-| 4 | Qwen3.6 Flash（Alibaba Token Plan） | 61.5% | 30.8–84.6% | 57.7% | 0.289 | 15.4% | 11 |
-| 19 | Claude Haiku 4.5 | 53.8% | 23.1–76.9% | 50.0% | 0.000 | 30.8% | 9 |
-| 19 | Nemotron 3 Ultra Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 53.8% | 0.087 | 30.8% | 9 |
-| 19 | Nemotron 3.5 Lightning Free（OpenCode Zen） | 53.8% | 23.1–76.9% | 50.0% | 0.000 | 30.8% | 9 |
+| 1 | **GLM-5.3**（Z.AI） | **96.7%** | 91.8–100.0% | 95.9% | 0.936 | 93.3% | 2 |
+| 2 | Hy3（OpenCode/go） | 93.4% | 86.9–98.4% | 95.1% | 0.876 | 86.7% | 4 |
+| 3 | Claude Opus 5 | 86.9% | 78.7–95.1% | 89.3% | 0.752 | 76.7% | 7 |
+| 4 | Grok 4.6（xAI） | 75.4% | 63.9–85.2% | 77.0% | 0.580 | 50.0% | 15 |
+| 5 | GLM-5.2（Z.AI） | 67.2% | 54.1–78.7% | 71.3% | 0.421 | 36.7% | 19 |
+| 6 | DeepSeek V4 Flash（OpenCode/go） | 65.6% | 52.5–77.0% | 67.2% | 0.423 | 30.0% | 21 |
+| 7 | Kimi K3（OpenCode/go） | 63.9% | 50.8–75.4% | 66.4% | 0.395 | 26.7% | 22 |
+| 8 | DeepSeek V4 Pro（OpenCode/go） | 62.3% | 49.2–73.8% | 64.8% | 0.366 | 23.3% | 23 |
+| 8 | DeepSeek V4 Flash Free（OpenCode Zen） | 62.3% | 49.2–73.8% | 65.6% | 0.366 | 23.3% | 23 |
+| 10 | Qwen3.8 Max（Alibaba Token Plan） | 60.7% | 47.5–72.1% | 64.8% | 0.336 | 20.0% | 24 |
+| 10 | Claude Sonnet 5 | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
+| 10 | Hy3 Free（OpenCode Zen） | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
+| 13 | Cohere North Mini Code（OpenRouter, free） | 55.7% | 42.6–67.2% | 59.0% | 0.115 | 56.7% | 13 |
+| 14 | Gemini 3.7 Flash（Antigravity） | 54.1% | 41.0–65.6% | 62.3% | 0.187 | 6.7% | 28 |
+| 14 | GPT-5.6 Luna（OpenCode/go） | 54.1% | 41.0–65.6% | 58.2% | 0.187 | 6.7% | 28 |
+| 14 | MiniMax M3（OpenCode/go） | 54.1% | 41.0–65.6% | 59.8% | 0.187 | 6.7% | 28 |
+| 17 | Qwen3.6 Flash（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
+| 17 | Qwen3.7 Max（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
+| 17 | Gemini 3.6 Flash（Antigravity） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
+| 17 | Claude Haiku 4.5 | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
+| 17 | Big Pickle（OpenCode Zen, free） | 50.8% | 37.7–62.3% | 52.5% | — | 0.0% | 30 |
+| 17 | MiMo V2.5 Free（OpenCode Zen） | 50.8% | 37.7–62.3% | 57.4% | — | 0.0% | 30 |
 
-\* base+head 合算（副次トラック）で計算した値。head-onlyでの内訳はまだ計算していません（下記 Known limitations 参照）。
+参考: 122ケース全体（base+head）でのRandomベースライン（class-prior）は59.8%、Always PASS/Always FAIL/多数派クラスはいずれも50.0%です。下位6構成のAccuracy (base+head)（52.5〜57.4%）はこのRandomベースラインとほぼ区別がつきません。
 
-**完走できなかったもの**: `go/qwen3.8-max`（OpenCode/goゲートウェイ経由）は3回試行してもエンドポイント障害（連続リトライ、バックオフ最終30分超）から回復せず除外。ただし Alibaba Token Plan 経由の `alibaba-qwen3.8-max` は問題なく完走しています——同じモデルでもゲートウェイが違えば結果が違うことがある、という点も記録しておきます。`Laguna S 2.1 Free` は1コマンド実行後20分以上応答なしで停止したため除外。`Fable 5`（Claude Code サブエージェント経由）は利用クレジット切れで実行できず。無理に埋めていません。
+### なぜdev splitからtest splitに主結果を切り替えたか
 
-### 分解能の限界——特にAccuracy (head)は13ケースしかない
+以前このセクションはdev split（26ケース）の結果を主結果として掲載していました。しかし**Accuracy (head)はhead revisionのケースだけで計算する**ため、dev splitでの実際の分母は13ケースしかなく、取りうる値は1/13 ≈ 7.7ポイント刻み（14通り）でした。その結果、21構成中15構成が61.5%（8/13）にぴったり並ぶという事態になり、これはモデルの実力が拮抗していたからではなく、単に物差しの目盛りがそこにしかなかったからでした。
 
-dev splitは26ケースですが、**Accuracy (head)はhead revisionのケースだけで計算する**ため、実際の分母は13ケースです（13 PRクラスタ×2リビジョン=26、うちheadは半分）。正解数は0〜13の整数しか取れないので、取りうる値は **1/13 ≈ 7.7ポイント刻み**——14通りしかありません。以前この節は「26ケースだから約3.8ポイント刻み」と書いていましたが、それはbase+head合算（副次トラック、分母26）の話であって、主指標のAccuracy (head)には当てはまりません。誤りだったので訂正します。
-
-**Accuracy (head) では21構成中15構成が61.5%（8/13）にぴったり並んでいます**——これらのモデルが同じ性能だからではなく、この標本数・この分母では区別できる細かさがそれしかないからです。14通りしかない値に21構成を割り振れば、鳩の巣原理だけでもかなりの集中が起きます。同じスコアの並びを「横並びで実力伯仲」と読むのではなく、「この物差しの目盛りがそこにしかない」と読んでください。
-
-有意な差を測りたい、あるいはAccuracy (head)の分母そのものを増やしたい場合は、より大きな split で回してください（`--split test` で122ケース、head側はその半分程度）。
+test splitではAccuracy (head)の分母が61ケースになり、分解能は1/61 ≈ 1.6ポイント刻み（62通り）——約5倍細かくなります。上の表で見えるとおり、実際に順位が大きく開き、モデル間の差を意味のある形で観測できるようになりました。dev splitの結果（24構成中21構成完走）は [`data/raw-answers/`](./data/raw-answers/) に残しており、[Implementation-only diffでの結果](#implementation-only-diffでの結果)は引き続きdev splitのみで行っています（test splitでの再実行は未着手——[Known limitations](#known-limitations)参照）。
 
 ### 統計的に言えること・言えないこと
 
-ほとんどの差が **区別できません**。GLM-5.3とOpus 5の差 -7.7%は95%区間 -31.0%〜15.4%で、GLM-5.3とGLM-5.2の差もゼロを含みます。61.5%に並ぶ15構成は accuracy がすべて一致しており、この標本数ではもはや**同一の点としか言えません**。
+上位3構成（GLM-5.3・Hy3・Claude Opus 5）は互いに**統計的に区別できません**。3組すべてを対応比較（`pnpm benchmark compare`）したところ、いずれも95%区間がゼロを含みます:
 
-唯一、区別できた差が1つあります（base+head合算トラックでの対応比較）。**GLM-5.3 と Claude Haiku 4.5** — 対応比較で -34.6%、95%区間 **-61.5%〜-11.5%（ゼロを含まない）**。これだけは「たまたま」では説明できません。
+| 比較 | 差 | 95%区間 |
+|---|---|---|
+| GLM-5.3 − Hy3 | +0.8pt | -4.1%〜+5.7%（ゼロを含む） |
+| Hy3 − Claude Opus 5 | +5.7pt | -0.8%〜+12.3%（ゼロを含む） |
+| GLM-5.3 − Claude Opus 5 | +6.6pt | 0.0%〜+13.9%（ほぼゼロ） |
+
+一方、この上位クラスタと4位以下との境界は区別できます。**Claude Opus 5 と Grok 4.6**（3位と4位）の差は対応比較で +12.3pt、95%区間 **+1.6%〜+24.6%（ゼロを含まない）**。上位3構成が「団子状態」なのは偶然ではなく、そこから下は実際に差がある、と言えます。
 
 ### 一貫して出ている所見
 
-**FAIL recallが上位2件を除いて軒並み低い**（15.4%〜53.8%、大半は30.8%〜53.8%）ことと、**False PASSが5〜9件に集中している**（最低のQwen3.6 Flashのみ11件）ことです（いずれもbase+head合算の値）。gold FAIL 13件のうち、中位クラスタは8〜9件を「通る」と誤判定しています。これは運用上いちばん高くつく誤りの方向で、モデルの選択やプロンプトを変えてもこの帯から抜け出せていません。GLM-5.3だけがFAIL recall 84.6%・False PASS 2件と、この帯から明確に外れています——ただし前述の通り、Opus 5との差自体は統計的に有意ではありません。
+**FAIL recall (head)が下位6構成すべてでちょうど0.0%です**——Qwen3.6 Flash・Qwen3.7 Max・Gemini 3.6 Flash・Claude Haiku 4.5・Big Pickle・MiMo V2.5 Freeは、head revisionでgold FAILとラベル付けされた30ケースを**1件も正しく当てられていません**。全部PASSと予測しているわけではありません（Accuracy自体は50.8%で、PASSケースはそれなりに当てています）が、FAILを予測する能力そのものが機能していない、という状態です。これは運用上いちばん高くつく誤りの方向（実際は壊れているテストを「通る」と判定する）であり、下位クラスタに共通する明確な弱点です。
+
+上位側では**GLM-5.3のFAIL recall 93.3%・False PASS 2件**が際立っていますが、前述の通りHy3・Opus 5との差自体は統計的に有意ではありません。中間層でも、Cohere North Mini Code（13位、Accuracy (head) 55.7%）がFAIL recall 56.7%と、Accuracyでは上回る多くの構成より高いFAIL recallを示しているのは興味深い例外です——Accuracy順位だけを見るとFAIL検出力を見落とします。
+
 
 ## Implementation-only diffでの結果
 
@@ -372,7 +380,8 @@ pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split
 - **mockプロバイダのスループット表示は非現実的**です。mockはシミュレートしたレイテンシを報告する一方、実時間ではほとんどsleepしないため、`tests/minute` が数万になります。実プロバイダでは正しい値になります。
 - **データセットは148ケース / 71 PR クラスタ**です。スライスによっては n が小さく、区間が広くなります。UIは常に n と scope（データセット版・split）を併記します。
 - `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
-- **MCC・FAIL recall・False PASSはhead-onlyで再計算していません。** `headAccuracy` は主指標として追加しましたが、分類指標（MCC等）の内訳はまだbase+head合算のままです。head-onlyの分類指標が必要な場合は `pnpm benchmark show <runId>` の `slices` セクションの `revision` バケットを参照してください（そちらはhead単体の値を持っています）。
+- **MCC・FAIL recallのhead-only版は、test split（主結果）の表でのみ再計算しています。** `slices` の `revision`/`head` バケット（count・accuracy・falsePassCount・goldPassCount・goldFailCount）から混同行列を再構成して算出したもので、`run_metrics.metrics` に直接保存されているわけではありません。dev splitの表とImplementation-only diffの表は、引き続きbase+head合算の値のままです。
+- **Implementation-only diffトラックはtest splitで再実行していません。** dev split（26ケース）の結果のみが存在します。test splitでの抜け道検証は未着手です。
 - **gold provenanceは現状すべてOSSの記録から再構築したもの**です（`CI_EXECUTED`/`HUMAN_EXECUTED` は0件）。「このベンチマーク自身が実行して確認した」トラックはまだ存在しません。
 - **gold ラベルの正しさは機械検証できません。** `pnpm verify:dataset` が保証するのはPR・コミット・diff・根拠パスが上流と一致することまでで、「そのテストが本当にそのリビジョンでFAILするか」は含みません。実際、抜き取りで実行検証したところ1件（`rg_0011`/`rg_0012`）で参照PRの誤りが見つかりました（[data/CORRECTIONS.md](./data/CORRECTIONS.md)）。同種の誤りが残っている可能性は排除できません。
 - **15 PR（30ケース）で `baseSha` は `headSha` の親ではありません。** GitHubのPRの `base` はマージベースではなくベースブランチ先端なので、base と head の差にはそのPR以外のコミットも含まれます。`pnpm verify:dataset` が `REVISIONS_DIFFER_BEYOND_PR` として一覧します。
