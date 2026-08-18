@@ -7,6 +7,7 @@ import {
 } from '@tob/core';
 import { Heatmap } from './Heatmap';
 import { Bar, Empty, Note } from './Stat';
+import { StrategyTabs } from './StrategyTabs';
 import { millis, money, percent, score } from '@/lib/format';
 import type { LeaderboardMetric, RunSummary } from '@tob/core';
 
@@ -103,67 +104,30 @@ function Ranking({
 }
 
 /**
- * A model ranking is only meaningful with the prompt and context held fixed,
- * and vice versa. Rather than silently mixing configurations, each ranking
- * states the slice it holds constant.
+ * The rankings for one context strategy — everything below the strategy
+ * tabs. Computed entirely on the server (it needs @tob/core, which pulls in
+ * node:crypto and cannot be bundled for the browser); StrategyTabs only
+ * switches which already-rendered panel is visible.
  */
-export function LeaderboardView({
+function StrategyPanel({
   summaries,
   metric,
 }: {
   summaries: readonly RunSummary[];
   metric: LeaderboardMetric;
 }) {
-  if (summaries.length === 0) {
-    return (
-      <>
-        <h1>Leaderboards</h1>
-        <Empty>No completed formal benchmark runs yet.</Empty>
-      </>
-    );
-  }
-
   const anchorPrompt = commonest(summaries.map((summary) => summary.promptId));
   const anchorModel = commonest(summaries.map((summary) => summary.modelConfigId));
-  const anchorStrategy = commonest(summaries.map((summary) => summary.contextStrategy));
 
-  const modelRanking = summaries.filter(
-    (summary) => summary.promptId === anchorPrompt && summary.contextStrategy === anchorStrategy,
-  );
-  const promptRanking = summaries.filter(
-    (summary) =>
-      summary.modelConfigId === anchorModel && summary.contextStrategy === anchorStrategy,
-  );
+  const modelRanking = summaries.filter((summary) => summary.promptId === anchorPrompt);
+  const promptRanking = summaries.filter((summary) => summary.modelConfigId === anchorModel);
 
   const promptAnchor = modelRanking[0];
   const modelAnchor = promptRanking[0];
+  const strategy = summaries[0]?.contextStrategy ?? '';
 
   return (
     <>
-      <h1>Leaderboards</h1>
-      <p className="lede">Rank by any metric. Each ranking states what it holds fixed.</p>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
-        {LEADERBOARD_METRICS.map((item) => (
-          <Link
-            key={item}
-            href={`/leaderboard/${item}`}
-            className="pill"
-            style={
-              item === metric
-                ? {
-                    background: 'var(--accent-soft)',
-                    color: 'var(--accent)',
-                    borderColor: 'transparent',
-                  }
-                : undefined
-            }
-          >
-            {METRIC_DESCRIPTORS[item].label}
-          </Link>
-        ))}
-      </div>
-
       <Ranking
         title="Configuration ranking"
         explanation="Every completed run: model, prompt, inference settings and context strategy together."
@@ -200,11 +164,83 @@ export function LeaderboardView({
 
       <h2>Model × prompt</h2>
       <p className="lede">
-        {METRIC_DESCRIPTORS[metric].label} for each pairing. Where a pairing was run more than once,
-        the most recent run is shown — cells can come from different dataset versions or splits,
-        unlike the rankings above which hold that fixed.
+        {METRIC_DESCRIPTORS[metric].label} for each pairing on the {strategy} track. Where a
+        pairing was run more than once, the most recent run is shown.
       </p>
       <Heatmap matrix={buildModelPromptMatrix(summaries, metric)} />
+    </>
+  );
+}
+
+/**
+ * A model ranking is only meaningful with the prompt and context held fixed,
+ * and vice versa. Rather than silently mixing configurations, each ranking
+ * states the slice it holds constant. A run scored on a different context
+ * strategy (e.g. implementation-only-diff vs. the full diff) answered a
+ * different question, so it gets its own tab rather than a mixed table.
+ */
+export function LeaderboardView({
+  summaries,
+  metric,
+}: {
+  summaries: readonly RunSummary[];
+  metric: LeaderboardMetric;
+}) {
+  if (summaries.length === 0) {
+    return (
+      <>
+        <h1>Leaderboards</h1>
+        <Empty>No completed formal benchmark runs yet.</Empty>
+      </>
+    );
+  }
+
+  const strategies = [...new Set(summaries.map((summary) => summary.contextStrategy))].sort();
+  /** summaries is non-empty here, so commonest always finds a value. */
+  const dominantStrategy = commonest(summaries.map((summary) => summary.contextStrategy))!;
+
+  const panels = Object.fromEntries(
+    strategies.map((strategy) => [
+      strategy,
+      <StrategyPanel
+        key={strategy}
+        summaries={summaries.filter((summary) => summary.contextStrategy === strategy)}
+        metric={metric}
+      />,
+    ]),
+  );
+
+  return (
+    <>
+      <h1>Leaderboards</h1>
+      <p className="lede">Rank by any metric. Each ranking states what it holds fixed.</p>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
+        {LEADERBOARD_METRICS.map((item) => (
+          <Link
+            key={item}
+            href={`/leaderboard/${item}`}
+            className="pill"
+            style={
+              item === metric
+                ? {
+                    background: 'var(--accent-soft)',
+                    color: 'var(--accent)',
+                    borderColor: 'transparent',
+                  }
+                : undefined
+            }
+          >
+            {METRIC_DESCRIPTORS[item].label}
+          </Link>
+        ))}
+      </div>
+
+      {strategies.length > 1 ? (
+        <StrategyTabs strategies={strategies} defaultStrategy={dominantStrategy} panels={panels} />
+      ) : (
+        panels[dominantStrategy]
+      )}
 
       <Note>
         A ranking is a starting point, not a verdict. Check the confidence interval on a run before
