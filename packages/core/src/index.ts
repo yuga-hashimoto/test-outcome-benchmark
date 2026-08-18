@@ -23,6 +23,7 @@ export * from './parse/prediction-output';
 
 export * from './schema/case';
 export * from './schema/dataset-integrity';
+export * from './schema/provenance-check';
 
 export * from './scoring/aggregate';
 export * from './scoring/baselines';

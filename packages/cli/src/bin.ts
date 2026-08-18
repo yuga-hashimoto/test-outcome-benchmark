@@ -30,6 +30,7 @@ import { fail, withDatabase } from './context';
 import { registerExternalCommands } from './commands/external';
 import { registerHumanCommand } from './commands/human';
 import { registerSweepCommand } from './commands/sweep';
+import { registerVerifyDatasetCommand } from './commands/verify-dataset';
 import { heading, interval, percent, score, table } from './format';
 import { loadCaseFiles, seedDatabase } from './seed';
 import { renderRunReport } from './report';
@@ -532,6 +533,7 @@ program
 registerSweepCommand(program, dbPath);
 registerExternalCommands(program, dbPath);
 registerHumanCommand(program, dbPath);
+registerVerifyDatasetCommand(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   fail(error instanceof Error ? error.message : String(error));
