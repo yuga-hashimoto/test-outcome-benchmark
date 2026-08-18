@@ -61,10 +61,47 @@ gold ラベルはリポジトリ自身の証拠に基づきます。ケースは
 |---|---|---|
 | `CI_EXECUTED` | このベンチマークのパイプライン自身がCIで実行し観測した | 0（未着手のトラック向け） |
 | `HUMAN_EXECUTED` | 人間が実際に実行して観測した | 0（未着手のトラック向け） |
-| `REPRODUCED` | PRが追加・変更した具体的なテストファイルを根拠として引用できる | 100 |
-| `HISTORICAL_EVIDENCE` | Issue・後続PRの記述など、具体的なテストファイルなしに推論した | 48 |
+| `REPRODUCED` | PRが追加・変更した具体的なテストファイルを根拠として引用できる | 98 |
+| `HISTORICAL_EVIDENCE` | Issue・後続PRの記述など、具体的なテストファイルなしに推論した | 50 |
 
 `CI_EXECUTED`/`HUMAN_EXECUTED` は現状0件です。これは意図的な区分であり、将来的にこのベンチマーク自身が実行して確認した「Real Execution Track」を追加する余地として予約してあります。今公開しているのは、その全体が「OSS Public Track」（PRの記録から再構築したラベル）だという意味です。
+
+### データが上流と一致しているかの検証
+
+「そのPRは実在するのか」「そのdiffは本当にそのPRのものか」は機械的に検証できます。`pnpm verify:dataset` が148ケース全部を
+上流のGitHubリポジトリと突き合わせます（ネットワークが必要なので `pnpm test` には含めていません）。
+
+```bash
+pnpm verify:dataset                      # 148ケース / 74 PR を全部チェック
+pnpm verify:dataset --only js_0001,js_0002 --json report.json
+```
+
+チェック内容と、直近の実行結果（**errors 0 / warnings 30**）:
+
+| チェック | 結果 |
+|---|---|
+| `baseSha` / `headSha` が上流で解決するか | 148/148 解決 |
+| `refs/pull/<番号>/head` が `headSha` と一致するか（PRとケースの紐付け） | 74/74 一致 |
+| 保存されたdiffが上流のdiffの忠実な部分集合か（ファイル単位の増減行数まで比較） | 148/148 一致 |
+| `provenance.evidenceTestFile` が実在するパスか | 98/98 解決 |
+| `baseSha` が `headSha` の親か | 15 PR（30ケース）で親ではない → warning |
+
+最後の警告（`REVISIONS_DIFFER_BEYOND_PR`）はGitHubのPRの `base` の定義そのものに由来します。`base` はマージベースではなく
+ベースブランチの先端なので、ブランチを切ったのが古いPRでは base と head が当該PR以外のコミット分も違います
+（最大は dotnet/runtime のケースで4292ファイル）。モデルに見せているdiffはそのPR自身の変更で、baseは実在するリビジョンなので
+「PR適用前のコード」という提示は正しいままですが、baseとheadの差がPR1件分とは限らないことは知っておいてください。
+
+**このコマンドが検証しないもの**: gold ラベルそのものの正しさです。ラベルが本当に正しいかは実際に動かすしかなく、
+実際にやってみると誤りが見つかります（[data/CORRECTIONS.md](./data/CORRECTIONS.md)）。例えば express のケースは、
+qsを実際に実行した結果 gold FAIL が誤りだと判明し、本当に壊したPRに付け替えました。手で実行して確認した抜き取り検査は以下:
+
+| ケース | 確認方法 | 結果 |
+|---|---|---|
+| `js_0001` / `js_0002`（dayjs） | 両リビジョンをbundleして `format('Y')` を実行 | base `+0000`（FAIL）/ head `Y`（PASS）— gold通り |
+| `py_0001` / `py_0002`（httpx） | `NO_PROXY='::1'` で両リビジョンの `httpx.Client()` を実行 | base で `InvalidURL`（FAIL）/ head 成功（PASS）— gold通り |
+| `kb_0005` / `kb_0006`（afero） | head の `MemMapFs.Remove` の実装を読む | 非空ディレクトリを検査せず削除（FAIL）— gold通り |
+| `kb_0009` / `kb_00010`（arrow） | head をチェックアウトして DST 跨ぎの `shift(hours=10)` を実行 | `04:30-05:00`（期待は `05:30`）→ FAIL — gold通り |
+| `rg_0011` / `rg_0012`（express） | qs 6.13.0 / 6.14.0 / 6.14.2 を実際に `parse` | **gold誤り**を検出、参照PRを訂正 |
 
 ## Primary track: head-only accuracy
 
@@ -218,6 +255,7 @@ pnpm benchmark resume <runId>
 pnpm benchmark runs | show <runId>
 pnpm benchmark compare <baselineRunId> <candidateRunId>
 pnpm benchmark leaderboard [--metric headAccuracy|accuracy|failRecall|flipPairAccuracy|costPerTest|...] [--include-mocks]
+pnpm benchmark verify-dataset [--only <ids>] [--json <path>]   # 上流GitHubとの突き合わせ
 ```
 
 `--metric` の既定値は `headAccuracy`（primary track）です。`accuracy` はbase+head合算（副次トラック）を指します。
@@ -300,10 +338,11 @@ pnpm site:serve    # 出力をローカルで確認
 ## Testing
 
 ```bash
-pnpm test          # 269 tests
+pnpm test          # 284 tests
 pnpm coverage
 pnpm typecheck
 pnpm build
+pnpm verify:dataset  # データセットを上流GitHubと突き合わせる（ネットワーク必須・数分かかる）
 ```
 
 スコアリングは手計算できる値のゴールデンfixtureで検証しています（例: ECE = (0.6+0.3+0.8+0.1)/4 = 0.45）。ランナーは in-memory SQLite + mockアダプタでフル実行・再開・キャンセル・リトライ・goldリークを検証します。`import-run` の未回答ケース処理・headAccuracyの分母・IMPLEMENTATION_ONLY_DIFFのテストファイル除去は、それぞれ専用のゴールデンケースで検証しています。
@@ -330,6 +369,8 @@ pnpm benchmark import-run --model claude-haiku-4.5 --prompt reasoning-v1 --split
 - `REPOSITORY_AGENT` コンテキスト戦略は入力の構築のみ実装されています。実際の静的リポジトリ探索にはツール使用に対応したアダプタが必要です。
 - **MCC・FAIL recall・False PASSはhead-onlyで再計算していません。** `headAccuracy` は主指標として追加しましたが、分類指標（MCC等）の内訳はまだbase+head合算のままです。head-onlyの分類指標が必要な場合は `pnpm benchmark show <runId>` の `slices` セクションの `revision` バケットを参照してください（そちらはhead単体の値を持っています）。
 - **gold provenanceは現状すべてOSSの記録から再構築したもの**です（`CI_EXECUTED`/`HUMAN_EXECUTED` は0件）。「このベンチマーク自身が実行して確認した」トラックはまだ存在しません。
+- **gold ラベルの正しさは機械検証できません。** `pnpm verify:dataset` が保証するのはPR・コミット・diff・根拠パスが上流と一致することまでで、「そのテストが本当にそのリビジョンでFAILするか」は含みません。実際、抜き取りで実行検証したところ1件（`rg_0011`/`rg_0012`）で参照PRの誤りが見つかりました（[data/CORRECTIONS.md](./data/CORRECTIONS.md)）。同種の誤りが残っている可能性は排除できません。
+- **15 PR（30ケース）で `baseSha` は `headSha` の親ではありません。** GitHubのPRの `base` はマージベースではなくベースブランチ先端なので、base と head の差にはそのPR以外のコミットも含まれます。`pnpm verify:dataset` が `REVISIONS_DIFFER_BEYOND_PR` として一覧します。
 - **テストファイル判定はヒューリスティックです。** ディレクトリ名・ファイル名の命名規則に基づく推定であり、リポジトリ独自の変則的な命名規則（例: スナップショット形式のfixtureファイル）は捕捉できないことがあります。
 - **implementation-only-diffトラックでの通常diffトラックとの差は、いずれも統計的に有意ではありません。** n=26では点推定の変化が大きく見えても対応比較の95%区間がゼロを含むことが多く、「テストを除去したら精度が落ちた/上がった」という言説は方向性の示唆であって確証ではありません（詳細は上記「Implementation-only diffでの結果」）。
 - **`opencode-zen-mimo-v2.5-free` はimplementation-only-diffトラックを完走できませんでした。** ハーネスセッションが応答なしで15分以上停止したため除外しています。通常diffトラックでは同モデルは完走しています。
