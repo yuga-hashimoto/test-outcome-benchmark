@@ -19,7 +19,7 @@ One file per model configuration, named `<model-config-name>.jsonl` — the
 same name shown in the CLI (`benchmark models`) and the `model` column in the
 database. Each line is one `{ caseId, repetition, verdict, confidence,
 reason }` record, in the shape `export-cases` produced and `import-run`
-consumes. All 18 files answer the same 26-case `dev` split with prompt
+consumes. All 21 files answer the same 26-case `dev` split with prompt
 `reasoning-v1` and context strategy `TEST_PLUS_TITLE_DESCRIPTION_DIFF`.
 
 ## Reproducing a run
@@ -44,6 +44,7 @@ Every harness answering these cases was instructed not to look anything up:
 no `gh`, no web search, no browsing the source repository, no running the
 actual test. The question posed to the model was exactly the exported
 prompt — test case plus PR title/description/diff — and nothing else. This
-is recorded here as a fact about how the data was produced; the run
-snapshot in the database does not yet capture harness instructions or tool
-policy as a structured field (tracked as follow-up work).
+is recorded here as a fact about how the data was produced, and also
+structurally on each run's snapshot (`harnessConditions`: tool, tool policy,
+instructions) — set with `--harness-tool`/`--harness-policy`/
+`--harness-instructions` on `import-run`.
