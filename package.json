@@ -16,6 +16,7 @@
     "seed": "tsx packages/cli/src/bin.ts seed",
     "seed:dev": "tsx packages/cli/src/bin.ts seed --with-mocks",
     "db:migrate": "tsx packages/cli/src/bin.ts db migrate",
+    "verify:dataset": "tsx packages/cli/src/bin.ts verify-dataset",
     "dev": "pnpm --filter @tob/web dev",
     "build": "pnpm --filter @tob/web build",
     "lint": "tsc -p tsconfig.json --noEmit",

@@ -27,3 +27,6 @@ next-env.d.ts
 
 # Static export output (regenerate with `pnpm site`)
 out/
+
+# Shallow mirrors used by `pnpm verify:dataset`
+.cache/
