@@ -32,7 +32,7 @@ One file per model configuration, named `<model-config-name>.jsonl` — the
 same name shown in the CLI (`benchmark model list`) and the `model` column
 in the database. Each line is one `{ caseId, verdict, confidence, reason }`
 record, in the shape `export-cases` produced and `import-run` consumes. All
-22 files answer the same 122-case `test` split with prompt `reasoning-v1`
+23 files answer the same 122-case `test` split with prompt `reasoning-v1`
 and context strategy `TEST_PLUS_TITLE_DESCRIPTION_DIFF`.
 
 ## Reproducing a run
@@ -94,6 +94,33 @@ excluded and are not on the leaderboard for the `test` split (or anywhere):
 
 None of these are silently dropped — they're recorded here, and the models
 that did complete (`antigravity-gemini-3.6-flash`,
-`antigravity-gemini-3.7-flash`, `openrouter-cohere-north-mini-code`) are on
-the leaderboard alongside the models carried over from the `dev`-split
-round.
+`antigravity-gemini-3.7-flash`, `openrouter-cohere-north-mini-code`,
+`opencode-go-ox-alpha-free`) are on the leaderboard alongside the models
+carried over from the `dev`-split round.
+
+## A model added later that stalled twice before succeeding
+
+`opencode-go-ox-alpha-free.jsonl` was added in a follow-up round, after the
+rest of this directory was already committed. It took three attempts:
+
+1. **First attempt**: stalled at 10/122 — the harness's own pane output
+   froze completely (identical byte-for-byte across repeated checks, `Esc`
+   produced no response) with the process consuming almost no CPU relative
+   to wall-clock time, consistent with a hung network call that never
+   returned.
+2. **Second attempt** (resumed from the 10 completed cases): made real
+   further progress to 26/122, then stalled the same way.
+3. **Third attempt** (resumed from the 26 completed cases, after the git
+   worktree this session was using got recycled to a new path — which also
+   exposed and required fixing a stale working-directory bug in the local
+   CAO orchestrator process): reached 122/122 cleanly. The prompt for this
+   attempt added an explicit instruction to answer cases one at a time
+   without building intermediate batch-processing tooling, which the first
+   two attempts had both drifted into shortly before stalling — plausibly
+   related, though not confirmed as the actual root cause.
+
+The final file passed the same validation as every other file here (all
+122 caseIds present exactly once, no duplicates, no malformed lines, 122
+distinct reason strings, 18 distinct confidence values) before import.
+Nothing about the two earlier stalls affected the data actually imported —
+those partial files were never scored and are not part of this directory.

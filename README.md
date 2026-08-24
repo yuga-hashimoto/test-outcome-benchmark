@@ -128,7 +128,7 @@ pnpm benchmark run --model my-model --prompt reasoning-v1 --strategy IMPLEMENTAT
 
 test split（**122ケース / 61 PRクラスタ、head側61ケース**）を `reasoning-v1` / `TEST_PLUS_TITLE_DESCRIPTION_DIFF` で解かせた結果です。モデルはエージェントハーネス経由で駆動し、PRの参照は禁じています（[方法](#measuring-a-model-through-an-agent-harness)）。これが現在の主結果です——理由は次の節で説明しますが、要するに26ケースのdev splitではAccuracy (head)の分母が13ケースしかなく、モデル間の実力差を見分けるだけの分解能がありませんでした。test splitでは分母が61ケースになり、分解能が約5倍細かくなります。
 
-22構成が完走しました。生の回答は [`data/raw-answers-test/`](./data/raw-answers-test/) にモデルごとにJSONLで残っており、誰でも同じ結果を再現できます。この回にだけ挑戦して完走できなかった構成（nvidiaゲートウェイの複数モデル、Antigravity経由のGemini 2構成、レート制限が解消しなかったOpenRouterの無料モデル、出力が壊れていたと判明した2構成）は [`data/raw-answers-test/README.md`](./data/raw-answers-test/README.md) に理由付きで記録しています。
+23構成が完走しました。生の回答は [`data/raw-answers-test/`](./data/raw-answers-test/) にモデルごとにJSONLで残っており、誰でも同じ結果を再現できます。この回にだけ挑戦して完走できなかった構成（nvidiaゲートウェイの複数モデル、Antigravity経由のGemini 2構成、レート制限が解消しなかったOpenRouterの無料モデル、出力が壊れていたと判明した2構成）は [`data/raw-answers-test/README.md`](./data/raw-answers-test/README.md) に理由付きで記録しています。`opencode-go/ox-alpha-free` は後日追加した構成で、ハーネスセッションが2回連続で完全にハング（ペイン出力が凍結、Escも無反応）して10件・26件で止まりましたが、3回目の試行で（ケース単位で処理させ、バッチ的な前処理をさせない指示に変更した上で）122件を完走しています——このセッションの経緯も同じREADMEに記録しています。
 
 主指標である **Accuracy (head)** で並べています。MCC・FAIL recallは今回からhead-onlyで計算しています（revisionスライスの混同行列を再構成——[Known limitations](#known-limitations)参照）。
 
@@ -138,24 +138,25 @@ test split（**122ケース / 61 PRクラスタ、head側61ケース**）を `re
 | 2 | Hy3（OpenCode/go） | 93.4% | 86.9–98.4% | 95.1% | 0.876 | 86.7% | 4 |
 | 3 | Claude Opus 5 | 86.9% | 78.7–95.1% | 89.3% | 0.752 | 76.7% | 7 |
 | 4 | Grok 4.6（xAI） | 75.4% | 63.9–85.2% | 77.0% | 0.580 | 50.0% | 15 |
-| 5 | GLM-5.2（Z.AI） | 67.2% | 54.1–78.7% | 71.3% | 0.421 | 36.7% | 19 |
-| 6 | DeepSeek V4 Flash（OpenCode/go） | 65.6% | 52.5–77.0% | 67.2% | 0.423 | 30.0% | 21 |
-| 7 | Kimi K3（OpenCode/go） | 63.9% | 50.8–75.4% | 66.4% | 0.395 | 26.7% | 22 |
-| 8 | DeepSeek V4 Pro（OpenCode/go） | 62.3% | 49.2–73.8% | 64.8% | 0.366 | 23.3% | 23 |
-| 8 | DeepSeek V4 Flash Free（OpenCode Zen） | 62.3% | 49.2–73.8% | 65.6% | 0.366 | 23.3% | 23 |
-| 10 | Qwen3.8 Max（Alibaba Token Plan） | 60.7% | 47.5–72.1% | 64.8% | 0.336 | 20.0% | 24 |
-| 10 | Claude Sonnet 5 | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
-| 10 | Hy3 Free（OpenCode Zen） | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
-| 13 | Cohere North Mini Code（OpenRouter, free） | 55.7% | 42.6–67.2% | 59.0% | 0.115 | 56.7% | 13 |
-| 14 | Gemini 3.7 Flash（Antigravity） | 54.1% | 41.0–65.6% | 62.3% | 0.187 | 6.7% | 28 |
-| 14 | GPT-5.6 Luna（OpenCode/go） | 54.1% | 41.0–65.6% | 58.2% | 0.187 | 6.7% | 28 |
-| 14 | MiniMax M3（OpenCode/go） | 54.1% | 41.0–65.6% | 59.8% | 0.187 | 6.7% | 28 |
-| 17 | Qwen3.6 Flash（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
-| 17 | Qwen3.7 Max（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
-| 17 | Gemini 3.6 Flash（Antigravity） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
-| 17 | Claude Haiku 4.5 | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
-| 17 | Big Pickle（OpenCode Zen, free） | 50.8% | 37.7–62.3% | 52.5% | — | 0.0% | 30 |
-| 17 | MiMo V2.5 Free（OpenCode Zen） | 50.8% | 37.7–62.3% | 57.4% | — | 0.0% | 30 |
+| 5 | Ox Alpha Free（OpenCode/go） | 70.5% | 59.0–80.4% | 72.1% | 0.477 | 43.3% | 17 |
+| 6 | GLM-5.2（Z.AI） | 67.2% | 54.1–78.7% | 71.3% | 0.421 | 36.7% | 19 |
+| 7 | DeepSeek V4 Flash（OpenCode/go） | 65.6% | 52.5–77.0% | 67.2% | 0.423 | 30.0% | 21 |
+| 8 | Kimi K3（OpenCode/go） | 63.9% | 50.8–75.4% | 66.4% | 0.395 | 26.7% | 22 |
+| 9 | DeepSeek V4 Pro（OpenCode/go） | 62.3% | 49.2–73.8% | 64.8% | 0.366 | 23.3% | 23 |
+| 9 | DeepSeek V4 Flash Free（OpenCode Zen） | 62.3% | 49.2–73.8% | 65.6% | 0.366 | 23.3% | 23 |
+| 11 | Qwen3.8 Max（Alibaba Token Plan） | 60.7% | 47.5–72.1% | 64.8% | 0.336 | 20.0% | 24 |
+| 11 | Claude Sonnet 5 | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
+| 11 | Hy3 Free（OpenCode Zen） | 60.7% | 47.5–72.1% | 63.9% | 0.336 | 20.0% | 24 |
+| 14 | Cohere North Mini Code（OpenRouter, free） | 55.7% | 42.6–67.2% | 59.0% | 0.115 | 56.7% | 13 |
+| 15 | Gemini 3.7 Flash（Antigravity） | 54.1% | 41.0–65.6% | 62.3% | 0.187 | 6.7% | 28 |
+| 15 | GPT-5.6 Luna（OpenCode/go） | 54.1% | 41.0–65.6% | 58.2% | 0.187 | 6.7% | 28 |
+| 15 | MiniMax M3（OpenCode/go） | 54.1% | 41.0–65.6% | 59.8% | 0.187 | 6.7% | 28 |
+| 18 | Qwen3.6 Flash（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
+| 18 | Qwen3.7 Max（Alibaba Token Plan） | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
+| 18 | Gemini 3.6 Flash（Antigravity） | 50.8% | 37.7–62.3% | 56.6% | — | 0.0% | 30 |
+| 18 | Claude Haiku 4.5 | 50.8% | 37.7–62.3% | 55.7% | — | 0.0% | 30 |
+| 18 | Big Pickle（OpenCode Zen, free） | 50.8% | 37.7–62.3% | 52.5% | — | 0.0% | 30 |
+| 18 | MiMo V2.5 Free（OpenCode Zen） | 50.8% | 37.7–62.3% | 57.4% | — | 0.0% | 30 |
 
 参考: 122ケース全体（base+head）でのRandomベースライン（class-prior）は59.8%、Always PASS/Always FAIL/多数派クラスはいずれも50.0%です。下位6構成のAccuracy (base+head)（52.5〜57.4%）はこのRandomベースラインとほぼ区別がつきません。
 
